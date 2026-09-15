@@ -12,11 +12,113 @@ permissions:
   contents: write
 
 jobs:
+  desktop-windows:
+    if: >-
+      github.ref_type == 'tag' ||
+      github.event_name == 'workflow_dispatch' ||
+      startsWith(github.event.head_commit.message, 'release: publish')
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v7
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v6
+
+      - name: Setup Node
+        uses: actions/setup-node@v7
+        with:
+          node-version-file: '.nvmrc'
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile --prefer-offline
+
+      - name: Build and bundle desktop Node bridges
+        shell: pwsh
+        run: |
+          pnpm -F @superpower/mcp-host build
+          New-Item -ItemType Directory -Force desktop/qt/package/bridge | Out-Null
+
+          $body = 'desktop/qt/package/bridge/superpower-host.body.mjs'
+          $bundle = 'desktop/qt/package/bridge/superpower-host.mjs'
+          pnpm exec esbuild packages/mcp-host/src/cli.ts --bundle --platform=node --format=esm --target=node22 --outfile=$body
+          $bodyText = Get-Content -Path $body -Raw
+          if ($bodyText.StartsWith('#!')) {
+            $firstNewline = $bodyText.IndexOf("`n")
+            if ($firstNewline -ge 0) { $bodyText = $bodyText.Substring($firstNewline + 1) }
+          }
+          $shim = 'import { createRequire } from "node:module"; const require = createRequire(import.meta.url);'
+          $bundleText = "#!/usr/bin/env node`n$shim`n$bodyText"
+          Set-Content -Path $bundle -Value $bundleText -Encoding utf8NoBOM -NoNewline
+          Remove-Item $body
+
+          $conversationBundle = 'desktop/qt/package/bridge/superpower-conversation.mjs'
+          pnpm exec esbuild packages/mcp-host/src/conversation-relay.ts --bundle --platform=node --format=esm --target=node22 --outfile=$conversationBundle
+
+          node $bundle --help | Select-String 'Superpower MCP Host'
+          if (!(Test-Path $conversationBundle)) { throw 'Conversation relay bundle is missing.' }
+
+      - name: Install Qt 6.8.3
+        shell: pwsh
+        run: |
+          python -m pip install --disable-pip-version-check aqtinstall
+          python -m aqt install-qt windows desktop 6.8.3 win64_msvc2022_64 -O C:/Qt
+
+      - name: Configure Superpower Desktop
+        shell: pwsh
+        run: cmake -S desktop/qt -B desktop/qt/build-windows -DCMAKE_PREFIX_PATH=C:/Qt/6.8.3/msvc2022_64
+
+      - name: Build Superpower Desktop
+        shell: pwsh
+        run: cmake --build desktop/qt/build-windows --config Release --parallel 2
+
+      - name: Assemble portable Windows package
+        shell: pwsh
+        run: |
+          $package = Join-Path $PWD 'desktop/qt/package'
+          $exe = Join-Path $PWD 'desktop/qt/build-windows/Release/Superpower Desktop.exe'
+          Copy-Item $exe (Join-Path $package 'Superpower Desktop.exe') -Force
+          Copy-Item 'desktop/qt/windows/README.txt' (Join-Path $package 'README.txt') -Force
+
+          $qtBin = 'C:/Qt/6.8.3/msvc2022_64/bin'
+          & "$qtBin/windeployqt.exe" --release --compiler-runtime --no-translations (Join-Path $package 'Superpower Desktop.exe')
+          if ($LASTEXITCODE -ne 0) { throw 'windeployqt failed.' }
+
+          $nodeVersion = (Get-Content '.nvmrc' -Raw).Trim()
+          $nodeZip = Join-Path $env:RUNNER_TEMP "node-v$nodeVersion-win-x64.zip"
+          $nodeDir = Join-Path $env:RUNNER_TEMP "node-v$nodeVersion-win-x64"
+          Invoke-WebRequest "https://nodejs.org/dist/v$nodeVersion/node-v$nodeVersion-win-x64.zip" -OutFile $nodeZip
+          Expand-Archive $nodeZip -DestinationPath $env:RUNNER_TEMP -Force
+          $runtime = Join-Path $package 'runtime'
+          New-Item -ItemType Directory -Force $runtime | Out-Null
+          Copy-Item (Join-Path $nodeDir '*') $runtime -Recurse -Force
+
+          & (Join-Path $runtime 'node.exe') (Join-Path $package 'bridge/superpower-host.mjs') --help | Select-String 'Superpower MCP Host'
+          if (!(Test-Path (Join-Path $runtime 'npx.cmd'))) { throw 'Bundled Node runtime is missing npx.cmd.' }
+          if (!(Test-Path (Join-Path $package 'Qt6Core.dll'))) { throw 'Qt runtime deployment is incomplete.' }
+          if (!(Test-Path (Join-Path $package 'platforms/qwindows.dll'))) { throw 'Qt Windows platform plugin is missing.' }
+          if (!(Test-Path (Join-Path $package 'bridge/superpower-host.mjs'))) { throw 'MCP host bridge is missing.' }
+          if (!(Test-Path (Join-Path $package 'bridge/superpower-conversation.mjs'))) { throw 'Conversation relay is missing.' }
+
+          $zip = Join-Path $PWD 'desktop/qt/Superpower-Desktop-Windows-x64.zip'
+          Compress-Archive -Path "$package/*" -DestinationPath $zip -Force
+
+      - name: Upload desktop release artifact
+        uses: actions/upload-artifact@v7
+        with:
+          name: superpower-desktop-release
+          path: desktop/qt/Superpower-Desktop-Windows-x64.zip
+          if-no-files-found: error
+          retention-days: 7
+
   release:
     if: >-
       github.ref_type == 'tag' ||
       github.event_name == 'workflow_dispatch' ||
       startsWith(github.event.head_commit.message, 'release: publish')
+    needs: desktop-windows
     runs-on: ubuntu-latest
 
     steps:
@@ -68,7 +170,7 @@ jobs:
             exit 1
           fi
 
-      - name: Prepare release package
+      - name: Prepare browser extension release package
         shell: bash
         run: |
           VERSION='${{ steps.version.outputs.version }}'
@@ -83,7 +185,20 @@ jobs:
 
           cd release
           zip -r "Superpower-${VERSION}-Windows.zip" "Superpower-${VERSION}"
-          sha256sum "Superpower-${VERSION}-Windows.zip" > SHA256SUMS
+
+      - name: Download Windows Desktop package
+        uses: actions/download-artifact@v7
+        with:
+          name: superpower-desktop-release
+          path: release/desktop
+
+      - name: Finalize release assets and checksums
+        shell: bash
+        run: |
+          VERSION='${{ steps.version.outputs.version }}'
+          mv release/desktop/Superpower-Desktop-Windows-x64.zip "release/Superpower-Desktop-${VERSION}-Windows-x64.zip"
+          cd release
+          sha256sum "Superpower-${VERSION}-Windows.zip" "Superpower-Desktop-${VERSION}-Windows-x64.zip" > SHA256SUMS
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
@@ -95,6 +210,7 @@ jobs:
           make_latest: true
           files: |
             release/Superpower-${{ steps.version.outputs.version }}-Windows.zip
+            release/Superpower-Desktop-${{ steps.version.outputs.version }}-Windows-x64.zip
             release/SHA256SUMS
             Install-Superpower.cmd
             DIY-Install-Superpower.ps1

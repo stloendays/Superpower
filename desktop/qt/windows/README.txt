@@ -7,13 +7,23 @@ This folder is self-contained for the Superpower desktop shell itself:
 - Qt 6 runtime files and Windows platform plugin
 - a portable Node distribution under runtime/ (node, npm, npx)
 - bridge/superpower-host.mjs
+- bridge/superpower-conversation.mjs
 
 Launch
 ------
 
 Double-click "Superpower Desktop.exe".
 
-The app automatically detects the bundled Node runtime and MCP host bridge. No Qt or Node installation is required.
+The app automatically detects the bundled Node runtime, MCP host bridge, and local conversation relay. No Qt or Node installation is required.
+
+Conversation
+------------
+
+The Conversation panel listens on the local loopback interface and can receive live ChatGPT browser text as soon as Superpower Desktop starts. An MCP server connection is not required for browser conversation sync.
+
+Use View > Conversation or Ctrl+Shift+C to show or hide the docked Conversation panel.
+
+Conversation text stays in desktop session memory and is not persisted by the desktop shell. The local relay binds only to 127.0.0.1.
 
 Connections
 -----------
@@ -37,6 +47,6 @@ Security
 
 Guarded mode is the default. High/critical tool calls require explicit confirmation before execution.
 
-The desktop shell does not persist raw endpoint credentials, tool arguments, or secrets. Local stdio servers inherit the host process environment; do not put secrets directly into the visible arguments field when an environment-based configuration is available.
+The desktop shell does not persist raw endpoint credentials, tool arguments, conversation text, or secrets. Local stdio servers inherit the host process environment; do not put secrets directly into the visible arguments field when an environment-based configuration is available.
 
 This is a portable preview build. Code signing and an installer are separate release-engineering steps.
