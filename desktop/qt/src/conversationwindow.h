@@ -1,15 +1,15 @@
 #pragma once
 
 #include <QDateTime>
-#include <QDialog>
 #include <QJsonObject>
 #include <QList>
 #include <QString>
+#include <QWidget>
 
 class QLabel;
 class QPlainTextEdit;
 
-class ConversationWindow final : public QDialog {
+class ConversationWindow final : public QWidget {
   Q_OBJECT
 
  public:
@@ -17,7 +17,8 @@ class ConversationWindow final : public QDialog {
 
  public slots:
   void ingestEvent(const QJsonObject &event);
-  void showConversation();
+  void setRelayStatus(const QString &text, bool online);
+  void clearConversation();
 
  private:
   struct ConversationRecord {
@@ -30,10 +31,8 @@ class ConversationWindow final : public QDialog {
   };
 
   void renderConversation();
-  void clearConversation();
 
   QLabel *statusLabel_ = nullptr;
   QPlainTextEdit *conversationView_ = nullptr;
   QList<ConversationRecord> records_;
-  bool autoShown_ = false;
 };
