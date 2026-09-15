@@ -87,8 +87,7 @@ class DesktopConversationSync {
       ),
     );
     const lastAssistantIndex = elements.reduce(
-      (last, element, index) =>
-        element.getAttribute('data-message-author-role') === 'assistant' ? index : last,
+      (last, element, index) => (element.getAttribute('data-message-author-role') === 'assistant' ? index : last),
       -1,
     );
 
@@ -135,7 +134,10 @@ class DesktopConversationSync {
       })
       .catch(error => {
         // Desktop is optional. Do not surface noisy errors when it is closed or disconnected.
-        logger.debug('Desktop conversation bridge unavailable:', error instanceof Error ? error.message : String(error));
+        logger.debug(
+          'Desktop conversation bridge unavailable:',
+          error instanceof Error ? error.message : String(error),
+        );
       });
   }
 }
