@@ -1,5 +1,5 @@
 <div align="center">
-  <img src="chrome-extension/public/icon-128.png" alt="Superpower" width="104" height="104" />
+  <img src="chrome-extension/public/icon-128.png" alt="Superpower" width="92" height="92" />
 
   <h1>Superpower</h1>
 
@@ -7,11 +7,11 @@
   <p>ChatGPT · Gemini · Perplexity · Grok · GitHub Copilot · Qwen · DeepSeek · Kimi · Mistral · more</p>
 
   <p>
-    <a href="https://github.com/stloendays/Superpower-V1/stargazers"><img src="https://img.shields.io/github/stars/stloendays/Superpower-V1?style=for-the-badge&logo=github&label=Stars" alt="GitHub stars" /></a>
-    <img src="https://img.shields.io/badge/version-1.4.0-111827?style=for-the-badge" alt="Version 1.4.0" />
-    <img src="https://img.shields.io/badge/Chrome-Manifest%20V3-4285F4?style=for-the-badge&logo=googlechrome&logoColor=white" alt="Chrome Manifest V3" />
-    <img src="https://img.shields.io/badge/Protocol-MCP-4F46E5?style=for-the-badge" alt="Model Context Protocol" />
-    <a href="LICENSE"><img src="https://img.shields.io/badge/License-MIT-16A34A?style=for-the-badge" alt="MIT License" /></a>
+    <a href="https://github.com/stloendays/Superpower-V1/stargazers"><img src="https://img.shields.io/github/stars/stloendays/Superpower-V1?style=flat-square&logo=github&label=Stars" alt="GitHub stars" /></a>
+    <img src="https://img.shields.io/badge/version-1.5-111827?style=flat-square" alt="Version 1.5" />
+    <img src="https://img.shields.io/badge/Chrome-Manifest%20V3-4285F4?style=flat-square&logo=googlechrome&logoColor=white" alt="Chrome Manifest V3" />
+    <img src="https://img.shields.io/badge/Protocol-MCP-4F46E5?style=flat-square" alt="Model Context Protocol" />
+    <a href="LICENSE"><img src="https://img.shields.io/badge/License-MIT-16A34A?style=flat-square" alt="MIT License" /></a>
   </p>
 
   <p>
@@ -20,12 +20,13 @@
     <a href="#supported-platforms">Platforms</a> ·
     <a href="#how-it-works">Architecture</a> ·
     <a href="#quick-start">Quick start</a> ·
+    <a href="#development">Development</a> ·
     <a href="#contributing">Contributing</a>
   </p>
 </div>
 
 <p align="center">
-  <img src="docs/readme/superpower-wordmark.png" alt="Superpower wordmark" width="860" />
+  <img src="docs/readme/superpower-wordmark-white.svg" alt="Superpower wordmark" width="100%" />
 </p>
 
 <p align="center">
