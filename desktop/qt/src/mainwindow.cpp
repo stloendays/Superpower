@@ -12,6 +12,7 @@
 #include <QFormLayout>
 #include <QFrame>
 #include <QHBoxLayout>
+#include <QIcon>
 #include <QJsonArray>
 #include <QJsonDocument>
 #include <QJsonParseError>
@@ -19,16 +20,21 @@
 #include <QLabel>
 #include <QLineEdit>
 #include <QListWidget>
+#include <QListWidgetItem>
 #include <QMessageBox>
 #include <QPlainTextEdit>
 #include <QPushButton>
 #include <QScrollArea>
 #include <QScrollBar>
+#include <QSettings>
 #include <QShortcut>
+#include <QSignalBlocker>
 #include <QSize>
 #include <QSplitter>
 #include <QStandardPaths>
 #include <QStyle>
+#include <QUrl>
+#include <QUuid>
 #include <QVBoxLayout>
 #include <QVariant>
 #include <QWidget>
@@ -56,17 +62,21 @@ QString jsonText(const QJsonValue &value) {
   return QString();
 }
 
-QString compactDescription(const QString &text) {
+QString compactDescription(const QString &text, int maxLength = 84) {
   QString value = text.simplified();
-  if (value.size() > 78) value = value.left(75) + QStringLiteral("...");
+  if (value.size() > maxLength) value = value.left(maxLength - 3) + QStringLiteral("...");
   return value;
+}
+
+QString profileTransportLabel(const MainWindow::ServerProfile &profile) {
+  return profile.transport == QStringLiteral("stdio") ? QStringLiteral("STDIO") : QStringLiteral("HTTP");
 }
 }  // namespace
 
 MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent), bridge_(new McpBridgeProcess(this)) {
   setWindowTitle(QStringLiteral("Superpower Desktop"));
-  resize(1420, 880);
-  setMinimumSize(1120, 720);
+  resize(1520, 900);
+  setMinimumSize(1180, 740);
 
   nodeProgram_ = findDefaultNodeProgram();
   hostScript_ = findDefaultHostScript();
@@ -74,6 +84,9 @@ MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent), bridge_(new McpBr
   buildUi();
   applyStyle();
   connectSignals();
+  loadServerProfiles();
+  refreshServerList();
+  if (!serverProfiles_.isEmpty()) serverList_->setCurrentRow(0);
   updateConnectionForm();
   setConnectedUi(false);
 }
@@ -114,16 +127,19 @@ void MainWindow::buildUi() {
   topLayout->addStretch(1);
 
   globalSearchEdit_ = new QLineEdit(topBar);
-  globalSearchEdit_->setPlaceholderText(QStringLiteral("Search tools or type >settings, >logs, >about  ·  Ctrl+K"));
+  globalSearchEdit_->setPlaceholderText(
+      QStringLiteral("Search apps and tools or type >runs, >settings, >logs  ·  Ctrl+K"));
   globalSearchEdit_->setClearButtonEnabled(true);
-  globalSearchEdit_->setMinimumWidth(330);
-  globalSearchEdit_->setMaximumWidth(520);
+  globalSearchEdit_->setMinimumWidth(350);
+  globalSearchEdit_->setMaximumWidth(560);
   topLayout->addWidget(globalSearchEdit_, 1);
 
   settingsButton_ = new QPushButton(QStringLiteral("Settings"), topBar);
+  runsButton_ = new QPushButton(QStringLiteral("Runs"), topBar);
   logsButton_ = new QPushButton(QStringLiteral("Logs"), topBar);
   aboutButton_ = new QPushButton(QStringLiteral("About"), topBar);
   topLayout->addWidget(settingsButton_);
+  topLayout->addWidget(runsButton_);
   topLayout->addWidget(logsButton_);
   topLayout->addWidget(aboutButton_);
   rootLayout->addWidget(topBar);
@@ -133,27 +149,47 @@ void MainWindow::buildUi() {
   bodyLayout->setSpacing(12);
 
   auto *connectionsCard = card(root);
-  connectionsCard->setFixedWidth(300);
+  connectionsCard->setFixedWidth(330);
   auto *connectionLayout = new QVBoxLayout(connectionsCard);
-  connectionLayout->setContentsMargins(20, 20, 20, 20);
-  connectionLayout->setSpacing(10);
+  connectionLayout->setContentsMargins(18, 18, 18, 18);
+  connectionLayout->setSpacing(9);
 
   auto *connectionsTitle = new QLabel(QStringLiteral("Servers / Connections"), connectionsCard);
   connectionsTitle->setProperty("panelTitle", true);
   connectionLayout->addWidget(connectionsTitle);
   auto *connectionsSubtitle = new QLabel(
-      QStringLiteral("Connect a remote MCP endpoint or launch a local stdio server."), connectionsCard);
+      QStringLiteral("Save non-secret server metadata, switch profiles, and connect with one workspace."),
+      connectionsCard);
   connectionsSubtitle->setProperty("muted", true);
   connectionsSubtitle->setWordWrap(true);
   connectionLayout->addWidget(connectionsSubtitle);
-  connectionLayout->addSpacing(4);
 
-  connectionSummaryLabel_ = new QLabel(QStringLiteral("No server selected"), connectionsCard);
+  serverList_ = new QListWidget(connectionsCard);
+  serverList_->setMaximumHeight(180);
+  serverList_->setMinimumHeight(110);
+  serverList_->setWordWrap(true);
+  connectionLayout->addWidget(serverList_);
+
+  auto *serverActions = new QHBoxLayout();
+  newServerButton_ = new QPushButton(QStringLiteral("New"), connectionsCard);
+  saveServerButton_ = new QPushButton(QStringLiteral("Save"), connectionsCard);
+  deleteServerButton_ = new QPushButton(QStringLiteral("Delete"), connectionsCard);
+  serverActions->addWidget(newServerButton_);
+  serverActions->addWidget(saveServerButton_);
+  serverActions->addWidget(deleteServerButton_);
+  connectionLayout->addLayout(serverActions);
+
+  connectionSummaryLabel_ = new QLabel(QStringLiteral("Unsaved connection"), connectionsCard);
   connectionSummaryLabel_->setProperty("connectionSummary", true);
   connectionSummaryLabel_->setWordWrap(true);
   connectionLayout->addWidget(connectionSummaryLabel_);
 
-  connectionLayout->addWidget(sectionLabel(QStringLiteral("New connection"), connectionsCard));
+  connectionLayout->addWidget(sectionLabel(QStringLiteral("Server details"), connectionsCard));
+  serverNameEdit_ = new QLineEdit(connectionsCard);
+  serverNameEdit_->setPlaceholderText(QStringLiteral("e.g. GitHub MCP, Local Agent"));
+  connectionLayout->addWidget(new QLabel(QStringLiteral("Name"), connectionsCard));
+  connectionLayout->addWidget(serverNameEdit_);
+
   transportCombo_ = new QComboBox(connectionsCard);
   transportCombo_->addItem(QStringLiteral("Streamable HTTP"), QStringLiteral("http"));
   transportCombo_->addItem(QStringLiteral("Local stdio"), QStringLiteral("stdio"));
@@ -181,16 +217,17 @@ void MainWindow::buildUi() {
   stdioArgsEdit_->setPlaceholderText(QStringLiteral("[\"server.js\", \"--port\", \"3000\"]"));
   stdioLayout->addWidget(new QLabel(QStringLiteral("Server command"), stdioConnectionWidget_));
   stdioLayout->addWidget(stdioCommandEdit_);
-  stdioLayout->addWidget(new QLabel(QStringLiteral("Arguments"), stdioConnectionWidget_));
+  stdioLayout->addWidget(new QLabel(QStringLiteral("Session arguments"), stdioConnectionWidget_));
   stdioLayout->addWidget(stdioArgsEdit_);
   connectionLayout->addWidget(stdioConnectionWidget_);
 
+  auto *privacyHint = new QLabel(
+      QStringLiteral("Profiles persist names and safe connection metadata only. URL credentials/query tokens and stdio arguments are not persisted."),
+      connectionsCard);
+  privacyHint->setProperty("muted", true);
+  privacyHint->setWordWrap(true);
+  connectionLayout->addWidget(privacyHint);
   connectionLayout->addStretch(1);
-  auto *settingsHint = new QLabel(
-      QStringLiteral("Runtime, routing, and guarded-execution settings are available from Settings."), connectionsCard);
-  settingsHint->setProperty("muted", true);
-  settingsHint->setWordWrap(true);
-  connectionLayout->addWidget(settingsHint);
 
   statusLabel_ = new QLabel(QStringLiteral("Disconnected"), connectionsCard);
   statusLabel_->setProperty("status", true);
@@ -205,10 +242,10 @@ void MainWindow::buildUi() {
   splitter->setChildrenCollapsible(false);
 
   auto *catalogCard = card(splitter);
-  catalogCard->setMinimumWidth(300);
+  catalogCard->setMinimumWidth(330);
   auto *catalogLayout = new QVBoxLayout(catalogCard);
   catalogLayout->setContentsMargins(18, 18, 18, 18);
-  catalogLayout->setSpacing(10);
+  catalogLayout->setSpacing(9);
 
   auto *catalogHeader = new QHBoxLayout();
   auto *catalogTitle = new QLabel(QStringLiteral("Tools / Apps"), catalogCard);
@@ -219,6 +256,10 @@ void MainWindow::buildUi() {
   toolCountLabel_->setProperty("muted", true);
   catalogHeader->addWidget(toolCountLabel_);
   catalogLayout->addLayout(catalogHeader);
+
+  appCombo_ = new QComboBox(catalogCard);
+  appCombo_->addItem(QStringLiteral("All apps"), QStringLiteral("All"));
+  catalogLayout->addWidget(appCombo_);
 
   categoryCombo_ = new QComboBox(catalogCard);
   categoryCombo_->addItem(QStringLiteral("All categories"), QStringLiteral("All"));
@@ -258,7 +299,7 @@ void MainWindow::buildUi() {
   toolNameLabel_->setProperty("toolName", true);
   workLayout->addWidget(toolNameLabel_);
 
-  toolDescriptionLabel_ = new QLabel(QStringLiteral("Connect to an MCP server to load the routed catalog."), workCard);
+  toolDescriptionLabel_ = new QLabel(QStringLiteral("Connect to an MCP server to load Apps and Actions."), workCard);
   toolDescriptionLabel_->setWordWrap(true);
   toolDescriptionLabel_->setProperty("muted", true);
   workLayout->addWidget(toolDescriptionLabel_);
@@ -274,7 +315,7 @@ void MainWindow::buildUi() {
   formScrollArea_->setWidgetResizable(true);
   formScrollArea_->setFrameShape(QFrame::NoFrame);
   formScrollArea_->setMinimumHeight(190);
-  formScrollArea_->setMaximumHeight(300);
+  formScrollArea_->setMaximumHeight(310);
   formWidget_ = new QWidget(formScrollArea_);
   formWidget_->setProperty("formSurface", true);
   formLayout_ = new QFormLayout(formWidget_);
@@ -292,7 +333,7 @@ void MainWindow::buildUi() {
   workLayout->addWidget(sectionLabel(QStringLiteral("Execution Result"), workCard));
   outputView_ = new QPlainTextEdit(workCard);
   outputView_->setReadOnly(true);
-  outputView_->setPlaceholderText(QStringLiteral("The latest tool result appears here."));
+  outputView_->setPlaceholderText(QStringLiteral("The latest execution result appears here."));
   outputView_->setPlainText(QStringLiteral("Select a tool to begin."));
   workLayout->addWidget(outputView_, 1);
 
@@ -300,7 +341,7 @@ void MainWindow::buildUi() {
   splitter->addWidget(workCard);
   splitter->setStretchFactor(0, 0);
   splitter->setStretchFactor(1, 1);
-  splitter->setSizes({350, 760});
+  splitter->setSizes({380, 770});
   bodyLayout->addWidget(splitter, 1);
 
   rootLayout->addLayout(bodyLayout, 1);
@@ -349,9 +390,7 @@ void MainWindow::applyStyle() {
       color: #000000;
       padding-top: 2px;
     }
-    QLabel[muted="true"] {
-      color: #737373;
-    }
+    QLabel[muted="true"] { color: #737373; }
     QLabel[headerConnection="true"] {
       background: #f3f3f3;
       border: 1px solid #dfdfdf;
@@ -388,15 +427,12 @@ void MainWindow::applyStyle() {
     QLineEdit:focus, QComboBox:focus, QPlainTextEdit:focus, QListWidget:focus {
       border: 1px solid #111111;
     }
-    QLineEdit:disabled, QComboBox:disabled, QPlainTextEdit:disabled {
+    QLineEdit:disabled, QComboBox:disabled, QPlainTextEdit:disabled, QListWidget:disabled {
       background: #f5f5f5;
       color: #8a8a8a;
       border-color: #e2e2e2;
     }
-    QComboBox::drop-down {
-      border: none;
-      width: 24px;
-    }
+    QComboBox::drop-down { border: none; width: 24px; }
     QPlainTextEdit {
       font-family: "Cascadia Code", "Consolas", monospace;
       font-size: 12px;
@@ -407,26 +443,16 @@ void MainWindow::applyStyle() {
       border: 1px solid #e0e0e0;
       border-radius: 9px;
     }
-    QWidget[formSurface="true"] {
-      background: #ffffff;
-    }
-    QListWidget {
-      padding: 4px;
-      outline: none;
-    }
+    QWidget[formSurface="true"] { background: #ffffff; }
+    QListWidget { padding: 4px; outline: none; }
     QListWidget::item {
       border-radius: 8px;
       padding: 8px;
       margin: 2px 0;
       color: #111111;
     }
-    QListWidget::item:hover {
-      background: #f1f1f1;
-    }
-    QListWidget::item:selected {
-      background: #111111;
-      color: #ffffff;
-    }
+    QListWidget::item:hover { background: #f1f1f1; }
+    QListWidget::item:selected { background: #111111; color: #ffffff; }
     QPushButton {
       background: #ffffff;
       color: #111111;
@@ -435,13 +461,8 @@ void MainWindow::applyStyle() {
       padding: 8px 12px;
       font-weight: 650;
     }
-    QPushButton:hover {
-      background: #f0f0f0;
-      border-color: #bdbdbd;
-    }
-    QPushButton:pressed {
-      background: #e7e7e7;
-    }
+    QPushButton:hover { background: #f0f0f0; border-color: #bdbdbd; }
+    QPushButton:pressed { background: #e7e7e7; }
     QPushButton:disabled {
       color: #9a9a9a;
       background: #f3f3f3;
@@ -453,54 +474,44 @@ void MainWindow::applyStyle() {
       border: 1px solid #000000;
       padding: 10px 12px;
     }
-    QPushButton[primary="true"]:hover {
-      background: #202020;
-      border-color: #202020;
-    }
-    QPushButton[primary="true"]:pressed {
-      background: #333333;
-      border-color: #333333;
-    }
+    QPushButton[primary="true"]:hover { background: #202020; border-color: #202020; }
+    QPushButton[primary="true"]:pressed { background: #333333; border-color: #333333; }
     QPushButton[primary="true"]:disabled {
       background: #aaaaaa;
       border-color: #aaaaaa;
       color: #ffffff;
     }
-    QSplitter::handle {
-      background: transparent;
-      width: 10px;
-    }
-    QScrollBar:vertical {
-      width: 10px;
-      background: transparent;
-      margin: 0;
-    }
+    QSplitter::handle { background: transparent; width: 10px; }
+    QScrollBar:vertical { width: 10px; background: transparent; margin: 0; }
     QScrollBar::handle:vertical {
       background: #c8c8c8;
       border-radius: 5px;
       min-height: 24px;
     }
-    QScrollBar::handle:vertical:hover {
-      background: #a8a8a8;
-    }
-    QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical {
-      height: 0;
-    }
+    QScrollBar::handle:vertical:hover { background: #a8a8a8; }
+    QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical { height: 0; }
   )"));
 }
 
 void MainWindow::connectSignals() {
   connect(connectButton_, &QPushButton::clicked, this, &MainWindow::connectOrDisconnect);
+  connect(newServerButton_, &QPushButton::clicked, this, &MainWindow::newServerProfile);
+  connect(saveServerButton_, &QPushButton::clicked, this, &MainWindow::saveCurrentServerProfile);
+  connect(deleteServerButton_, &QPushButton::clicked, this, &MainWindow::deleteCurrentServerProfile);
+  connect(serverList_, &QListWidget::currentItemChanged, this, [this]() { selectServerProfile(); });
   connect(refreshButton_, &QPushButton::clicked, this, &MainWindow::refreshTools);
   connect(runButton_, &QPushButton::clicked, this, &MainWindow::runSelectedTool);
   connect(toolList_, &QListWidget::currentItemChanged, this, [this]() { showSelectedTool(); });
+  connect(appCombo_, &QComboBox::currentIndexChanged, this, [this]() { applyToolFilters(); });
   connect(categoryCombo_, &QComboBox::currentIndexChanged, this, [this]() { applyToolFilters(); });
   connect(transportCombo_, &QComboBox::currentIndexChanged, this, [this]() { updateConnectionForm(); });
+  connect(serverNameEdit_, &QLineEdit::textChanged, this, [this]() { updateConnectionForm(); });
   connect(endpointEdit_, &QLineEdit::textChanged, this, [this]() { updateConnectionForm(); });
   connect(stdioCommandEdit_, &QLineEdit::textChanged, this, [this]() { updateConnectionForm(); });
   connect(globalSearchEdit_, &QLineEdit::textChanged, this, &MainWindow::handleGlobalSearch);
   connect(globalSearchEdit_, &QLineEdit::returnPressed, this, &MainWindow::executeGlobalCommand);
   connect(settingsButton_, &QPushButton::clicked, this, &MainWindow::openSettingsDialog);
+  connect(runsButton_, &QPushButton::clicked, this, &MainWindow::openRunsDialog);
   connect(logsButton_, &QPushButton::clicked, this, &MainWindow::openLogsDialog);
   connect(aboutButton_, &QPushButton::clicked, this, &MainWindow::openAboutDialog);
   connect(schemaButton_, &QPushButton::clicked, this, &MainWindow::openSchemaDialog);
@@ -522,28 +533,39 @@ void MainWindow::connectSignals() {
 
   connect(bridge_, &McpBridgeProcess::bridgeReady, this, [this](const QString &transport) {
     setConnectedUi(true);
+    setServerStatus(activeProfileId_, QStringLiteral("Connected"));
     setStatus(QStringLiteral("Connected via %1").arg(transport), true);
-    appendLog(QStringLiteral("MCP bridge ready via %1.").arg(transport));
+    appendLog(QStringLiteral("MCP bridge ready via %1 for %2.").arg(transport, activeConnectionName_));
     refreshTools();
   });
   connect(bridge_, &McpBridgeProcess::responseReceived, this, &MainWindow::handleResponse);
   connect(bridge_, &McpBridgeProcess::requestFailed, this, &MainWindow::handleRequestFailure);
   connect(bridge_, &McpBridgeProcess::logLine, this, &MainWindow::appendLog);
   connect(bridge_, &McpBridgeProcess::processError, this, [this](const QString &message) {
+    setServerStatus(activeProfileId_, QStringLiteral("Error"));
     appendLog(QStringLiteral("Bridge error: %1").arg(message));
     setStatus(QStringLiteral("Connection error"), false);
     connectButton_->setEnabled(true);
   });
   connect(bridge_, &McpBridgeProcess::processExited, this, [this](int exitCode, QProcess::ExitStatus) {
+    const bool errored = statusLabel_->text() == QStringLiteral("Connection error");
+    if (!errored) setServerStatus(activeProfileId_, QStringLiteral("Disconnected"));
     setConnectedUi(false);
-    setStatus(QStringLiteral("Disconnected"), false);
+    if (!errored) setStatus(QStringLiteral("Disconnected"), false);
     appendLog(QStringLiteral("Bridge exited with code %1.").arg(exitCode));
+    activeProfileId_.clear();
+    activeConnectionName_.clear();
   });
 }
 
 void MainWindow::setConnectedUi(bool connected) {
   connectButton_->setEnabled(true);
   connectButton_->setText(connected ? QStringLiteral("Disconnect") : QStringLiteral("Connect"));
+  serverList_->setEnabled(!connected);
+  serverNameEdit_->setEnabled(!connected);
+  newServerButton_->setEnabled(!connected);
+  saveServerButton_->setEnabled(!connected);
+  deleteServerButton_->setEnabled(!connected && serverList_->currentItem() != nullptr);
   transportCombo_->setEnabled(!connected);
   endpointEdit_->setEnabled(!connected);
   stdioCommandEdit_->setEnabled(!connected);
@@ -561,6 +583,203 @@ void MainWindow::updateConnectionForm() {
   httpConnectionWidget_->setVisible(!useStdio);
   stdioConnectionWidget_->setVisible(useStdio);
   connectionSummaryLabel_->setText(connectionSummary());
+}
+
+void MainWindow::loadServerProfiles() {
+  serverProfiles_.clear();
+  QSettings settings(QStringLiteral("Superpower"), QStringLiteral("Superpower Desktop"));
+  const int count = settings.beginReadArray(QStringLiteral("servers"));
+  for (int i = 0; i < count; ++i) {
+    settings.setArrayIndex(i);
+    ServerProfile profile;
+    profile.id = settings.value(QStringLiteral("id")).toString();
+    profile.name = settings.value(QStringLiteral("name")).toString();
+    profile.transport = settings.value(QStringLiteral("transport"), QStringLiteral("http")).toString();
+    profile.endpoint = settings.value(QStringLiteral("endpoint")).toString();
+    profile.command = settings.value(QStringLiteral("command")).toString();
+    if (profile.id.isEmpty()) profile.id = QUuid::createUuid().toString(QUuid::WithoutBraces);
+    if (profile.name.isEmpty()) continue;
+    serverProfiles_.append(profile);
+    serverStatuses_.insert(profile.id, QStringLiteral("Disconnected"));
+  }
+  settings.endArray();
+}
+
+void MainWindow::persistServerProfiles() const {
+  QSettings settings(QStringLiteral("Superpower"), QStringLiteral("Superpower Desktop"));
+  settings.remove(QStringLiteral("servers"));
+  settings.beginWriteArray(QStringLiteral("servers"));
+  for (int i = 0; i < serverProfiles_.size(); ++i) {
+    settings.setArrayIndex(i);
+    const ServerProfile &profile = serverProfiles_.at(i);
+    settings.setValue(QStringLiteral("id"), profile.id);
+    settings.setValue(QStringLiteral("name"), profile.name);
+    settings.setValue(QStringLiteral("transport"), profile.transport);
+    settings.setValue(QStringLiteral("endpoint"), profile.endpoint);
+    settings.setValue(QStringLiteral("command"), profile.command);
+  }
+  settings.endArray();
+  settings.sync();
+}
+
+void MainWindow::refreshServerList() {
+  const QString selectedId = currentServerProfileId();
+  QSignalBlocker blocker(serverList_);
+  serverList_->clear();
+
+  int selectedRow = -1;
+  for (int i = 0; i < serverProfiles_.size(); ++i) {
+    const ServerProfile &profile = serverProfiles_.at(i);
+    const QString status = serverStatuses_.value(profile.id, QStringLiteral("Disconnected"));
+    QString detail;
+    if (profile.transport == QStringLiteral("stdio")) {
+      detail = profile.command.isEmpty() ? QStringLiteral("Local stdio") : profile.command;
+    } else {
+      detail = profile.endpoint.isEmpty() ? QStringLiteral("Streamable HTTP") : profile.endpoint;
+    }
+    auto *item = new QListWidgetItem(iconForServerStatus(status),
+                                     QStringLiteral("%1\n%2 · %3").arg(profile.name, status, compactDescription(detail, 52)),
+                                     serverList_);
+    item->setData(Qt::UserRole, profile.id);
+    item->setToolTip(QStringLiteral("%1 · %2\n%3").arg(status, profileTransportLabel(profile), detail));
+    item->setSizeHint(QSize(0, 52));
+    if (profile.id == selectedId) selectedRow = i;
+  }
+
+  if (selectedRow >= 0) serverList_->setCurrentRow(selectedRow);
+  deleteServerButton_->setEnabled(!bridge_->isRunning() && serverList_->currentItem() != nullptr);
+}
+
+void MainWindow::newServerProfile() {
+  QSignalBlocker blocker(serverList_);
+  serverList_->clearSelection();
+  serverList_->setCurrentRow(-1);
+  serverNameEdit_->clear();
+  transportCombo_->setCurrentIndex(0);
+  endpointEdit_->setText(QStringLiteral("http://localhost:3000/mcp"));
+  stdioCommandEdit_->clear();
+  stdioArgsEdit_->setText(QStringLiteral("[]"));
+  statusLabel_->setText(QStringLiteral("Disconnected"));
+  deleteServerButton_->setEnabled(false);
+  updateConnectionForm();
+  serverNameEdit_->setFocus();
+}
+
+void MainWindow::saveCurrentServerProfile() {
+  const QString name = serverNameEdit_->text().trimmed();
+  if (name.isEmpty()) {
+    QMessageBox::warning(this, QStringLiteral("Server name required"),
+                         QStringLiteral("Give this connection a name before saving it."));
+    return;
+  }
+
+  const QString transport = transportCombo_->currentData().toString();
+  QString endpoint;
+  QString command;
+  if (transport == QStringLiteral("http")) {
+    endpoint = endpointEdit_->text().trimmed();
+    if (!endpointIsSafeToPersist(endpoint)) {
+      QMessageBox::warning(
+          this, QStringLiteral("Sensitive endpoint not saved"),
+          QStringLiteral("Saved profiles do not persist URL credentials, query tokens, or fragments. Remove sensitive URL data and use the MCP host authentication/environment model instead."));
+      return;
+    }
+  } else {
+    command = stdioCommandEdit_->text().trimmed();
+  }
+
+  QString id = currentServerProfileId();
+  int index = serverProfileIndex(id);
+  if (index < 0) {
+    ServerProfile profile;
+    profile.id = QUuid::createUuid().toString(QUuid::WithoutBraces);
+    profile.name = name;
+    profile.transport = transport;
+    profile.endpoint = endpoint;
+    profile.command = command;
+    serverProfiles_.append(profile);
+    serverStatuses_.insert(profile.id, QStringLiteral("Disconnected"));
+    id = profile.id;
+  } else {
+    ServerProfile &profile = serverProfiles_[index];
+    profile.name = name;
+    profile.transport = transport;
+    profile.endpoint = endpoint;
+    profile.command = command;
+  }
+
+  persistServerProfiles();
+  refreshServerList();
+  for (int row = 0; row < serverList_->count(); ++row) {
+    if (serverList_->item(row)->data(Qt::UserRole).toString() == id) {
+      serverList_->setCurrentRow(row);
+      break;
+    }
+  }
+  appendLog(QStringLiteral("Saved server profile %1. Sensitive stdio arguments remain session-only.").arg(name));
+}
+
+void MainWindow::deleteCurrentServerProfile() {
+  const QString id = currentServerProfileId();
+  const int index = serverProfileIndex(id);
+  if (index < 0) return;
+  const QString name = serverProfiles_.at(index).name;
+  const auto decision = QMessageBox::question(
+      this, QStringLiteral("Delete server profile"), QStringLiteral("Delete the saved profile “%1”? ").arg(name),
+      QMessageBox::Yes | QMessageBox::No, QMessageBox::No);
+  if (decision != QMessageBox::Yes) return;
+
+  serverProfiles_.removeAt(index);
+  serverStatuses_.remove(id);
+  persistServerProfiles();
+  refreshServerList();
+  if (!serverProfiles_.isEmpty()) {
+    serverList_->setCurrentRow(qMin(index, serverProfiles_.size() - 1));
+  } else {
+    newServerProfile();
+  }
+  appendLog(QStringLiteral("Deleted server profile %1.").arg(name));
+}
+
+void MainWindow::selectServerProfile() {
+  auto *item = serverList_->currentItem();
+  if (!item || bridge_->isRunning()) return;
+  const int index = serverProfileIndex(item->data(Qt::UserRole).toString());
+  if (index < 0) return;
+
+  const ServerProfile &profile = serverProfiles_.at(index);
+  serverNameEdit_->setText(profile.name);
+  const int transportIndex = transportCombo_->findData(profile.transport);
+  if (transportIndex >= 0) transportCombo_->setCurrentIndex(transportIndex);
+  endpointEdit_->setText(profile.endpoint.isEmpty() ? QStringLiteral("http://localhost:3000/mcp") : profile.endpoint);
+  stdioCommandEdit_->setText(profile.command);
+  stdioArgsEdit_->setText(QStringLiteral("[]"));
+  deleteServerButton_->setEnabled(true);
+  updateConnectionForm();
+}
+
+void MainWindow::setServerStatus(const QString &profileId, const QString &status) {
+  if (profileId.isEmpty()) return;
+  serverStatuses_.insert(profileId, status);
+  refreshServerList();
+}
+
+int MainWindow::serverProfileIndex(const QString &profileId) const {
+  if (profileId.isEmpty()) return -1;
+  for (int i = 0; i < serverProfiles_.size(); ++i) {
+    if (serverProfiles_.at(i).id == profileId) return i;
+  }
+  return -1;
+}
+
+QString MainWindow::currentServerName() const {
+  const QString name = serverNameEdit_ ? serverNameEdit_->text().trimmed() : QString();
+  return name.isEmpty() ? QStringLiteral("Unsaved server") : name;
+}
+
+QString MainWindow::currentServerProfileId() const {
+  auto *item = serverList_ ? serverList_->currentItem() : nullptr;
+  return item ? item->data(Qt::UserRole).toString() : QString();
 }
 
 void MainWindow::connectOrDisconnect() {
@@ -585,6 +804,8 @@ void MainWindow::connectOrDisconnect() {
   outputView_->setPlainText(QStringLiteral("Connecting..."));
   setStatus(QStringLiteral("Connecting..."), false);
   connectButton_->setEnabled(false);
+  activeProfileId_ = currentServerProfileId();
+  activeConnectionName_ = currentServerName();
 
   const QString transport = transportCombo_->currentData().toString();
   if (transport == QStringLiteral("stdio")) {
@@ -641,23 +862,31 @@ void MainWindow::runSelectedTool() {
   }
 
   const QString toolName = item->data(Qt::UserRole).toString();
+  const QString appName = item->data(Qt::UserRole + 3).toString();
   const QString id = bridge_->sendRequest(
       QStringLiteral("call"), {{QStringLiteral("toolName"), toolName},
                                 {QStringLiteral("args"), arguments},
                                 {QStringLiteral("approve"), false}});
   if (id.isEmpty()) return;
 
-  pendingCalls_.insert(id, {toolName, arguments});
+  PendingCall pending;
+  pending.toolName = toolName;
+  pending.appName = appName;
+  pending.serverName = activeConnectionName_.isEmpty() ? currentServerName() : activeConnectionName_;
+  pending.risk = QStringLiteral("normal");
+  pending.arguments = arguments;
+  pending.startedAt = QDateTime::currentDateTimeUtc();
+  pendingCalls_.insert(id, pending);
   runButton_->setEnabled(false);
-  outputView_->setPlainText(QStringLiteral("Running %1...").arg(toolName));
-  appendLog(QStringLiteral("Calling %1.").arg(toolName));
+  outputView_->setPlainText(QStringLiteral("Running %1...").arg(toolDisplayName(toolName, appName)));
+  appendLog(QStringLiteral("Calling %1 from %2.").arg(toolName, appName));
 }
 
 void MainWindow::showSelectedTool() {
   auto *item = toolList_->currentItem();
   if (!item) {
     toolNameLabel_->setText(QStringLiteral("Select a tool"));
-    toolDescriptionLabel_->setText(QStringLiteral("Choose a tool or app from the catalog."));
+    toolDescriptionLabel_->setText(QStringLiteral("Choose an App / Action from the catalog."));
     rebuildArgumentForm(QJsonObject());
     runButton_->setEnabled(false);
     schemaButton_->setEnabled(false);
@@ -667,21 +896,25 @@ void MainWindow::showSelectedTool() {
   }
 
   const QString name = item->data(Qt::UserRole).toString();
+  const QString appName = item->data(Qt::UserRole + 3).toString();
+  const QString displayName = item->data(Qt::UserRole + 4).toString();
   const QJsonObject tool = toolsByName_.value(name);
   const QJsonObject schema = tool.value(QStringLiteral("inputSchema")).toObject();
-  toolNameLabel_->setText(name);
-  toolDescriptionLabel_->setText(tool.value(QStringLiteral("description")).toString());
+  toolNameLabel_->setText(displayName);
+  const QString description = tool.value(QStringLiteral("description")).toString();
+  toolDescriptionLabel_->setText(QStringLiteral("%1 · %2\n%3").arg(appName, name, description));
   rebuildArgumentForm(schema);
   runButton_->setEnabled(bridge_->isRunning());
   schemaButton_->setEnabled(true);
   resetFormButton_->setEnabled(true);
-  outputView_->setPlainText(QStringLiteral("Ready to run %1.").arg(name));
+  outputView_->setPlainText(QStringLiteral("Ready to run %1.").arg(displayName));
 }
 
 void MainWindow::applyToolFilters() {
   QString needle = globalSearchEdit_->text().trimmed();
   const bool commandMode = needle.startsWith(QLatin1Char('>'));
   if (commandMode) needle.clear();
+  const QString selectedApp = appCombo_->currentData().toString();
   const QString selectedCategory = categoryCombo_->currentData().toString();
 
   int visible = 0;
@@ -689,18 +922,17 @@ void MainWindow::applyToolFilters() {
     auto *item = toolList_->item(i);
     const QString category = item->data(Qt::UserRole + 1).toString();
     const QString searchable = item->data(Qt::UserRole + 2).toString();
+    const QString appName = item->data(Qt::UserRole + 3).toString();
+    const bool appMatch = selectedApp == QStringLiteral("All") || appName == selectedApp;
     const bool categoryMatch = selectedCategory == QStringLiteral("All") || category == selectedCategory;
     const bool textMatch = needle.isEmpty() || searchable.contains(needle, Qt::CaseInsensitive);
-    const bool show = categoryMatch && textMatch;
+    const bool show = appMatch && categoryMatch && textMatch;
     item->setHidden(!show);
     if (show) ++visible;
   }
 
-  if (commandMode) {
-    toolCountLabel_->setText(QStringLiteral("Command mode"));
-  } else {
-    toolCountLabel_->setText(QStringLiteral("%1 / %2").arg(visible).arg(toolList_->count()));
-  }
+  toolCountLabel_->setText(commandMode ? QStringLiteral("Command mode")
+                                       : QStringLiteral("%1 / %2").arg(visible).arg(toolList_->count()));
 }
 
 void MainWindow::populateTools(const QJsonObject &result) {
@@ -715,19 +947,28 @@ void MainWindow::populateTools(const QJsonObject &result) {
 
     const QString description = tool.value(QStringLiteral("description")).toString();
     const QString category = toolCategory(name, description);
+    const QString appName = toolApp(name, description);
+    const QString displayName = toolDisplayName(name, appName);
     const QString summary = compactDescription(description);
-    const QString subtitle = summary.isEmpty() ? category.toUpper()
-                                                : QStringLiteral("%1 · %2").arg(category.toUpper(), summary);
+    const QString subtitle = summary.isEmpty()
+                                 ? QStringLiteral("%1 · %2").arg(appName.toUpper(), category.toUpper())
+                                 : QStringLiteral("%1 · %2 · %3").arg(appName.toUpper(), category.toUpper(), summary);
 
     toolsByName_.insert(name, tool);
-    auto *item = new QListWidgetItem(iconForCategory(category), QStringLiteral("%1\n%2").arg(name, subtitle), toolList_);
+    auto *item = new QListWidgetItem(iconForCategory(category),
+                                     QStringLiteral("%1\n%2").arg(displayName, subtitle), toolList_);
     item->setData(Qt::UserRole, name);
     item->setData(Qt::UserRole + 1, category);
-    item->setData(Qt::UserRole + 2, name + QLatin1Char(' ') + description + QLatin1Char(' ') + category);
-    item->setToolTip(description);
-    item->setSizeHint(QSize(0, 58));
+    item->setData(Qt::UserRole + 2,
+                  displayName + QLatin1Char(' ') + name + QLatin1Char(' ') + description + QLatin1Char(' ') +
+                      category + QLatin1Char(' ') + appName);
+    item->setData(Qt::UserRole + 3, appName);
+    item->setData(Qt::UserRole + 4, displayName);
+    item->setToolTip(QStringLiteral("%1 · %2\n%3\n\nRaw MCP tool: %4").arg(appName, category, description, name));
+    item->setSizeHint(QSize(0, 60));
   }
 
+  rebuildAppFilter();
   applyToolFilters();
   for (int i = 0; i < toolList_->count(); ++i) {
     if (!toolList_->item(i)->isHidden()) {
@@ -739,6 +980,21 @@ void MainWindow::populateTools(const QJsonObject &result) {
   const int omitted = result.value(QStringLiteral("omitted")).toInt();
   appendLog(omitted > 0 ? QStringLiteral("Loaded %1 routed tools; %2 omitted by context budget.").arg(tools.size()).arg(omitted)
                         : QStringLiteral("Loaded %1 routed tools.").arg(tools.size()));
+}
+
+void MainWindow::rebuildAppFilter() {
+  const QString previous = appCombo_->currentData().toString();
+  QSet<QString> apps;
+  for (int i = 0; i < toolList_->count(); ++i) apps.insert(toolList_->item(i)->data(Qt::UserRole + 3).toString());
+  QStringList sortedApps = apps.values();
+  sortedApps.sort(Qt::CaseInsensitive);
+
+  QSignalBlocker blocker(appCombo_);
+  appCombo_->clear();
+  appCombo_->addItem(QStringLiteral("All apps"), QStringLiteral("All"));
+  for (const QString &appName : sortedApps) appCombo_->addItem(appName, appName);
+  const int previousIndex = appCombo_->findData(previous);
+  appCombo_->setCurrentIndex(previousIndex >= 0 ? previousIndex : 0);
 }
 
 void MainWindow::rebuildArgumentForm(const QJsonObject &schema) {
@@ -768,7 +1024,6 @@ void MainWindow::rebuildArgumentForm(const QJsonObject &schema) {
     const QString name = it.key();
     const QJsonObject fieldSchema = it.value().toObject();
     const bool isRequired = requiredFields_.contains(name);
-
     auto *label = new QLabel(isRequired ? name + QStringLiteral(" *") : name, formWidget_);
     const QString description = fieldSchema.value(QStringLiteral("description")).toString();
     if (!description.isEmpty()) label->setToolTip(description);
@@ -780,6 +1035,21 @@ void MainWindow::rebuildArgumentForm(const QJsonObject &schema) {
   }
 
   formScrollArea_->verticalScrollBar()->setValue(0);
+}
+
+void MainWindow::applyArgumentsToForm(const QJsonObject &arguments) {
+  for (auto it = arguments.constBegin(); it != arguments.constEnd(); ++it) {
+    QWidget *editor = fieldEditors_.value(it.key());
+    if (!editor) continue;
+    if (auto *combo = qobject_cast<QComboBox *>(editor)) {
+      const int index = combo->findData(it.value().toVariant());
+      if (index >= 0) combo->setCurrentIndex(index);
+    } else if (auto *plainText = qobject_cast<QPlainTextEdit *>(editor)) {
+      plainText->setPlainText(jsonText(it.value()));
+    } else if (auto *lineEdit = qobject_cast<QLineEdit *>(editor)) {
+      lineEdit->setText(it.value().isString() ? it.value().toString() : jsonText(it.value()));
+    }
+  }
 }
 
 QWidget *MainWindow::createFieldEditor(const QString &name, const QJsonObject &schema, bool required) {
@@ -910,12 +1180,29 @@ bool MainWindow::collectFormArguments(QJsonObject *arguments, QString *errorMess
         *errorMessage = QStringLiteral("%1 must be an integer.").arg(name);
         return false;
       }
-      arguments->insert(name, QJsonValue(static_cast<double>(value)));
+      const double numeric = static_cast<double>(value);
+      if (schema.contains(QStringLiteral("minimum")) && numeric < schema.value(QStringLiteral("minimum")).toDouble()) {
+        *errorMessage = QStringLiteral("%1 must be at least %2.").arg(name).arg(schema.value(QStringLiteral("minimum")).toDouble());
+        return false;
+      }
+      if (schema.contains(QStringLiteral("maximum")) && numeric > schema.value(QStringLiteral("maximum")).toDouble()) {
+        *errorMessage = QStringLiteral("%1 must be at most %2.").arg(name).arg(schema.value(QStringLiteral("maximum")).toDouble());
+        return false;
+      }
+      arguments->insert(name, QJsonValue(numeric));
     } else if (type == QStringLiteral("number")) {
       bool ok = false;
       const double value = trimmed.toDouble(&ok);
       if (!ok) {
         *errorMessage = QStringLiteral("%1 must be a number.").arg(name);
+        return false;
+      }
+      if (schema.contains(QStringLiteral("minimum")) && value < schema.value(QStringLiteral("minimum")).toDouble()) {
+        *errorMessage = QStringLiteral("%1 must be at least %2.").arg(name).arg(schema.value(QStringLiteral("minimum")).toDouble());
+        return false;
+      }
+      if (schema.contains(QStringLiteral("maximum")) && value > schema.value(QStringLiteral("maximum")).toDouble()) {
+        *errorMessage = QStringLiteral("%1 must be at most %2.").arg(name).arg(schema.value(QStringLiteral("maximum")).toDouble());
         return false;
       }
       arguments->insert(name, value);
@@ -937,6 +1224,8 @@ void MainWindow::executeGlobalCommand() {
     const QString command = text.mid(1).trimmed().toLower();
     if (command.startsWith(QStringLiteral("settings"))) {
       openSettingsDialog();
+    } else if (command.startsWith(QStringLiteral("runs"))) {
+      openRunsDialog();
     } else if (command.startsWith(QStringLiteral("logs"))) {
       openLogsDialog();
     } else if (command.startsWith(QStringLiteral("about"))) {
@@ -945,9 +1234,12 @@ void MainWindow::executeGlobalCommand() {
       refreshTools();
     } else if (command.startsWith(QStringLiteral("connect"))) {
       connectOrDisconnect();
+    } else if (command.startsWith(QStringLiteral("new server")) || command.startsWith(QStringLiteral("server"))) {
+      newServerProfile();
     } else {
-      QMessageBox::information(this, QStringLiteral("Command palette"),
-                               QStringLiteral("Available commands:\n>settings\n>logs\n>about\n>refresh\n>connect"));
+      QMessageBox::information(
+          this, QStringLiteral("Command palette"),
+          QStringLiteral("Available commands:\n>runs\n>settings\n>logs\n>about\n>refresh\n>connect\n>new server"));
     }
     globalSearchEdit_->clear();
     return;
@@ -965,14 +1257,14 @@ void MainWindow::executeGlobalCommand() {
 void MainWindow::openSettingsDialog() {
   QDialog dialog(this);
   dialog.setWindowTitle(QStringLiteral("Superpower Settings"));
-  dialog.resize(620, 360);
+  dialog.resize(640, 380);
 
   auto *layout = new QVBoxLayout(&dialog);
   auto *title = new QLabel(QStringLiteral("Settings"), &dialog);
   title->setProperty("panelTitle", true);
   layout->addWidget(title);
   auto *note = new QLabel(
-      QStringLiteral("Runtime paths are normally auto-detected. Routing focus and execution policy can be adjusted here without exposing them in the main workspace."),
+      QStringLiteral("Runtime paths are normally auto-detected. Routing focus and guarded-execution policy remain centralized in the MCP host rather than duplicated in the desktop client."),
       &dialog);
   note->setProperty("muted", true);
   note->setWordWrap(true);
@@ -1015,10 +1307,87 @@ void MainWindow::openSettingsDialog() {
   }
 }
 
+void MainWindow::openRunsDialog() {
+  QDialog dialog(this);
+  dialog.setWindowTitle(QStringLiteral("Superpower Runs"));
+  dialog.resize(900, 600);
+  auto *layout = new QVBoxLayout(&dialog);
+
+  auto *title = new QLabel(QStringLiteral("Runs"), &dialog);
+  title->setProperty("panelTitle", true);
+  layout->addWidget(title);
+  auto *note = new QLabel(
+      QStringLiteral("Execution history is session-only. Parameters are kept in memory so a previous run can be loaded back into the workspace without persisting credentials or sensitive arguments."),
+      &dialog);
+  note->setProperty("muted", true);
+  note->setWordWrap(true);
+  layout->addWidget(note);
+
+  auto *runList = new QListWidget(&dialog);
+  for (int i = 0; i < runHistory_.size(); ++i) {
+    const RunRecord &record = runHistory_.at(i);
+    const QString when = record.startedAt.toLocalTime().toString(QStringLiteral("HH:mm:ss"));
+    const QString displayName = toolDisplayName(record.toolName, record.appName);
+    auto *item = new QListWidgetItem(
+        QStringLiteral("%1  %2  %3 · %4\n%5 · %6 ms · %7")
+            .arg(when, record.status.toUpper(), record.appName, displayName, record.serverName)
+            .arg(record.durationMs)
+            .arg(compactDescription(record.summary, 88)),
+        runList);
+    item->setData(Qt::UserRole, i);
+    item->setSizeHint(QSize(0, 58));
+  }
+  layout->addWidget(runList, 1);
+
+  auto *detail = new QPlainTextEdit(&dialog);
+  detail->setReadOnly(true);
+  detail->setMaximumHeight(170);
+  detail->setPlainText(runHistory_.isEmpty() ? QStringLiteral("No tool runs in this session yet.")
+                                             : QStringLiteral("Select a run to inspect it."));
+  layout->addWidget(detail);
+
+  connect(runList, &QListWidget::currentItemChanged, &dialog,
+          [this, detail](QListWidgetItem *current, QListWidgetItem *) {
+            if (!current) return;
+            const int index = current->data(Qt::UserRole).toInt();
+            if (index < 0 || index >= runHistory_.size()) return;
+            const RunRecord &record = runHistory_.at(index);
+            detail->setPlainText(
+                QStringLiteral("Status: %1\nApp: %2\nTool: %3\nServer: %4\nRisk: %5\nDuration: %6 ms\n\nParameters\n%7\n\nSummary\n%8")
+                    .arg(record.status, record.appName, record.toolName, record.serverName, record.risk)
+                    .arg(record.durationMs)
+                    .arg(QString::fromUtf8(QJsonDocument(record.arguments).toJson(QJsonDocument::Indented)),
+                         record.summary));
+          });
+
+  auto *buttons = new QDialogButtonBox(QDialogButtonBox::Close, &dialog);
+  auto *loadButton = buttons->addButton(QStringLiteral("Load parameters"), QDialogButtonBox::ActionRole);
+  auto *clearButton = buttons->addButton(QStringLiteral("Clear history"), QDialogButtonBox::ResetRole);
+  loadButton->setEnabled(!runHistory_.isEmpty());
+  clearButton->setEnabled(!runHistory_.isEmpty());
+  connect(buttons, &QDialogButtonBox::rejected, &dialog, &QDialog::reject);
+  connect(loadButton, &QPushButton::clicked, &dialog, [this, runList, &dialog]() {
+    auto *item = runList->currentItem();
+    if (!item) return;
+    loadRunIntoWorkspace(item->data(Qt::UserRole).toInt());
+    dialog.accept();
+  });
+  connect(clearButton, &QPushButton::clicked, &dialog, [this, runList, detail, loadButton, clearButton]() {
+    runHistory_.clear();
+    runList->clear();
+    detail->setPlainText(QStringLiteral("Run history cleared for this session."));
+    loadButton->setEnabled(false);
+    clearButton->setEnabled(false);
+  });
+  layout->addWidget(buttons);
+  if (runList->count() > 0) runList->setCurrentRow(0);
+  dialog.exec();
+}
+
 void MainWindow::openLogsDialog() {
   QDialog dialog(this);
   dialog.setWindowTitle(QStringLiteral("Superpower Logs"));
-  dialog.resize(780, 500);
+  dialog.resize(800, 520);
   auto *layout = new QVBoxLayout(&dialog);
   auto *view = new QPlainTextEdit(&dialog);
   view->setReadOnly(true);
@@ -1034,7 +1403,7 @@ void MainWindow::openLogsDialog() {
 void MainWindow::openAboutDialog() {
   QMessageBox::about(
       this, QStringLiteral("About Superpower"),
-      QStringLiteral("Superpower Desktop v1.3\n\nNative Qt 6 / C++20 workspace for the Superpower MCP stack.\n\nThe desktop shell reuses the existing MCP Host, Tool Router, guarded execution policy, context budgeting, and privacy-safe telemetry."));
+      QStringLiteral("Superpower Desktop\n\nNative Qt 6 / C++20 workspace for the Superpower MCP stack.\n\nConnections → Apps → Actions → Runs\n\nThe desktop shell reuses the existing MCP Host, Tool Router, guarded execution policy, context budgeting, and privacy-safe telemetry. Saved Server Profiles intentionally exclude stdio arguments and reject HTTP URLs containing credentials or query tokens."));
 }
 
 void MainWindow::openSchemaDialog() {
@@ -1057,6 +1426,43 @@ void MainWindow::openSchemaDialog() {
   dialog.exec();
 }
 
+void MainWindow::recordRun(const PendingCall &pending, const QString &status, const QString &summary) {
+  RunRecord record;
+  record.toolName = pending.toolName;
+  record.appName = pending.appName;
+  record.serverName = pending.serverName;
+  record.status = status;
+  record.risk = pending.risk;
+  record.summary = compactDescription(summary, 220);
+  record.arguments = pending.arguments;
+  record.startedAt = pending.startedAt;
+  record.durationMs = qMax<qint64>(0, pending.startedAt.msecsTo(QDateTime::currentDateTimeUtc()));
+  runHistory_.prepend(record);
+  while (runHistory_.size() > 100) runHistory_.removeLast();
+}
+
+void MainWindow::loadRunIntoWorkspace(int historyIndex) {
+  if (historyIndex < 0 || historyIndex >= runHistory_.size()) return;
+  const RunRecord &record = runHistory_.at(historyIndex);
+  globalSearchEdit_->clear();
+  appCombo_->setCurrentIndex(0);
+  categoryCombo_->setCurrentIndex(0);
+  applyToolFilters();
+
+  for (int row = 0; row < toolList_->count(); ++row) {
+    auto *item = toolList_->item(row);
+    if (item->data(Qt::UserRole).toString() == record.toolName) {
+      toolList_->setCurrentRow(row);
+      applyArgumentsToForm(record.arguments);
+      outputView_->setPlainText(QStringLiteral("Loaded parameters from a previous %1 run. Review them before running again.").arg(record.status));
+      return;
+    }
+  }
+
+  QMessageBox::information(this, QStringLiteral("Tool not in current catalog"),
+                           QStringLiteral("The previous tool is not available in the current routed catalog. Refresh tools or reconnect to the original server."));
+}
+
 void MainWindow::handleResponse(const QString &id, const QString &method, const QJsonValue &result) {
   if (method == QStringLiteral("tools")) {
     populateTools(result.toObject());
@@ -1077,23 +1483,29 @@ void MainWindow::handleResponse(const QString &id, const QString &method, const 
   }
   if (method == QStringLiteral("call")) {
     const PendingCall pending = pendingCalls_.take(id);
-    appendOutput(QStringLiteral("Result: %1").arg(pending.toolName), result);
+    const QString resultText = jsonText(result);
+    appendOutput(QStringLiteral("Result: %1").arg(toolDisplayName(pending.toolName, pending.appName)), result);
+    recordRun(pending, QStringLiteral("Success"), resultText);
     runButton_->setEnabled(bridge_->isRunning() && toolList_->currentItem() != nullptr);
-    appendLog(QStringLiteral("Completed %1.").arg(pending.toolName));
+    appendLog(QStringLiteral("Completed %1 in %2 ms.")
+                  .arg(pending.toolName)
+                  .arg(qMax<qint64>(0, pending.startedAt.msecsTo(QDateTime::currentDateTimeUtc()))));
   }
 }
 
 void MainWindow::handleRequestFailure(const QString &id, const QString &method, const QString &code,
                                       const QString &message, const QJsonObject &details) {
   if (method == QStringLiteral("call") && code == QStringLiteral("confirmation_required")) {
-    const PendingCall pending = pendingCalls_.take(id);
+    PendingCall pending = pendingCalls_.take(id);
     const QString risk = details.value(QStringLiteral("risk")).toString();
+    pending.risk = risk.isEmpty() ? QStringLiteral("high") : risk;
     const QJsonArray reasons = details.value(QStringLiteral("reasons")).toArray();
     QStringList reasonText;
     for (const QJsonValue &reason : reasons) reasonText << reason.toString();
 
-    const QString body = QStringLiteral("Tool: %1\nRisk: %2\n\n%3\n\nAllow this action?")
-                             .arg(pending.toolName, risk, reasonText.join(QStringLiteral("\n")));
+    const QString body = QStringLiteral("Tool: %1\nApp: %2\nServer: %3\nRisk: %4\n\n%5\n\nAllow this action?")
+                             .arg(pending.toolName, pending.appName, pending.serverName, pending.risk,
+                                  reasonText.join(QStringLiteral("\n")));
     const auto decision = QMessageBox::warning(this, QStringLiteral("Guarded MCP action"), body,
                                                 QMessageBox::Yes | QMessageBox::No, QMessageBox::No);
     if (decision == QMessageBox::Yes) {
@@ -1103,6 +1515,7 @@ void MainWindow::handleRequestFailure(const QString &id, const QString &method, 
                                     {QStringLiteral("approve"), true}});
       if (!retryId.isEmpty()) pendingCalls_.insert(retryId, pending);
     } else {
+      recordRun(pending, QStringLiteral("Cancelled"), QStringLiteral("Guarded action cancelled by user."));
       appendLog(QStringLiteral("Action cancelled by user: %1.").arg(pending.toolName));
       outputView_->setPlainText(QStringLiteral("Action cancelled."));
       runButton_->setEnabled(true);
@@ -1114,6 +1527,7 @@ void MainWindow::handleRequestFailure(const QString &id, const QString &method, 
     const PendingCall pending = pendingCalls_.take(id);
     runButton_->setEnabled(bridge_->isRunning() && toolList_->currentItem() != nullptr);
     outputView_->setPlainText(QStringLiteral("Execution failed\n\n%1: %2").arg(code, message));
+    recordRun(pending, QStringLiteral("Failed"), QStringLiteral("%1: %2").arg(code, message));
     appendLog(QStringLiteral("Tool failure %1 (%2): %3").arg(pending.toolName, code, message));
     return;
   }
@@ -1128,7 +1542,8 @@ void MainWindow::appendOutput(const QString &heading, const QJsonValue &value) {
 void MainWindow::appendLog(const QString &line) {
   const QString cleaned = line.trimmed();
   if (cleaned.isEmpty()) return;
-  logLines_.append(QStringLiteral("[desktop] %1").arg(cleaned));
+  const QString stamp = QDateTime::currentDateTime().toString(QStringLiteral("HH:mm:ss"));
+  logLines_.append(QStringLiteral("[%1] %2").arg(stamp, cleaned));
   while (logLines_.size() > 500) logLines_.removeFirst();
 }
 
@@ -1136,7 +1551,8 @@ void MainWindow::setStatus(const QString &text, bool connected) {
   statusLabel_->setText(text);
   if (connected) {
     statusLabel_->setStyleSheet(QStringLiteral("background:#111111;border:1px solid #111111;color:#ffffff;"));
-    headerConnectionLabel_->setText(QStringLiteral("Connected · %1").arg(connectionSummary()));
+    const QString name = activeConnectionName_.isEmpty() ? currentServerName() : activeConnectionName_;
+    headerConnectionLabel_->setText(QStringLiteral("Connected · %1").arg(name));
     headerConnectionLabel_->setStyleSheet(
         QStringLiteral("background:#111111;border:1px solid #111111;color:#ffffff;border-radius:9px;padding:7px 10px;font-weight:600;"));
   } else {
@@ -1148,13 +1564,16 @@ void MainWindow::setStatus(const QString &text, bool connected) {
 }
 
 QString MainWindow::connectionSummary() const {
+  const QString name = currentServerName();
   const bool useStdio = transportCombo_ && transportCombo_->currentData().toString() == QStringLiteral("stdio");
   if (useStdio) {
     const QString command = stdioCommandEdit_ ? stdioCommandEdit_->text().trimmed() : QString();
-    return command.isEmpty() ? QStringLiteral("Local stdio") : QStringLiteral("stdio · %1").arg(command);
+    return command.isEmpty() ? QStringLiteral("%1 · Local stdio").arg(name)
+                             : QStringLiteral("%1 · stdio · %2").arg(name, command);
   }
   const QString endpoint = endpointEdit_ ? endpointEdit_->text().trimmed() : QString();
-  return endpoint.isEmpty() ? QStringLiteral("Streamable HTTP") : QStringLiteral("HTTP · %1").arg(endpoint);
+  return endpoint.isEmpty() ? QStringLiteral("%1 · Streamable HTTP").arg(name)
+                            : QStringLiteral("%1 · HTTP · %2").arg(name, endpoint);
 }
 
 QString MainWindow::toolCategory(const QString &name, const QString &description) {
@@ -1166,11 +1585,6 @@ QString MainWindow::toolCategory(const QString &name, const QString &description
     return false;
   };
 
-  if (containsAny({QStringLiteral("github"), QStringLiteral("git"), QStringLiteral("repo"),
-                   QStringLiteral("code"), QStringLiteral("developer"), QStringLiteral("terminal"),
-                   QStringLiteral("shell"), QStringLiteral("issue"), QStringLiteral("pull request")})) {
-    return QStringLiteral("Developer");
-  }
   if (containsAny({QStringLiteral("email"), QStringLiteral("gmail"), QStringLiteral("message"),
                    QStringLiteral("slack"), QStringLiteral("calendar"), QStringLiteral("contact")})) {
     return QStringLiteral("Communication");
@@ -1189,7 +1603,58 @@ QString MainWindow::toolCategory(const QString &name, const QString &description
                    QStringLiteral("storage")})) {
     return QStringLiteral("Files");
   }
+  if (containsAny({QStringLiteral("github"), QStringLiteral("git"), QStringLiteral("repo"),
+                   QStringLiteral("code"), QStringLiteral("developer"), QStringLiteral("terminal"),
+                   QStringLiteral("shell"), QStringLiteral("issue"), QStringLiteral("pull request")})) {
+    return QStringLiteral("Developer");
+  }
   return QStringLiteral("General");
+}
+
+QString MainWindow::toolApp(const QString &name, const QString &description) {
+  const QString haystack = (name + QLatin1Char(' ') + description).toLower();
+  if (haystack.contains(QStringLiteral("github")) || haystack.contains(QStringLiteral("pull request")) ||
+      haystack.contains(QStringLiteral("repository"))) return QStringLiteral("GitHub");
+  if (haystack.contains(QStringLiteral("gmail"))) return QStringLiteral("Gmail");
+  if (haystack.contains(QStringLiteral("google drive")) || haystack.contains(QStringLiteral("gdrive")) ||
+      haystack.contains(QStringLiteral("google doc")) || haystack.contains(QStringLiteral("google sheet")) ||
+      haystack.contains(QStringLiteral("google slide"))) return QStringLiteral("Google Drive");
+  if (haystack.contains(QStringLiteral("dropbox"))) return QStringLiteral("Dropbox");
+  if (haystack.contains(QStringLiteral("notion"))) return QStringLiteral("Notion");
+  if (haystack.contains(QStringLiteral("slack"))) return QStringLiteral("Slack");
+  if (haystack.contains(QStringLiteral("calendar"))) return QStringLiteral("Calendar");
+  if (haystack.contains(QStringLiteral("browser")) || haystack.contains(QStringLiteral("web")) ||
+      haystack.contains(QStringLiteral("http")) || haystack.contains(QStringLiteral("url"))) return QStringLiteral("Web");
+  if (haystack.contains(QStringLiteral("file")) || haystack.contains(QStringLiteral("folder")) ||
+      haystack.contains(QStringLiteral("storage"))) return QStringLiteral("Files");
+  if (haystack.contains(QStringLiteral("database")) || haystack.contains(QStringLiteral("sql")) ||
+      haystack.contains(QStringLiteral("csv")) || haystack.contains(QStringLiteral("analytics"))) return QStringLiteral("Data");
+  if (haystack.contains(QStringLiteral("git")) || haystack.contains(QStringLiteral("code")) ||
+      haystack.contains(QStringLiteral("terminal")) || haystack.contains(QStringLiteral("shell"))) return QStringLiteral("Developer");
+  return QStringLiteral("General");
+}
+
+QString MainWindow::toolDisplayName(const QString &name, const QString &appName) {
+  QString normalized = name;
+  normalized.replace(QStringLiteral("::"), QStringLiteral(" "));
+  normalized.replace(QLatin1Char('/'), QLatin1Char(' '));
+  normalized.replace(QLatin1Char('.'), QLatin1Char(' '));
+  normalized.replace(QLatin1Char('_'), QLatin1Char(' '));
+  normalized.replace(QLatin1Char('-'), QLatin1Char(' '));
+  normalized = normalized.simplified();
+
+  QString appToken = appName.toLower();
+  appToken.replace(QLatin1Char(' '), QLatin1Char(' '));
+  if (!appToken.isEmpty() && normalized.toLower().startsWith(appToken + QLatin1Char(' '))) {
+    normalized = normalized.mid(appToken.size() + 1).trimmed();
+  }
+
+  QStringList words = normalized.split(QLatin1Char(' '), Qt::SkipEmptyParts);
+  for (QString &word : words) {
+    if (!word.isEmpty()) word = word.left(1).toUpper() + word.mid(1);
+  }
+  const QString display = words.join(QLatin1Char(' '));
+  return display.isEmpty() ? name : display;
 }
 
 QIcon MainWindow::iconForCategory(const QString &category) const {
@@ -1199,6 +1664,12 @@ QIcon MainWindow::iconForCategory(const QString &category) const {
   if (category == QStringLiteral("Web")) return style()->standardIcon(QStyle::SP_DriveNetIcon);
   if (category == QStringLiteral("Files")) return style()->standardIcon(QStyle::SP_DirIcon);
   return style()->standardIcon(QStyle::SP_FileIcon);
+}
+
+QIcon MainWindow::iconForServerStatus(const QString &status) const {
+  if (status == QStringLiteral("Connected")) return style()->standardIcon(QStyle::SP_DialogApplyButton);
+  if (status == QStringLiteral("Error")) return style()->standardIcon(QStyle::SP_MessageBoxWarning);
+  return style()->standardIcon(QStyle::SP_DriveNetIcon);
 }
 
 QString MainWindow::findDefaultNodeProgram() {
@@ -1255,4 +1726,14 @@ bool MainWindow::parseStdioArguments(const QString &text, QStringList *arguments
     arguments->append(value.toString());
   }
   return true;
+}
+
+bool MainWindow::endpointIsSafeToPersist(const QString &endpoint) {
+  if (endpoint.isEmpty()) return true;
+  const QUrl url(endpoint);
+  if (!url.isValid()) return false;
+  if (!url.userInfo().isEmpty()) return false;
+  if (!url.query().isEmpty()) return false;
+  if (!url.fragment().isEmpty()) return false;
+  return url.scheme() == QStringLiteral("http") || url.scheme() == QStringLiteral("https");
 }
