@@ -1,0 +1,102 @@
+name: Desktop Qt Build
+
+on:
+  pull_request:
+    paths:
+      - 'desktop/qt/**'
+      - 'packages/mcp-host/**'
+      - 'packages/mcp-core/**'
+      - 'pnpm-lock.yaml'
+      - '.nvmrc'
+      - '.github/workflows/desktop-qt.yml'
+  workflow_dispatch:
+
+jobs:
+  build-linux:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - name: Install Qt 6 build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y cmake ninja-build qt6-base-dev
+      - name: Configure Superpower Desktop
+        run: cmake -S desktop/qt -B desktop/qt/build -G Ninja -DCMAKE_BUILD_TYPE=Release
+      - name: Build Superpower Desktop
+        run: cmake --build desktop/qt/build --parallel 2
+
+  build-windows-portable:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: pnpm/action-setup@v6
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: '.nvmrc'
+          cache: pnpm
+      - name: Install JavaScript dependencies
+        run: pnpm install --frozen-lockfile --prefer-offline
+      - name: Build and bundle MCP host
+        shell: pwsh
+        run: |
+          pnpm -F @superpower/mcp-host build
+          New-Item -ItemType Directory -Force desktop/qt/package/bridge | Out-Null
+          $body = 'desktop/qt/package/bridge/superpower-host.body.mjs'
+          $bundle = 'desktop/qt/package/bridge/superpower-host.mjs'
+          pnpm exec esbuild packages/mcp-host/src/cli.ts --bundle --platform=node --format=esm --target=node22 --outfile=$body
+          $bodyText = Get-Content -Path $body -Raw
+          if ($bodyText.StartsWith('#!')) {
+            $firstNewline = $bodyText.IndexOf("`n")
+            if ($firstNewline -ge 0) { $bodyText = $bodyText.Substring($firstNewline + 1) }
+          }
+          $shim = 'import { createRequire } from "node:module"; const require = createRequire(import.meta.url);'
+          $bundleText = "#!/usr/bin/env node`n$shim`n$bodyText"
+          Set-Content -Path $bundle -Value $bundleText -Encoding utf8NoBOM -NoNewline
+          Remove-Item $body
+          node $bundle --help | Select-String 'Superpower MCP Host'
+      - name: Install Qt 6.8.3
+        shell: pwsh
+        run: |
+          python -m pip install --disable-pip-version-check aqtinstall
+          python -m aqt install-qt windows desktop 6.8.3 win64_msvc2022_64 -O C:/Qt
+      - name: Configure Superpower Desktop
+        shell: pwsh
+        run: cmake -S desktop/qt -B desktop/qt/build-windows -DCMAKE_PREFIX_PATH=C:/Qt/6.8.3/msvc2022_64
+      - name: Build Superpower Desktop
+        shell: pwsh
+        run: cmake --build desktop/qt/build-windows --config Release --parallel 2
+      - name: Assemble portable Windows package
+        shell: pwsh
+        run: |
+          $package = Join-Path $PWD 'desktop/qt/package'
+          $exe = Join-Path $PWD 'desktop/qt/build-windows/Release/Superpower Desktop.exe'
+          Copy-Item $exe (Join-Path $package 'Superpower Desktop.exe') -Force
+          Copy-Item 'desktop/qt/windows/README.txt' (Join-Path $package 'README.txt') -Force
+
+          $qtBin = 'C:/Qt/6.8.3/msvc2022_64/bin'
+          & "$qtBin/windeployqt.exe" --release --compiler-runtime --no-translations (Join-Path $package 'Superpower Desktop.exe')
+          if ($LASTEXITCODE -ne 0) { throw 'windeployqt failed.' }
+
+          $nodeVersion = (Get-Content '.nvmrc' -Raw).Trim()
+          $nodeZip = Join-Path $env:RUNNER_TEMP "node-v$nodeVersion-win-x64.zip"
+          $nodeDir = Join-Path $env:RUNNER_TEMP "node-v$nodeVersion-win-x64"
+          Invoke-WebRequest "https://nodejs.org/dist/v$nodeVersion/node-v$nodeVersion-win-x64.zip" -OutFile $nodeZip
+          Expand-Archive $nodeZip -DestinationPath $env:RUNNER_TEMP -Force
+          $runtime = Join-Path $package 'runtime'
+          New-Item -ItemType Directory -Force $runtime | Out-Null
+          Copy-Item (Join-Path $nodeDir '*') $runtime -Recurse -Force
+
+          & (Join-Path $runtime 'node.exe') (Join-Path $package 'bridge/superpower-host.mjs') --help | Select-String 'Superpower MCP Host'
+          if (!(Test-Path (Join-Path $runtime 'npx.cmd'))) { throw 'Bundled Node runtime is missing npx.cmd.' }
+          if (!(Test-Path (Join-Path $package 'Qt6Core.dll'))) { throw 'Qt runtime deployment is incomplete.' }
+          if (!(Test-Path (Join-Path $package 'platforms/qwindows.dll'))) { throw 'Qt Windows platform plugin is missing.' }
+          if (!(Test-Path (Join-Path $package 'bridge/superpower-host.mjs'))) { throw 'MCP host bridge is missing.' }
+
+          $zip = Join-Path $PWD 'desktop/qt/Superpower-Desktop-Windows-x64.zip'
+          Compress-Archive -Path "$package/*" -DestinationPath $zip -Force
+      - uses: actions/upload-artifact@v7
+        with:
+          name: superpower-desktop-windows-x64
+          path: desktop/qt/Superpower-Desktop-Windows-x64.zip
+          if-no-files-found: error
+          retention-days: 14
