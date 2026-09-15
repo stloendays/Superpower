@@ -154,12 +154,21 @@ export const routeTools = <T extends RoutableTool>(
   ranked.sort((a, b) => b.score - a.score || a.index - b.index);
 
   let selected = ranked.filter(item => item.score >= minScore).slice(0, maxTools);
-  if (selected.length === 0) selected = ranked.slice(0, Math.min(maxTools, 4));
+  let queryUsed = true;
+
+  // An unmatched query is a routing-confidence failure, not evidence that only a
+  // tiny subset is relevant. Fall back to the normal maxTools budget instead of
+  // the previous hard-coded four-tool slice, which could hide the correct tool
+  // simply because the user's wording was outside the local alias vocabulary.
+  if (selected.length === 0) {
+    selected = ranked.slice(0, maxTools);
+    queryUsed = false;
+  }
 
   return {
     tools: selected.map(item => item.tool),
     ranked: selected.map(({ tool, score, matchedTerms }) => ({ tool, score, matchedTerms })),
     omitted: Math.max(0, tools.length - selected.length),
-    queryUsed: true,
+    queryUsed,
   };
 };
