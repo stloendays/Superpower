@@ -91,7 +91,10 @@ const extractLabeledValue = (query: string, labels: string[]): string | null => 
       if (end > 1) return tail.slice(1, end).trim();
     }
 
-    const value = tail.split(/[;,\n]/, 1)[0]?.split(/\s+(?:and|with|然后|并且)\s+/i, 1)[0]?.trim();
+    const value = tail
+      .split(/[;,\n]/, 1)[0]
+      ?.split(/\s+(?:and|with|然后|并且)\s+/i, 1)[0]
+      ?.trim();
     if (value) return value;
   }
   return null;
@@ -163,7 +166,13 @@ const inferStringValue = (name: string, query: string): string | null => {
 
 const inferNumberValue = (name: string, query: string): number | null => {
   const key = canonicalKey(name);
-  if (key.includes('issue') || key.includes('pull') || key.includes('pr') || key.includes('number') || key.endsWith('id')) {
+  if (
+    key.includes('issue') ||
+    key.includes('pull') ||
+    key.includes('pr') ||
+    key.includes('number') ||
+    key.endsWith('id')
+  ) {
     const issue = extractIssueNumber(query);
     if (issue !== null) return issue;
   }
