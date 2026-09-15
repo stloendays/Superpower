@@ -88,6 +88,16 @@ void WorkspaceDashboard::submitActionQuery() {
   emit actionQueryRequested(query);
 }
 
+void WorkspaceDashboard::submitWorkflowQuery() {
+  const QString query = actionQueryEdit_->text().trimmed();
+  if (query.isEmpty()) {
+    setActionRouterStatus(QStringLiteral("Describe the multi-step outcome you want Superpower to plan."), false);
+    actionQueryEdit_->setFocus();
+    return;
+  }
+  emit workflowQueryRequested(query);
+}
+
 void WorkspaceDashboard::buildUi() {
   auto *root = new QVBoxLayout(this);
   root->setContentsMargins(28, 26, 28, 26);
@@ -104,7 +114,7 @@ void WorkspaceDashboard::buildUi() {
   headerLayout->addWidget(title);
 
   auto *subtitle = new QLabel(
-      QStringLiteral("Route natural-language requests into MCP Actions, then review every parameter before execution."),
+      QStringLiteral("Route one MCP Action or plan a review-first multi-step workflow from natural language."),
       headerBlock);
   subtitle->setProperty("dashboardMuted", true);
   subtitle->setWordWrap(true);
@@ -123,16 +133,16 @@ void WorkspaceDashboard::buildUi() {
   routerLayout->setContentsMargins(20, 18, 20, 18);
   routerLayout->setSpacing(9);
 
-  auto *routerEyebrow = new QLabel(QStringLiteral("ACTION ROUTER"), routerCard);
+  auto *routerEyebrow = new QLabel(QStringLiteral("ACTION ROUTER · WORKFLOW PLANNER"), routerCard);
   routerEyebrow->setProperty("dashboardEyebrow", true);
   routerLayout->addWidget(routerEyebrow);
 
-  auto *routerTitle = new QLabel(QStringLiteral("Search or run an action"), routerCard);
+  auto *routerTitle = new QLabel(QStringLiteral("Route an action or plan a workflow"), routerCard);
   routerTitle->setProperty("actionRouterTitle", true);
   routerLayout->addWidget(routerTitle);
 
   auto *routerHint = new QLabel(
-      QStringLiteral("Describe the outcome in natural language. Superpower ranks the full MCP catalog, drafts schema-backed parameters, previews execution risk, and opens the proposal for review. It never auto-runs the result."),
+      QStringLiteral("Use Route action for one MCP tool. Use Plan workflow for explicit sequences such as search → summarize → write. Workflow planning separates MCP Actions, local transforms, unresolved steps, and cross-step handoffs; nothing auto-runs."),
       routerCard);
   routerHint->setProperty("dashboardMuted", true);
   routerHint->setWordWrap(true);
@@ -144,7 +154,7 @@ void WorkspaceDashboard::buildUi() {
   actionQueryEdit_->setProperty("actionRouterInput", true);
   actionQueryEdit_->setClearButtonEnabled(true);
   actionQueryEdit_->setPlaceholderText(
-      QStringLiteral("e.g. Find issue #29 in stloendays/Superpower-V1, or 给客户发一封邮件"));
+      QStringLiteral("e.g. Find GitHub bug issues, summarize them, then write the result to Notion"));
   connect(actionQueryEdit_, &QLineEdit::returnPressed, this, &WorkspaceDashboard::submitActionQuery);
   routerInputRow->addWidget(actionQueryEdit_, 1);
 
@@ -152,10 +162,15 @@ void WorkspaceDashboard::buildUi() {
   actionRouteButton_->setProperty("dashboardPrimary", true);
   connect(actionRouteButton_, &QPushButton::clicked, this, &WorkspaceDashboard::submitActionQuery);
   routerInputRow->addWidget(actionRouteButton_);
+
+  workflowPlanButton_ = new QPushButton(QStringLiteral("Plan workflow"), routerCard);
+  connect(workflowPlanButton_, &QPushButton::clicked, this, &WorkspaceDashboard::submitWorkflowQuery);
+  routerInputRow->addWidget(workflowPlanButton_);
   routerLayout->addLayout(routerInputRow);
 
   actionRouterStatusLabel_ = new QLabel(
-      QStringLiteral("Nothing runs from Home. A routed proposal always opens in Actions for review."), routerCard);
+      QStringLiteral("Nothing runs from Home. Actions open for parameter review; workflows open in Workflow Review."),
+      routerCard);
   actionRouterStatusLabel_->setProperty("actionRouterStatus", true);
   actionRouterStatusLabel_->setWordWrap(true);
   routerLayout->addWidget(actionRouterStatusLabel_);
@@ -211,7 +226,7 @@ void WorkspaceDashboard::buildUi() {
   root->addWidget(recentRunsList_, 1);
 
   auto *privacy = new QLabel(
-      QStringLiteral("Home is session-oriented. Action queries and drafted parameters are not persisted by the dashboard; execution still goes through the existing MCP guarded policy."),
+      QStringLiteral("Home is session-oriented. Action/workflow queries and drafted parameters are not persisted by the dashboard; execution still goes through the existing MCP guarded policy."),
       this);
   privacy->setProperty("dashboardMuted", true);
   privacy->setWordWrap(true);
@@ -335,6 +350,7 @@ void WorkspaceDashboard::setConversationRelayStatus(const QString &text, bool on
 void WorkspaceDashboard::setActionRouterStatus(const QString &text, bool busy) {
   if (actionRouterStatusLabel_) actionRouterStatusLabel_->setText(text);
   if (actionRouteButton_) actionRouteButton_->setEnabled(!busy);
+  if (workflowPlanButton_) workflowPlanButton_->setEnabled(!busy);
   if (actionQueryEdit_) actionQueryEdit_->setEnabled(!busy);
 }
 
