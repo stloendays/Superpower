@@ -12,7 +12,7 @@ on:
       - 'pages/content/src/components/sidebar/Instructions/**'
       - 'pages/content/src/components/sidebar/ServerStatus/**'
       - 'pages/content/src/stores/tool.store.ts'
-      - 'pages/content/src/types/stores.ts'
+      - 'pages/content/src/types/**'
       - 'pages/content/package.json'
       - 'pages/content/tsconfig*.json'
       - 'pnpm-lock.yaml'
@@ -23,8 +23,6 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
-        with:
-          fetch-depth: 0
       - uses: pnpm/action-setup@v6
       - uses: actions/setup-node@v7
         with:
@@ -32,48 +30,8 @@ jobs:
           cache: pnpm
       - run: pnpm install --frozen-lockfile --prefer-offline
 
-      - name: Check TypeScript error delta
-        shell: bash
-        env:
-          BASE_SHA: ${{ github.event.pull_request.base.sha }}
-        run: |
-          set -uo pipefail
-          HEAD_SHA="$(git rev-parse HEAD)"
-
-          set +e
-          pnpm -F @extension/content-script type-check 2>&1 | tee /tmp/head-typecheck.log
-          HEAD_STATUS=${PIPESTATUS[0]}
-          set -e
-
-          grep -E 'error TS[0-9]+:' /tmp/head-typecheck.log \
-            | sed -E 's/\([0-9]+,[0-9]+\): /: /' \
-            | sort -u > /tmp/head-errors.txt || true
-
-          git checkout --detach "$BASE_SHA"
-          set +e
-          pnpm -F @extension/content-script type-check 2>&1 | tee /tmp/base-typecheck.log
-          BASE_STATUS=${PIPESTATUS[0]}
-          set -e
-
-          grep -E 'error TS[0-9]+:' /tmp/base-typecheck.log \
-            | sed -E 's/\([0-9]+,[0-9]+\): /: /' \
-            | sort -u > /tmp/base-errors.txt || true
-
-          git checkout --detach "$HEAD_SHA"
-          comm -13 /tmp/base-errors.txt /tmp/head-errors.txt > /tmp/new-errors.txt
-
-          if [ -s /tmp/new-errors.txt ]; then
-            echo 'New TypeScript errors introduced by this PR:'
-            cat /tmp/new-errors.txt
-            exit 1
-          fi
-
-          if [ "$HEAD_STATUS" -ne 0 ]; then
-            echo 'TypeScript still has baseline errors, but this PR introduces no new TypeScript errors.'
-            echo "Baseline exit code: $BASE_STATUS; PR exit code: $HEAD_STATUS"
-          else
-            echo 'Content-script TypeScript check is clean.'
-          fi
+      - name: Check content-script TypeScript
+        run: pnpm -F @extension/content-script type-check
 
       - name: Check browser-agnostic MCP core
         run: |
@@ -108,8 +66,10 @@ jobs:
           packages/shared/lib/mcp-core/index.ts
           packages/shared/index.mts
           packages/shared/package.json
+          pages/content/package.json
           pages/content/tsconfig.json
           pages/content/tsconfig.vite.json
+          pages/content/src/types/browser-build-globals.d.ts
           pages/content/src/core/context-budget.ts
           pages/content/src/core/tool-router.ts
           pages/content/src/core/execution-policy.ts
