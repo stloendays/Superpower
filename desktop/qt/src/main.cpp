@@ -128,12 +128,13 @@ int main(int argc, char *argv[]) {
   QObject::connect(&window, &MainWindow::workflowPlanStarted, dashboard,
                    [dashboard](const QString &) {
                      dashboard->setActionRouterStatus(
-                         QStringLiteral("Planning ordered workflow steps and policy previews... Nothing has run."), true);
+                         QStringLiteral("Planning ordered workflow steps, explicit bindings, and policy previews... Nothing has run."),
+                         true);
                    });
   QObject::connect(&window, &MainWindow::workflowPlanPrepared, dashboard,
                    [dashboard, workflowReview](const QString &summary, const QJsonObject &plan) {
                      dashboard->setActionRouterStatus(
-                         QStringLiteral("Workflow prepared for review: %1").arg(summary), false);
+                         QStringLiteral("Workflow prepared for binding review: %1").arg(summary), false);
                      workflowReview->setPlan(plan);
                      workflowReview->show();
                      workflowReview->raise();
@@ -146,6 +147,28 @@ int main(int argc, char *argv[]) {
                      showActions();
                      window.reviewWorkflowStep(actionPlan);
                    });
+  QObject::connect(workflowReview, &WorkflowReviewDialog::startRunRequested, &window,
+                   &MainWindow::startWorkflowRun);
+  QObject::connect(workflowReview, &WorkflowReviewDialog::advanceRunRequested, &window,
+                   &MainWindow::advanceWorkflowRun);
+  QObject::connect(workflowReview, &WorkflowReviewDialog::provideOutputRequested, &window,
+                   &MainWindow::provideWorkflowStepOutput);
+  QObject::connect(&window, &MainWindow::workflowRunUpdated, workflowReview,
+                   &WorkflowReviewDialog::setRunState);
+  QObject::connect(&window, &MainWindow::workflowRunUpdated, dashboard,
+                   [dashboard](const QJsonObject &state) {
+                     const QString status = state.value(QStringLiteral("status")).toString(QStringLiteral("ready"));
+                     const QJsonObject gate = state.value(QStringLiteral("gate")).toObject();
+                     const QString gateType = gate.value(QStringLiteral("type")).toString(QStringLiteral("unknown"));
+                     dashboard->setActionRouterStatus(
+                         QStringLiteral("Workflow Runner · %1 · gate %2 · one-step advance only")
+                             .arg(status.toUpper(), gateType.toUpper()),
+                         false);
+                   });
+  QObject::connect(&window, &MainWindow::workflowRunFailed, workflowReview,
+                   &WorkflowReviewDialog::setRunError);
+  QObject::connect(&window, &MainWindow::workflowRunFailed, dashboard,
+                   [dashboard](const QString &message) { dashboard->setActionRouterStatus(message, false); });
 
   auto *conversationDock = new QDockWidget(QStringLiteral("Conversation"), &window);
   conversationDock->setObjectName(QStringLiteral("conversationDock"));
