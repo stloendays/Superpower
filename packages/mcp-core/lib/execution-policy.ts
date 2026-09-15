@@ -37,6 +37,20 @@ const SENSITIVE_KEY_PATTERNS = [
   /cookie/i,
 ];
 
+/**
+ * Risk keywords arrive from both machine-style tool names and prose descriptions.
+ * Normalize camelCase, whitespace and punctuation to one separator before applying
+ * boundary-aware patterns so `delete_account`, `deleteAccount` and `delete account`
+ * are classified consistently without making substring matches such as `dropbox`
+ * destructive.
+ */
+const normalizeSearchable = (value: string): string =>
+  value
+    .replace(/([a-z0-9])([A-Z])/g, '$1_$2')
+    .replace(/[^a-zA-Z0-9]+/g, '_')
+    .replace(/^_+|_+$/g, '')
+    .toLowerCase();
+
 const collectArgumentKeys = (value: unknown, prefix = '', depth = 0): string[] => {
   if (!value || typeof value !== 'object' || depth > 3) return [];
   if (Array.isArray(value)) {
@@ -59,7 +73,7 @@ export const evaluateToolExecution = (
   description = '',
   mode: ExecutionPolicyMode = 'audit',
 ): ExecutionPolicyResult => {
-  const searchable = `${toolName} ${description}`;
+  const searchable = normalizeSearchable(`${toolName} ${description}`);
   const argumentKeys = collectArgumentKeys(args);
   const sensitiveArgumentKeys = argumentKeys.filter(key => SENSITIVE_KEY_PATTERNS.some(pattern => pattern.test(key)));
   const destructive = DESTRUCTIVE_PATTERNS.some(pattern => pattern.test(searchable));
