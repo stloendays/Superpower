@@ -92,12 +92,13 @@ export class WorkflowRunRegistry {
   async advance(runId: string, approve: boolean): Promise<Record<string, unknown>> {
     const stored = this.requireRun(runId);
     const prepared = prepareWorkflowRunStep(stored.state);
-    if (prepared.gate !== 'ready' || !prepared.step?.action?.selected) {
+    const step = prepared.step;
+    const action = step?.action;
+    const selected = action?.selected;
+    if (prepared.gate !== 'ready' || !step || !action || !selected) {
       return this.serializeRun(stored, prepared);
     }
 
-    const step = prepared.step;
-    const selected = step.action.selected;
     const policy = this.host.gateway.evaluate(selected.tool.name, prepared.arguments, selected.tool.description ?? '');
     if (policy.decision === 'confirm' && !approve) {
       return this.serializeRun(stored, prepared, {
