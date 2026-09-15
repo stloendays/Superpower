@@ -1,6 +1,7 @@
 #include "conversationwindow.h"
 #include "mainwindow.h"
 #include "mcpbridgeprocess.h"
+#include "onboardingdialog.h"
 
 #include <QAction>
 #include <QApplication>
@@ -12,7 +13,9 @@
 #include <QKeySequence>
 #include <QMenu>
 #include <QMenuBar>
+#include <QSettings>
 #include <QStandardPaths>
+#include <QTimer>
 
 namespace {
 QString findDefaultNodeProgram() {
@@ -76,6 +79,12 @@ int main(int argc, char *argv[]) {
   conversationAction->setShortcut(QKeySequence(QStringLiteral("Ctrl+Shift+C")));
   viewMenu->addAction(conversationAction);
 
+  auto *onboarding = new OnboardingDialog(&window);
+  QMenu *helpMenu = window.menuBar()->addMenu(QStringLiteral("Help"));
+  QAction *gettingStartedAction = helpMenu->addAction(QStringLiteral("Getting Started..."));
+  gettingStartedAction->setShortcut(QKeySequence(QStringLiteral("Ctrl+Shift+G")));
+  QObject::connect(gettingStartedAction, &QAction::triggered, onboarding, &OnboardingDialog::showForCurrentState);
+
   auto *conversationRelay = new McpBridgeProcess(&window);
   QObject::connect(conversationRelay, &McpBridgeProcess::bridgeReady, conversation,
                    [conversation](const QString &transport) {
@@ -109,5 +118,11 @@ int main(int argc, char *argv[]) {
 
   window.show();
   conversationRelay->startConversation(findDefaultNodeProgram(), findDefaultHostScript());
+
+  QSettings settings(QStringLiteral("Superpower"), QStringLiteral("Superpower Desktop"));
+  if (!settings.value(QStringLiteral("onboarding/v1_5_seen"), false).toBool()) {
+    QTimer::singleShot(350, onboarding, [onboarding]() { onboarding->showForCurrentState(); });
+  }
+
   return app.exec();
 }
