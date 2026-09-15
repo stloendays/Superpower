@@ -137,14 +137,14 @@ export const planWorkflow = <T extends ActionPlannerTool>(
     let confidence: ActionPlanConfidence = 'low';
     let actionPlan: ActionPlan<T> | null = action;
 
-    if (action.selected && selectedScore >= actionMinScore) {
-      kind = 'action';
-      confidence = action.confidence;
-    } else if (transformOperation) {
+    if (transformOperation) {
       kind = 'transform';
       confidence = 'medium';
       actionPlan = null;
       transform = { operation: transformOperation, instruction };
+    } else if (action.selected && selectedScore >= actionMinScore) {
+      kind = 'action';
+      confidence = action.confidence;
     }
 
     const needsPreviousOutput =
