@@ -19,7 +19,49 @@ export type ConnectionInputResult = { ok: true; value: ParsedConnectionInput } |
 
 const RECENT_CONNECTIONS_KEY = 'superpower:mcp-recent-connections:v1';
 const MAX_RECENT_CONNECTIONS = 5;
-const SENSITIVE_QUERY_KEY = /(token|key|secret|auth|signature|credential|password)/i;
+const MAX_RECENT_LABEL_CHARS = 120;
+const MAX_AUTH_SCAN_DEPTH = 3;
+
+const normalizeCredentialKey = (key: string): string => key.toLowerCase().replace(/[^a-z0-9]/g, '');
+
+/**
+ * Credential-like names that should never be imported from pasted JSON or
+ * persisted in Recent connection URLs. Generic "key" is only matched exactly
+ * so harmless names such as "monkey" do not become false positives.
+ */
+const isSensitiveCredentialKey = (key: string): boolean => {
+  const normalized = normalizeCredentialKey(key);
+  if (!normalized) return false;
+  if (normalized === 'key' || normalized === 'code') return true;
+
+  const sensitiveTerms = [
+    'token',
+    'apikey',
+    'secret',
+    'auth',
+    'oauth',
+    'authorization',
+    'signature',
+    'sig',
+    'credential',
+    'credentials',
+    'password',
+    'passwd',
+    'jwt',
+    'bearer',
+    'clientsecret',
+    'accesskey',
+    'sessionid',
+    'sessiontoken',
+  ];
+
+  return sensitiveTerms.some(term => normalized === term || normalized.endsWith(term));
+};
+
+const isSensitiveConfigKey = (key: string): boolean => {
+  const normalized = normalizeCredentialKey(key);
+  return normalized === 'header' || normalized.endsWith('headers') || isSensitiveCredentialKey(key);
+};
 
 export const inferConnectionType = (uri: string): ConnectionType => {
   const normalized = uri.trim().toLowerCase();
@@ -58,9 +100,32 @@ const normalizeConnectionType = (value: unknown, uri: string): ConnectionType =>
 const isRemoteUri = (value: unknown): value is string =>
   typeof value === 'string' && /^(https?|wss?):\/\//i.test(value.trim());
 
-const hasAuthMaterial = (value: Record<string, unknown>): boolean => {
-  const authKeys = ['headers', 'header', 'authorization', 'token', 'apiKey', 'api_key', 'secret', 'credentials'];
-  return authKeys.some(key => key in value);
+/**
+ * Pasted MCP configs vary by client. Authentication can appear at the server
+ * entry root or inside request/http/options objects, so only checking a few
+ * top-level names can silently miss secrets. Scan keys recursively with a
+ * strict depth cap; values are never copied or logged by this detector.
+ */
+const hasAuthMaterial = (value: Record<string, unknown>, depth = 0): boolean => {
+  for (const [key, child] of Object.entries(value)) {
+    if (isSensitiveConfigKey(key)) return true;
+    if (depth >= MAX_AUTH_SCAN_DEPTH || !child || typeof child !== 'object') continue;
+
+    if (Array.isArray(child)) {
+      if (
+        child.some(
+          item => !!item && typeof item === 'object' && !Array.isArray(item) && hasAuthMaterial(item, depth + 1),
+        )
+      ) {
+        return true;
+      }
+      continue;
+    }
+
+    if (hasAuthMaterial(child as Record<string, unknown>, depth + 1)) return true;
+  }
+
+  return false;
 };
 
 const extractRemoteEntry = (entry: Record<string, unknown>, label?: string): ParsedConnectionInput | null => {
@@ -146,14 +211,28 @@ export const parseMcpConnectionInput = (rawInput: string): ConnectionInputResult
   };
 };
 
+const hasSensitiveUrlParameters = (params: URLSearchParams): boolean =>
+  Array.from(params.keys()).some(isSensitiveCredentialKey);
+
 const canRememberUri = (uri: string): boolean => {
   try {
     const url = new URL(uri);
+    if (!['http:', 'https:', 'ws:', 'wss:'].includes(url.protocol)) return false;
     if (url.username || url.password) return false;
-    return !Array.from(url.searchParams.keys()).some(key => SENSITIVE_QUERY_KEY.test(key));
+    if (hasSensitiveUrlParameters(url.searchParams)) return false;
+
+    const fragment = url.hash.replace(/^#/, '');
+    if (fragment && hasSensitiveUrlParameters(new URLSearchParams(fragment.replace(/^\?/, '')))) return false;
+
+    return true;
   } catch {
     return false;
   }
+};
+
+const normalizeRecentLabel = (label?: string): string | undefined => {
+  const normalized = label?.replace(/\s+/g, ' ').trim();
+  return normalized ? normalized.slice(0, MAX_RECENT_LABEL_CHARS) : undefined;
 };
 
 const storageGet = <T>(key: string): Promise<T | undefined> =>
@@ -191,8 +270,12 @@ export const loadRecentConnections = async (): Promise<RecentConnection[]> => {
         typeof item === 'object' &&
         typeof item.uri === 'string' &&
         canRememberUri(item.uri) &&
-        ['sse', 'websocket', 'streamable-http'].includes(item.connectionType),
+        ['sse', 'websocket', 'streamable-http'].includes(item.connectionType) &&
+        typeof item.lastUsedAt === 'number' &&
+        Number.isFinite(item.lastUsedAt) &&
+        (item.label === undefined || typeof item.label === 'string'),
     )
+    .sort((a, b) => b.lastUsedAt - a.lastUsedAt)
     .slice(0, MAX_RECENT_CONNECTIONS);
 };
 
@@ -203,7 +286,7 @@ export const rememberRecentConnection = async (
   if (!canRememberUri(connection.uri)) return current;
 
   const next: RecentConnection[] = [
-    { ...connection, lastUsedAt: Date.now() },
+    { ...connection, label: normalizeRecentLabel(connection.label), lastUsedAt: Date.now() },
     ...current.filter(item => item.uri !== connection.uri),
   ].slice(0, MAX_RECENT_CONNECTIONS);
 
