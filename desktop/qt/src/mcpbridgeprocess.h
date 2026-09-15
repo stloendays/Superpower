@@ -21,6 +21,7 @@ class McpBridgeProcess final : public QObject {
                  const QString &taskFocus, const QString &policyMode);
   void startStdio(const QString &nodeProgram, const QString &hostScript, const QString &serverCommand,
                   const QStringList &serverArgs, const QString &taskFocus, const QString &policyMode);
+  void startConversation(const QString &nodeProgram, const QString &hostScript);
   QString sendRequest(const QString &method, const QJsonObject &params = {});
   void stop();
 
@@ -42,6 +43,7 @@ class McpBridgeProcess final : public QObject {
   void startWithConnectionArguments(const QString &nodeProgram, const QString &hostScript,
                                     const QStringList &connectionArguments, const QString &taskFocus,
                                     const QString &policyMode);
+  void prepareProcess(const QString &nodeProgram);
   void handleProtocolLine(const QByteArray &line);
   void scheduleForcedStop();
 
