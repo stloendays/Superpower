@@ -102,6 +102,7 @@ class MainWindow final : public QMainWindow {
   QWidget *createFieldEditor(const QString &name, const QJsonObject &schema, bool required);
 
   void ensureActionRouterConnections();
+  void clearActionPlanReview();
   void applyActionPlan(const QJsonObject &plan);
   void handleGlobalSearch(const QString &query);
   void executeGlobalCommand();
@@ -179,6 +180,7 @@ class MainWindow final : public QMainWindow {
   QString activeProfileId_;
   QString activeConnectionName_;
   QString plannedToolName_;
+  QString latestActionPlanId_;
   QStringList logLines_;
   QList<ServerProfile> serverProfiles_;
   QList<RunRecord> runHistory_;
