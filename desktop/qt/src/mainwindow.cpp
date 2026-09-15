@@ -8,7 +8,6 @@
 #include <QDir>
 #include <QFileInfo>
 #include <QFont>
-#include <QFormLayout>
 #include <QFrame>
 #include <QHBoxLayout>
 #include <QJsonArray>
@@ -22,6 +21,7 @@
 #include <QPushButton>
 #include <QScrollBar>
 #include <QSplitter>
+#include <QStandardPaths>
 #include <QVBoxLayout>
 #include <QWidget>
 
@@ -51,12 +51,13 @@ QString jsonText(const QJsonValue &value) {
 
 MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent), bridge_(new McpBridgeProcess(this)) {
   setWindowTitle(QStringLiteral("Superpower Desktop"));
-  resize(1220, 780);
-  setMinimumSize(980, 660);
+  resize(1260, 800);
+  setMinimumSize(1000, 680);
 
   buildUi();
   applyStyle();
   connectSignals();
+  updateConnectionForm();
   setConnectedUi(false);
 }
 
@@ -67,10 +68,10 @@ void MainWindow::buildUi() {
   rootLayout->setSpacing(14);
 
   auto *connectionCard = card(root);
-  connectionCard->setFixedWidth(300);
+  connectionCard->setFixedWidth(320);
   auto *connectionLayout = new QVBoxLayout(connectionCard);
   connectionLayout->setContentsMargins(22, 22, 22, 22);
-  connectionLayout->setSpacing(12);
+  connectionLayout->setSpacing(10);
 
   auto *brand = new QLabel(QStringLiteral("SUPERPOWER"), connectionCard);
   brand->setProperty("brand", true);
@@ -79,23 +80,48 @@ void MainWindow::buildUi() {
   subtitle->setWordWrap(true);
   connectionLayout->addWidget(brand);
   connectionLayout->addWidget(subtitle);
-  connectionLayout->addSpacing(12);
+  connectionLayout->addSpacing(10);
 
   connectionLayout->addWidget(sectionLabel(QStringLiteral("Connection"), connectionCard));
-  endpointEdit_ = new QLineEdit(QStringLiteral("http://localhost:3000/mcp"), connectionCard);
+  transportCombo_ = new QComboBox(connectionCard);
+  transportCombo_->addItem(QStringLiteral("Streamable HTTP"), QStringLiteral("http"));
+  transportCombo_->addItem(QStringLiteral("Local stdio"), QStringLiteral("stdio"));
+  connectionLayout->addWidget(new QLabel(QStringLiteral("Transport"), connectionCard));
+  connectionLayout->addWidget(transportCombo_);
+
+  httpConnectionWidget_ = new QWidget(connectionCard);
+  auto *httpLayout = new QVBoxLayout(httpConnectionWidget_);
+  httpLayout->setContentsMargins(0, 0, 0, 0);
+  httpLayout->setSpacing(6);
+  endpointEdit_ = new QLineEdit(QStringLiteral("http://localhost:3000/mcp"), httpConnectionWidget_);
   endpointEdit_->setPlaceholderText(QStringLiteral("https://server.example/mcp"));
   endpointEdit_->setClearButtonEnabled(true);
-  connectionLayout->addWidget(new QLabel(QStringLiteral("MCP endpoint"), connectionCard));
-  connectionLayout->addWidget(endpointEdit_);
+  httpLayout->addWidget(new QLabel(QStringLiteral("MCP endpoint"), httpConnectionWidget_));
+  httpLayout->addWidget(endpointEdit_);
+  connectionLayout->addWidget(httpConnectionWidget_);
 
-  nodeEdit_ = new QLineEdit(QStringLiteral("node"), connectionCard);
+  stdioConnectionWidget_ = new QWidget(connectionCard);
+  auto *stdioLayout = new QVBoxLayout(stdioConnectionWidget_);
+  stdioLayout->setContentsMargins(0, 0, 0, 0);
+  stdioLayout->setSpacing(6);
+  stdioCommandEdit_ = new QLineEdit(stdioConnectionWidget_);
+  stdioCommandEdit_->setPlaceholderText(QStringLiteral("node, npx, python, or server executable"));
+  stdioArgsEdit_ = new QLineEdit(QStringLiteral("[]"), stdioConnectionWidget_);
+  stdioArgsEdit_->setPlaceholderText(QStringLiteral("[\"server.js\", \"--port\", \"3000\"]"));
+  stdioLayout->addWidget(new QLabel(QStringLiteral("Server command"), stdioConnectionWidget_));
+  stdioLayout->addWidget(stdioCommandEdit_);
+  stdioLayout->addWidget(new QLabel(QStringLiteral("Arguments (JSON array)"), stdioConnectionWidget_));
+  stdioLayout->addWidget(stdioArgsEdit_);
+  connectionLayout->addWidget(stdioConnectionWidget_);
+
+  nodeEdit_ = new QLineEdit(findDefaultNodeProgram(), connectionCard);
   hostScriptEdit_ = new QLineEdit(findDefaultHostScript(), connectionCard);
   connectionLayout->addWidget(new QLabel(QStringLiteral("Node executable"), connectionCard));
   connectionLayout->addWidget(nodeEdit_);
-  connectionLayout->addWidget(new QLabel(QStringLiteral("MCP host script"), connectionCard));
+  connectionLayout->addWidget(new QLabel(QStringLiteral("MCP host bridge"), connectionCard));
   connectionLayout->addWidget(hostScriptEdit_);
 
-  connectionLayout->addSpacing(8);
+  connectionLayout->addSpacing(6);
   connectionLayout->addWidget(sectionLabel(QStringLiteral("Routing"), connectionCard));
   focusEdit_ = new QLineEdit(connectionCard);
   focusEdit_->setPlaceholderText(QStringLiteral("e.g. find files and summarize"));
@@ -110,7 +136,7 @@ void MainWindow::buildUi() {
 
   connectionLayout->addStretch(1);
   auto *safety = new QLabel(
-      QStringLiteral("Guarded mode asks before high-risk or destructive MCP actions. Credentials are not stored by this desktop shell."),
+      QStringLiteral("Guarded mode asks before high-risk or destructive actions. Local stdio servers inherit the host process environment; raw credentials are not stored by this desktop shell."),
       connectionCard);
   safety->setProperty("muted", true);
   safety->setWordWrap(true);
@@ -302,6 +328,7 @@ void MainWindow::connectSignals() {
   connect(toolList_, &QListWidget::currentItemChanged, this, [this]() { showSelectedTool(); });
   connect(toolSearchEdit_, &QLineEdit::textChanged, this, &MainWindow::filterTools);
   connect(focusEdit_, &QLineEdit::editingFinished, this, &MainWindow::applyFocus);
+  connect(transportCombo_, &QComboBox::currentIndexChanged, this, [this]() { updateConnectionForm(); });
   connect(policyCombo_, &QComboBox::currentTextChanged, this, [this](const QString &mode) {
     if (bridge_->isRunning()) bridge_->sendRequest(QStringLiteral("policy"), {{QStringLiteral("mode"), mode}});
   });
@@ -321,6 +348,7 @@ void MainWindow::connectSignals() {
   connect(bridge_, &McpBridgeProcess::processError, this, [this](const QString &message) {
     appendLog(QStringLiteral("Bridge error: %1").arg(message));
     setStatus(QStringLiteral("Connection error"), false);
+    connectButton_->setEnabled(true);
   });
   connect(bridge_, &McpBridgeProcess::processExited, this, [this](int exitCode, QProcess::ExitStatus) {
     setConnectedUi(false);
@@ -330,8 +358,12 @@ void MainWindow::connectSignals() {
 }
 
 void MainWindow::setConnectedUi(bool connected) {
+  connectButton_->setEnabled(true);
   connectButton_->setText(connected ? QStringLiteral("Disconnect") : QStringLiteral("Connect"));
+  transportCombo_->setEnabled(!connected);
   endpointEdit_->setEnabled(!connected);
+  stdioCommandEdit_->setEnabled(!connected);
+  stdioArgsEdit_->setEnabled(!connected);
   nodeEdit_->setEnabled(!connected);
   hostScriptEdit_->setEnabled(!connected);
   refreshButton_->setEnabled(connected);
@@ -341,37 +373,73 @@ void MainWindow::setConnectedUi(bool connected) {
   runButton_->setEnabled(connected && toolList_->currentItem() != nullptr);
 }
 
+void MainWindow::updateConnectionForm() {
+  const bool useStdio = transportCombo_->currentData().toString() == QStringLiteral("stdio");
+  httpConnectionWidget_->setVisible(!useStdio);
+  stdioConnectionWidget_->setVisible(useStdio);
+}
+
 void MainWindow::connectOrDisconnect() {
   if (bridge_->isRunning()) {
     setStatus(QStringLiteral("Disconnecting..."), false);
+    connectButton_->setEnabled(false);
     bridge_->stop();
     return;
   }
 
-  const QString endpoint = endpointEdit_->text().trimmed();
   const QString node = nodeEdit_->text().trimmed();
   const QString hostScript = hostScriptEdit_->text().trimmed();
-  if (endpoint.isEmpty() || node.isEmpty() || hostScript.isEmpty()) {
-    QMessageBox::warning(this, QStringLiteral("Missing connection settings"),
-                         QStringLiteral("Endpoint, Node executable, and MCP host script are required."));
-    return;
-  }
-  if (!endpoint.startsWith(QStringLiteral("http://")) && !endpoint.startsWith(QStringLiteral("https://"))) {
-    QMessageBox::warning(this, QStringLiteral("Unsupported endpoint"),
-                         QStringLiteral("The first desktop build supports Streamable HTTP endpoints (http/https)."));
+  if (node.isEmpty() || hostScript.isEmpty()) {
+    QMessageBox::warning(this, QStringLiteral("Missing bridge settings"),
+                         QStringLiteral("Node executable and MCP host bridge are required."));
     return;
   }
   if (!QFileInfo::exists(hostScript)) {
-    QMessageBox::warning(this, QStringLiteral("MCP host not built"),
-                         QStringLiteral("The host script was not found. Build it first with:\n\npnpm -F @superpower/mcp-host build"));
+    QMessageBox::warning(this, QStringLiteral("MCP host not found"),
+                         QStringLiteral("The host bridge was not found. Build it with:\n\npnpm -F @superpower/mcp-host build\n\nor use the packaged Windows build."));
     return;
   }
 
   outputView_->clear();
   setStatus(QStringLiteral("Connecting..."), false);
   connectButton_->setEnabled(false);
-  bridge_->start(node, hostScript, endpoint, focusEdit_->text(), policyCombo_->currentText());
-  connectButton_->setEnabled(true);
+
+  const QString transport = transportCombo_->currentData().toString();
+  if (transport == QStringLiteral("stdio")) {
+    const QString command = stdioCommandEdit_->text().trimmed();
+    if (command.isEmpty()) {
+      QMessageBox::warning(this, QStringLiteral("Missing stdio command"),
+                           QStringLiteral("Local stdio requires a server command."));
+      connectButton_->setEnabled(true);
+      return;
+    }
+
+    QStringList arguments;
+    QString argumentError;
+    if (!parseStdioArguments(stdioArgsEdit_->text(), &arguments, &argumentError)) {
+      QMessageBox::warning(this, QStringLiteral("Invalid stdio arguments"), argumentError);
+      connectButton_->setEnabled(true);
+      return;
+    }
+    bridge_->startStdio(node, hostScript, command, arguments, focusEdit_->text(), policyCombo_->currentText());
+    return;
+  }
+
+  const QString endpoint = endpointEdit_->text().trimmed();
+  if (endpoint.isEmpty()) {
+    QMessageBox::warning(this, QStringLiteral("Missing endpoint"),
+                         QStringLiteral("Streamable HTTP requires an MCP endpoint."));
+    connectButton_->setEnabled(true);
+    return;
+  }
+  if (!endpoint.startsWith(QStringLiteral("http://")) && !endpoint.startsWith(QStringLiteral("https://"))) {
+    QMessageBox::warning(this, QStringLiteral("Unsupported endpoint"),
+                         QStringLiteral("Streamable HTTP endpoints must start with http:// or https://."));
+    connectButton_->setEnabled(true);
+    return;
+  }
+
+  bridge_->startHttp(node, hostScript, endpoint, focusEdit_->text(), policyCombo_->currentText());
 }
 
 void MainWindow::refreshTools() {
@@ -540,8 +608,27 @@ void MainWindow::setStatus(const QString &text, bool connected) {
                                         : QString());
 }
 
+QString MainWindow::findDefaultNodeProgram() {
+  const QString appDir = QCoreApplication::applicationDirPath();
+#ifdef Q_OS_WIN
+  const QString packagedNode = QDir(appDir).filePath(QStringLiteral("runtime/node.exe"));
+#else
+  const QString packagedNode = QDir(appDir).filePath(QStringLiteral("runtime/node"));
+#endif
+  if (QFileInfo::exists(packagedNode)) return QDir::toNativeSeparators(QFileInfo(packagedNode).absoluteFilePath());
+
+  const QString discovered = QStandardPaths::findExecutable(QStringLiteral("node"));
+  return discovered.isEmpty() ? QStringLiteral("node") : QDir::toNativeSeparators(discovered);
+}
+
 QString MainWindow::findDefaultHostScript() {
-  const QStringList startingPoints{QDir::currentPath(), QCoreApplication::applicationDirPath()};
+  const QString appDir = QCoreApplication::applicationDirPath();
+  const QString packagedBridge = QDir(appDir).filePath(QStringLiteral("bridge/superpower-host.mjs"));
+  if (QFileInfo::exists(packagedBridge)) {
+    return QDir::toNativeSeparators(QFileInfo(packagedBridge).absoluteFilePath());
+  }
+
+  const QStringList startingPoints{QDir::currentPath(), appDir};
   for (const QString &start : startingPoints) {
     QDir dir(start);
     for (int level = 0; level < 7; ++level) {
@@ -551,6 +638,30 @@ QString MainWindow::findDefaultHostScript() {
     }
   }
   return QDir::toNativeSeparators(QStringLiteral("packages/mcp-host/dist/cli.js"));
+}
+
+bool MainWindow::parseStdioArguments(const QString &text, QStringList *arguments, QString *errorMessage) {
+  arguments->clear();
+  const QString trimmed = text.trimmed();
+  if (trimmed.isEmpty()) return true;
+
+  QJsonParseError parseError;
+  const QJsonDocument document = QJsonDocument::fromJson(trimmed.toUtf8(), &parseError);
+  if (parseError.error != QJsonParseError::NoError || !document.isArray()) {
+    *errorMessage = QStringLiteral("Arguments must be a JSON array of strings, for example: [\"server.js\", \"--port\", \"3000\"].");
+    return false;
+  }
+
+  const QJsonArray array = document.array();
+  for (const QJsonValue &value : array) {
+    if (!value.isString()) {
+      *errorMessage = QStringLiteral("Every stdio argument must be a string.");
+      arguments->clear();
+      return false;
+    }
+    arguments->append(value.toString());
+  }
+  return true;
 }
 
 QJsonValue MainWindow::sampleValueForSchema(const QJsonObject &schema) {

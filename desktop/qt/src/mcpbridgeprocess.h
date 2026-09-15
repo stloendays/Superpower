@@ -7,6 +7,7 @@
 #include <QObject>
 #include <QProcess>
 #include <QString>
+#include <QStringList>
 
 class McpBridgeProcess final : public QObject {
   Q_OBJECT
@@ -16,8 +17,10 @@ class McpBridgeProcess final : public QObject {
   ~McpBridgeProcess() override;
 
   [[nodiscard]] bool isRunning() const;
-  void start(const QString &nodeProgram, const QString &hostScript, const QString &serverUrl,
-             const QString &taskFocus, const QString &policyMode);
+  void startHttp(const QString &nodeProgram, const QString &hostScript, const QString &serverUrl,
+                 const QString &taskFocus, const QString &policyMode);
+  void startStdio(const QString &nodeProgram, const QString &hostScript, const QString &serverCommand,
+                  const QStringList &serverArgs, const QString &taskFocus, const QString &policyMode);
   QString sendRequest(const QString &method, const QJsonObject &params = {});
   void stop();
 
@@ -35,6 +38,9 @@ class McpBridgeProcess final : public QObject {
   void handleStderr();
 
  private:
+  void startWithConnectionArguments(const QString &nodeProgram, const QString &hostScript,
+                                    const QStringList &connectionArguments, const QString &taskFocus,
+                                    const QString &policyMode);
   void handleProtocolLine(const QByteArray &line);
   void scheduleForcedStop();
 
