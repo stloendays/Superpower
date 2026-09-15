@@ -1,20 +1,65 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="1440" height="720" viewBox="0 0 1440 720">
-<defs><linearGradient id="bg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#f8fafc"/><stop offset="1" stop-color="#eef2ff"/></linearGradient></defs>
-<rect width="1440" height="720" rx="36" fill="url(#bg)"/>
-<circle cx="1270" cy="120" r="180" fill="#e0e7ff" opacity=".7"/><circle cx="1180" cy="640" r="260" fill="#f1f5f9" opacity=".9"/>
-<g transform="translate(92,90)" font-family="Inter,ui-sans-serif,system-ui">
-  <rect width="86" height="86" rx="22" fill="#111827"/><text x="43" y="59" text-anchor="middle" font-size="48" font-weight="900" fill="#fff">S</text>
-  <text x="0" y="150" font-size="68" font-weight="800" fill="#0f172a">Superpower</text>
-  <text x="0" y="202" font-size="27" font-weight="500" fill="#475569">MCP tools inside the AI web apps you already use.</text>
-  <text x="0" y="248" font-size="19" fill="#64748b">Local-first bridge · Tool execution · Result injection · Multi-site adapters</text>
-  <g transform="translate(0,298)"><rect width="160" height="46" rx="23" fill="#111827"/><text x="80" y="29" text-anchor="middle" font-size="16" font-weight="700" fill="#fff">Chrome MV3</text><rect x="174" width="112" height="46" rx="23" fill="#fff" stroke="#cbd5e1"/><text x="230" y="29" text-anchor="middle" font-size="16" font-weight="700" fill="#334155">MCP</text><rect x="300" width="132" height="46" rx="23" fill="#fff" stroke="#cbd5e1"/><text x="366" y="29" text-anchor="middle" font-size="16" font-weight="700" fill="#334155">TypeScript</text></g>
-</g>
-<g transform="translate(760,92)" font-family="Inter,ui-sans-serif,system-ui">
-  <rect width="586" height="536" rx="28" fill="#fff" stroke="#dbe3ef"/><rect width="586" height="62" rx="28" fill="#111827"/><rect y="34" width="586" height="28" fill="#111827"/>
-  <circle cx="30" cy="31" r="6" fill="#fb7185"/><circle cx="52" cy="31" r="6" fill="#facc15"/><circle cx="74" cy="31" r="6" fill="#4ade80"/><text x="108" y="38" font-size="16" font-weight="700" fill="#f8fafc">AI chat + Superpower</text>
-  <g transform="translate(34,92)"><rect width="348" height="88" rx="18" fill="#f8fafc" stroke="#e2e8f0"/><text x="22" y="34" font-size="16" font-weight="700" fill="#0f172a">Assistant</text><text x="22" y="62" font-size="15" fill="#475569">I’ll use the connected tools to check that.</text>
-  <rect x="78" y="112" width="420" height="116" rx="18" fill="#111827"/><text x="100" y="142" font-family="ui-monospace,monospace" font-size="14" fill="#a5b4fc">tool_call</text><text x="100" y="171" font-family="ui-monospace,monospace" font-size="16" font-weight="700" fill="#fff">search_project_files</text><text x="100" y="199" font-family="ui-monospace,monospace" font-size="14" fill="#cbd5e1">{&quot;query&quot;: &quot;README images&quot;}</text>
-  <rect x="18" y="254" width="480" height="118" rx="18" fill="#eef2ff" stroke="#c7d2fe"/><text x="40" y="286" font-size="14" font-weight="700" fill="#4338ca">MCP RESULT</text><text x="40" y="318" font-size="16" fill="#1e293b">Tool executed locally and returned structured data.</text><text x="40" y="348" font-size="14" fill="#64748b">Rendered back into the same conversation flow.</text></g>
-  <g transform="translate(512,88)"><rect width="48" height="386" rx="24" fill="#f8fafc" stroke="#e2e8f0"/><circle cx="24" cy="40" r="13" fill="#111827"/><text x="24" y="45" text-anchor="middle" font-size="12" font-weight="800" fill="#fff">S</text><circle cx="24" cy="92" r="6" fill="#22c55e"/><rect x="16" y="126" width="16" height="4" rx="2" fill="#64748b"/><rect x="16" y="139" width="16" height="4" rx="2" fill="#64748b"/><rect x="16" y="152" width="16" height="4" rx="2" fill="#64748b"/></g>
-</g>
+<svg xmlns="http://www.w3.org/2000/svg" width="1440" height="620" viewBox="0 0 1440 620" role="img" aria-labelledby="title desc">
+  <title id="title">Superpower product surfaces</title>
+  <desc id="desc">Superpower can be used as a browser extension or as a native desktop application.</desc>
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#ffffff"/>
+      <stop offset="1" stop-color="#f4f6fb"/>
+    </linearGradient>
+    <filter id="shadow" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="12" stdDeviation="18" flood-color="#0f172a" flood-opacity="0.08"/>
+    </filter>
+  </defs>
+
+  <rect width="1440" height="620" rx="36" fill="url(#bg)"/>
+  <rect x="1" y="1" width="1438" height="618" rx="35" fill="none" stroke="#e2e8f0" stroke-width="2"/>
+  <circle cx="1300" cy="70" r="180" fill="#eef2ff" opacity="0.9"/>
+  <circle cx="120" cy="610" r="170" fill="#f8fafc"/>
+
+  <g font-family="Inter,Segoe UI,Arial,sans-serif">
+    <text x="720" y="82" text-anchor="middle" font-size="18" font-weight="800" letter-spacing="1.8" fill="#6366f1">ONE MCP LAYER · TWO PRODUCT SURFACES</text>
+    <text x="720" y="132" text-anchor="middle" font-size="38" font-weight="850" fill="#0f172a">Use MCP in the browser or from a native desktop workspace.</text>
+    <text x="720" y="168" text-anchor="middle" font-size="18" fill="#64748b">Choose the surface that fits the workflow. Keep the same controlled tool-execution model.</text>
+
+    <g transform="translate(92,226)" filter="url(#shadow)">
+      <rect width="596" height="300" rx="28" fill="#ffffff" stroke="#dbe3ef"/>
+      <g transform="translate(34,34)">
+        <rect width="66" height="66" rx="18" fill="#111827"/>
+        <rect x="14" y="15" width="38" height="30" rx="5" fill="#ffffff"/>
+        <circle cx="21" cy="22" r="2.5" fill="#6366f1"/>
+        <circle cx="29" cy="22" r="2.5" fill="#94a3b8"/>
+        <path d="M20 32 H46 M20 39 H40" stroke="#111827" stroke-width="3" stroke-linecap="round"/>
+      </g>
+      <text x="124" y="61" font-size="26" font-weight="850" fill="#0f172a">Browser Extension</text>
+      <text x="124" y="91" font-size="16" fill="#64748b">MCP inside the AI sites you already use.</text>
+
+      <g transform="translate(36,134)" font-size="16" fill="#334155">
+        <circle cx="7" cy="4" r="4" fill="#6366f1"/><text x="24" y="10">Works inside supported AI web apps</text>
+        <circle cx="7" cy="52" r="4" fill="#6366f1"/><text x="24" y="58">Detect, review and return structured tool calls</text>
+        <circle cx="7" cy="100" r="4" fill="#6366f1"/><text x="24" y="106">SSE · Streamable HTTP · WebSocket</text>
+      </g>
+      <rect x="36" y="252" width="154" height="34" rx="17" fill="#eef2ff"/>
+      <text x="113" y="274" text-anchor="middle" font-size="13" font-weight="800" fill="#4338ca">BROWSER-NATIVE</text>
+    </g>
+
+    <g transform="translate(752,226)" filter="url(#shadow)">
+      <rect width="596" height="300" rx="28" fill="#111827"/>
+      <g transform="translate(34,34)">
+        <rect width="66" height="66" rx="18" fill="#ffffff"/>
+        <rect x="13" y="13" width="40" height="31" rx="5" fill="#111827"/>
+        <path d="M22 53 H44" stroke="#ffffff" stroke-width="4" stroke-linecap="round"/>
+        <path d="M33 44 V53" stroke="#ffffff" stroke-width="4" stroke-linecap="round"/>
+      </g>
+      <text x="124" y="61" font-size="26" font-weight="850" fill="#ffffff">Desktop App</text>
+      <text x="124" y="91" font-size="16" fill="#cbd5e1">A native workspace for MCP connections and actions.</text>
+
+      <g transform="translate(36,134)" font-size="16" fill="#e2e8f0">
+        <circle cx="7" cy="4" r="4" fill="#a5b4fc"/><text x="24" y="10">Native Qt 6 Windows application</text>
+        <circle cx="7" cy="52" r="4" fill="#a5b4fc"/><text x="24" y="58">Connections → Apps → Actions → Runs</text>
+        <circle cx="7" cy="100" r="4" fill="#a5b4fc"/><text x="24" y="106">Standalone MCP client and review workspace</text>
+      </g>
+      <rect x="36" y="252" width="132" height="34" rx="17" fill="#312e81"/>
+      <text x="102" y="274" text-anchor="middle" font-size="13" font-weight="800" fill="#e0e7ff">NATIVE APP</text>
+    </g>
+  </g>
 </svg>
