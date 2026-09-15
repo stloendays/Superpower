@@ -1,40 +1,32 @@
 import type React from 'react';
 import { useState, useEffect, useCallback, useMemo } from 'react';
-// import { generateInstructions } from './instructionGenerator';
 import { generateInstructionsJson } from './instructionGeneratorJson';
 import { useUserPreferences, useToolEnablement } from '../../../hooks';
-import { useToolStore } from '../../../stores/tool.store';
 import { Typography } from '../ui';
 import { cn } from '@src/lib/utils';
 import { logMessage } from '@src/utils/helpers';
 import { createLogger } from '@extension/shared/lib/logger';
 
-// Create a global shared state for instructions
-
 const logger = createLogger('InstructionManager');
 
 export const instructionsState = {
   instructions: '',
-  updating: false, // Flag to prevent circular updates
+  updating: false,
   setInstructions: (newInstructions: string) => {
-    // Don't update if the value hasn't changed
     if (instructionsState.instructions === newInstructions) {
       return;
     }
 
-    // Prevent recursive updates
     if (instructionsState.updating) {
       logger.warn('[InstructionsState] Prevented recursive update');
       return;
     }
 
-    // Set flag to prevent circular updates
     instructionsState.updating = true;
     instructionsState.instructions = newInstructions;
 
     logger.debug(`Broadcasting instruction update to ${instructionsState.listeners.length} listeners`);
 
-    // Call all registered listeners when instructions change
     try {
       instructionsState.listeners.forEach((listener, index) => {
         try {
@@ -44,7 +36,6 @@ export const instructionsState = {
         }
       });
     } finally {
-      // Reset flag immediately after all listeners have been called
       instructionsState.updating = false;
     }
   },
@@ -52,7 +43,7 @@ export const instructionsState = {
   subscribe: (listener: (instructions: string) => void) => {
     instructionsState.listeners.push(listener);
     logger.debug(`Listener subscribed (total: ${instructionsState.listeners.length})`);
-    // Return unsubscribe function
+
     return () => {
       const index = instructionsState.listeners.indexOf(listener);
       if (index !== -1) {
@@ -68,7 +59,6 @@ interface InstructionManagerProps {
   tools: Array<{ name: string; schema: string; description: string }>;
 }
 
-// Button component for consistent styling
 interface ActionButtonProps {
   onClick: () => void;
   disabled?: boolean;
@@ -105,9 +95,8 @@ const ActionButton: React.FC<ActionButtonProps> = ({ onClick, disabled, loading,
 };
 
 const InstructionManager: React.FC<InstructionManagerProps> = ({ adapter, tools }) => {
-  // Use Zustand hooks for user preferences and tool enablement
   const { preferences, updatePreferences } = useUserPreferences();
-  const { enabledTools: enabledToolsSet, isToolEnabled } = useToolEnablement();
+  const { isToolEnabled } = useToolEnablement();
 
   const [instructions, setInstructions] = useState('');
   const [isEditing, setIsEditing] = useState(false);
@@ -118,151 +107,84 @@ const InstructionManager: React.FC<InstructionManagerProps> = ({ adapter, tools 
   const [insertSuccess, setInsertSuccess] = useState(false);
   const [attachSuccess, setAttachSuccess] = useState(false);
 
-  // Custom instructions state - get from preferences
   const [customInstructions, setCustomInstructions] = useState(preferences.customInstructions || '');
   const [customInstructionsEnabled, setCustomInstructionsEnabled] = useState(preferences.customInstructionsEnabled || false);
   const [isEditingCustom, setIsEditingCustom] = useState(false);
 
-  // Memoize tools to prevent unnecessary regeneration - use deep comparison of tool data
-  const toolsSignature = useMemo(() => {
-    return tools.map(tool => `${tool.name}:${tool.description || ''}`).sort().join('|');
-  }, [tools]);
+  // Include schemas in the signature so server-side schema changes regenerate the prompt.
+  // This is deliberately calculated on render rather than memoized by the tools array
+  // reference, so an in-place schema update is still detected on the next render.
+  const toolsSignature = tools
+    .map(tool => `${tool.name}:${tool.description || ''}:${tool.schema || ''}`)
+    .sort()
+    .join('|');
 
-  // Memoize enabled tools signature to track changes in tool enablement
-  const enabledToolsSignature = useMemo(() => {
-    const enabledToolNames = tools
-      .filter(tool => isToolEnabled(tool.name))
-      .map(tool => tool.name)
-      .sort()
-      .join('|');
-    return enabledToolNames;
-  }, [tools, isToolEnabled]);
+  const enabledToolsSignature = tools
+    .filter(tool => isToolEnabled(tool.name))
+    .map(tool => tool.name)
+    .sort()
+    .join('|');
 
-  // Filter tools to only include enabled ones for instruction generation
-  const enabledTools = useMemo(() => {
-    return tools.filter(tool => isToolEnabled(tool.name));
-  }, [tools, isToolEnabled]);
+  const enabledTools = useMemo(
+    () => tools.filter(tool => isToolEnabled(tool.name)),
+    [tools, toolsSignature, enabledToolsSignature, isToolEnabled],
+  );
 
-  // Memoize custom instructions key to prevent unnecessary updates
-  const customInstructionsKey = useMemo(() => {
-    return `${customInstructionsEnabled}:${customInstructions}`;
-  }, [customInstructions, customInstructionsEnabled]);
-
-  // Update local state when preferences change
   useEffect(() => {
     setCustomInstructions(preferences.customInstructions || '');
     setCustomInstructionsEnabled(preferences.customInstructionsEnabled || false);
   }, [preferences]);
 
-  // Generate instructions with custom instructions - memoized to prevent excessive calls
-  const generateCurrentInstructions = useCallback(() => {
-    // return generateInstructions(enabledTools, customInstructions, customInstructionsEnabled);
+  const generateCurrentInstructions = useCallback(
+    () => generateInstructionsJson(enabledTools, customInstructions, customInstructionsEnabled),
+    [enabledTools, customInstructions, customInstructionsEnabled],
+  );
 
-    // if (adapter.name === 'OpenRouterAdapter') {
-    //   return generateInstructions(enabledTools, customInstructions, customInstructionsEnabled);
-    // }
+  const currentInstructions = useMemo(() => generateCurrentInstructions(), [generateCurrentInstructions]);
 
-    return generateInstructionsJson(enabledTools, customInstructions, customInstructionsEnabled);
-  }, [enabledTools, customInstructions, customInstructionsEnabled]);
-
-  // Memoize the actual current instructions to prevent unnecessary re-calculations
-  const currentInstructions = useMemo(() => {
-    return generateCurrentInstructions();
-  }, [generateCurrentInstructions]);
-
-  // Update instructions when tools or tool enablement changes or custom instructions change
+  // Instruction generation is fully state-driven. The previous implementation
+  // regenerated the complete prompt every 500 ms as a polling fallback.
   useEffect(() => {
-    if (tools.length > 0) {
-      // Always update when dependencies change, let the state comparison happen later
-      logMessage(`[InstructionManager] Regenerating instructions based on ${enabledTools.length}/${tools.length} enabled tools`);
-      setInstructions(currentInstructions);
-      // Force update global state to ensure sync
-      instructionsState.setInstructions(currentInstructions);
+    if (tools.length === 0) {
+      return;
     }
 
-    return () => {
-      logMessage('[InstructionManager] Cleaning up instruction generator effect');
-    };
-  }, [toolsSignature, enabledToolsSignature, customInstructionsKey, currentInstructions, enabledTools.length, tools.length]);
+    logMessage(
+      `[InstructionManager] Regenerating instructions based on ${enabledTools.length}/${tools.length} enabled tools`,
+    );
+    setInstructions(currentInstructions);
+    instructionsState.setInstructions(currentInstructions);
+  }, [currentInstructions, enabledTools.length, tools.length]);
 
-  // Force instruction regeneration and global sync when enablement changes
-  const forceInstructionUpdate = useCallback(() => {
-    if (tools.length > 0) {
-      const newInstructions = generateCurrentInstructions();
-      logMessage(`[InstructionManager] Force updating instructions based on ${enabledTools.length}/${tools.length} enabled tools`);
-      setInstructions(newInstructions);
-      // Force global state update
-      instructionsState.setInstructions(newInstructions);
-    }
-  }, [tools.length, generateCurrentInstructions, enabledTools.length]);
-
-  // Watch for changes in enabled tools count and force update when it changes
-  const [previousEnabledCount, setPreviousEnabledCount] = useState(enabledTools.length);
-  useEffect(() => {
-    if (previousEnabledCount !== enabledTools.length) {
-      setPreviousEnabledCount(enabledTools.length);
-      // Small delay to ensure store updates have propagated
-      setTimeout(() => {
-        forceInstructionUpdate();
-      }, 50);
-    }
-  }, [enabledTools.length, previousEnabledCount, forceInstructionUpdate]);
-
-  // Debug effect to monitor instruction changes
   useEffect(() => {
     logMessage(`[InstructionManager] Instructions updated (${instructions.length} chars)`);
   }, [instructions]);
 
-  // Enhanced tool enablement change detection using a simpler approach
   useEffect(() => {
-    let timeoutId: NodeJS.Timeout;
-    
-    // Create a function to check for changes and update instructions
-    const checkAndUpdateInstructions = () => {
-      if (tools.length > 0) {
-        const newInstructions = generateCurrentInstructions();
-        if (newInstructions !== instructions) {
-          logMessage('[InstructionManager] Detected tool enablement change, updating instructions');
-          setInstructions(newInstructions);
-          instructionsState.setInstructions(newInstructions);
-        }
-      }
-    };
-
-    // Set up a periodic check (every 500ms) to catch any missed updates
-    timeoutId = setInterval(checkAndUpdateInstructions, 500);
-
-    return () => {
-      clearInterval(timeoutId);
-    };
-  }, [tools.length, generateCurrentInstructions, instructions]);
-
-  // Update global state when local state changes - separate effect for reliability
-  useEffect(() => {
-    // Don't update if we're in the middle of a global state update
     if (instructionsState.updating) {
       return;
     }
 
-    // Always update global state when local instructions change (unless it's from global state update)
     if (instructionsState.instructions !== instructions && instructions) {
       logMessage('[InstructionManager] Updating global state with new instructions');
       instructionsState.setInstructions(instructions);
     }
   }, [instructions]);
 
-  // Update local state when global state changes (sync with MCPPopover)
   useEffect(() => {
     const unsubscribe = instructionsState.subscribe(newInstructions => {
-      // Only update local state if it's different from current instructions
-      if (newInstructions !== instructions) {
+      setInstructions(currentInstructionsValue => {
+        if (newInstructions === currentInstructionsValue) {
+          return currentInstructionsValue;
+        }
+
         logMessage('[InstructionManager] Syncing instructions from global state');
-        setInstructions(newInstructions);
-      }
+        return newInstructions;
+      });
     });
 
     return unsubscribe;
-  }, []); // Empty dependency array to avoid recreating subscription
+  }, []);
 
   const handleInsertInChat = useCallback(async () => {
     if (!instructions) return;
@@ -324,28 +246,28 @@ const InstructionManager: React.FC<InstructionManagerProps> = ({ adapter, tools 
 
   const handleSave = useCallback(() => {
     setIsEditing(false);
-    // Update global state
     instructionsState.setInstructions(instructions);
   }, [instructions]);
 
   const handleCancel = useCallback(() => {
     const originalInstructions = generateCurrentInstructions();
     setInstructions(originalInstructions);
-    // Update global state
     instructionsState.setInstructions(originalInstructions);
     setIsEditing(false);
   }, [generateCurrentInstructions]);
 
-  // Custom instructions handlers
-  const handleCustomInstructionsToggle = useCallback(async (enabled: boolean) => {
-    setCustomInstructionsEnabled(enabled);
-    try {
-      updatePreferences({ customInstructionsEnabled: enabled });
-      logMessage(`Custom instructions ${enabled ? 'enabled' : 'disabled'}`);
-    } catch (error) {
-      logMessage(`Error saving custom instructions toggle: ${error}`);
-    }
-  }, [updatePreferences]);
+  const handleCustomInstructionsToggle = useCallback(
+    async (enabled: boolean) => {
+      setCustomInstructionsEnabled(enabled);
+      try {
+        updatePreferences({ customInstructionsEnabled: enabled });
+        logMessage(`Custom instructions ${enabled ? 'enabled' : 'disabled'}`);
+      } catch (error) {
+        logMessage(`Error saving custom instructions toggle: ${error}`);
+      }
+    },
+    [updatePreferences],
+  );
 
   const handleCustomInstructionsSave = useCallback(async () => {
     setIsEditingCustom(false);
@@ -437,27 +359,28 @@ const InstructionManager: React.FC<InstructionManagerProps> = ({ adapter, tools 
             ) : (
               <>
                 <ActionButton onClick={() => setIsEditing(true)} color="blue" label="Edit" />
-                {/* <ActionButton 
-                  onClick={handleCopyToClipboard} 
+                {/* These actions are currently hidden in the UI but the handlers are retained for adapter compatibility. */}
+                {/* <ActionButton
+                  onClick={handleCopyToClipboard}
                   loading={isCopying}
                   success={copySuccess}
-                  color="amber" 
-                  label="Copy" 
+                  color="amber"
+                  label="Copy"
                 />
-                <ActionButton 
-                  onClick={handleInsertInChat} 
+                <ActionButton
+                  onClick={handleInsertInChat}
                   loading={isInserting}
                   success={insertSuccess}
-                  color="green" 
-                  label="Insert" 
+                  color="green"
+                  label="Insert"
                 />
-                <ActionButton 
-                  onClick={handleAttachAsFile} 
+                <ActionButton
+                  onClick={handleAttachAsFile}
                   loading={isAttaching}
                   success={attachSuccess}
-                  disabled={!adapter.supportsFileUpload()} 
-                  color="purple" 
-                  label="Attach" 
+                  disabled={!adapter.supportsFileUpload()}
+                  color="purple"
+                  label="Attach"
                 /> */}
               </>
             )}
@@ -469,7 +392,7 @@ const InstructionManager: React.FC<InstructionManagerProps> = ({ adapter, tools 
             <textarea
               value={instructions}
               onChange={e => setInstructions(e.target.value)}
-              className="w-full h-64 p-2 text-sm font-mono border border-slate-300 dark:border-slate-600 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500 dark:focus:ring-blue-400 focus:border-blue-500 dark:focus:border-blue-400 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-200"
+              className="w-full h-64 p-2 text-sm font-mono border border-slate-300 dark:border-slate-600 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500 dark:focus:ring-blue-400 focus:border-blue-500 dark:focus:ring-blue-400 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-200"
             />
           ) : (
             <div className="max-h-64 overflow-y-auto scrollbar-thin scrollbar-thumb-slate-300 dark:scrollbar-thumb-slate-600 scrollbar-track-transparent">
