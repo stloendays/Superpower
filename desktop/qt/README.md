@@ -12,7 +12,7 @@ Qt 6 Desktop UI (C++20)
 @superpower/mcp-host bridge (Node.js)
         |
         v
-MCP Gateway / Tool Router / Guarded Policy / Telemetry
+MCP Gateway / Tool Router / Action Planner / Guarded Policy / Telemetry
         |
         +--> Streamable HTTP MCP server
         +--> local stdio MCP server
@@ -23,12 +23,35 @@ MCP Gateway / Tool Router / Guarded Policy / Telemetry
 - Persistent MCP session instead of reconnecting for each tool call.
 - Streamable HTTP endpoints and local stdio MCP server processes.
 - Routed tool catalog using the existing local Tool Router and context budget.
+- Workspace Home with MCP health, Browser Conversation relay health, Apps, Actions, Runs, and recent activity.
+- Natural-language Action Router that ranks the full MCP catalog, drafts schema-backed parameters, and opens the selected Action for review.
+- Router review shows confidence, matched terms, missing required fields, alternative candidates, and execution-policy risk before any call is made.
 - Tool search, input-schema viewer, and generated JSON argument template.
 - Direct MCP tool execution with formatted JSON output.
 - `audit` and `guarded` execution modes.
 - Native confirmation dialog for high/critical guarded actions.
 - Privacy-safe session telemetry summary.
 - No credential persistence in the Qt shell.
+
+## Action Router
+
+Connect an MCP server, return to **Home**, and enter a request such as:
+
+```text
+Find issue #29 in stloendays/Superpower-V1
+```
+
+or:
+
+```text
+给 paula@example.com 发邮件，主题 "Project update"，内容 "The latest build is ready for review"
+```
+
+The Desktop sends the request to the existing MCP Host `plan` method. MCP Core performs deterministic zero-model routing against the full tool catalog, drafts only schema values that can be inferred conservatively, evaluates the selected tool with the existing execution policy, and returns a proposal.
+
+The proposal is then opened in **Actions**. Nothing executes automatically. Missing required fields remain for the user to complete, and high/critical actions still pass through the existing guarded confirmation flow when **Run reviewed action** is pressed.
+
+If multiple Action Router requests are submitted quickly, only the newest plan is allowed to update the review workspace; stale responses are ignored.
 
 ## Prerequisites for source builds
 
@@ -99,6 +122,8 @@ The packaged app auto-detects those bundled runtimes and prepends the Node runti
 
 ## Security notes
 
+- Action Router planning is review-first and never auto-executes a selected tool.
+- Action queries and drafted parameters are session-oriented in the Desktop UI and are not added to profile persistence.
 - Do not embed long-lived credentials in endpoint URLs or visible stdio arguments.
 - The Qt client does not save endpoint, argument, or credential fields to disk.
 - The JSON bridge emits policy metadata and tool results, but never introduces a second policy implementation.
