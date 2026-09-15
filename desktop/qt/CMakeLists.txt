@@ -17,6 +17,8 @@ qt_add_executable(superpower-desktop
   src/mcpbridgeprocess.h
   src/conversationwindow.cpp
   src/conversationwindow.h
+  src/onboardingdialog.cpp
+  src/onboardingdialog.h
 )
 
 target_link_libraries(superpower-desktop PRIVATE Qt6::Widgets)
