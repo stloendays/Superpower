@@ -22,7 +22,7 @@ jobs:
           cache: pnpm
       - run: pnpm install --frozen-lockfile --prefer-offline
 
-      - name: Show formatting diff for changed files
+      - name: Check formatting of changed files
         shell: bash
         env:
           EVENT_NAME: ${{ github.event_name }}
@@ -50,6 +50,6 @@ jobs:
             exit 0
           fi
 
-          pnpm exec prettier --write "${CHANGED_FILES[@]}"
-          git diff -- "${CHANGED_FILES[@]}"
-          test -z "$(git status --porcelain -- "${CHANGED_FILES[@]}")"
+          printf 'Checking %s changed file(s):\n' "${#CHANGED_FILES[@]}"
+          printf ' - %s\n' "${CHANGED_FILES[@]}"
+          pnpm exec prettier --check "${CHANGED_FILES[@]}"
