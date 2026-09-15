@@ -1,0 +1,30 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1440" height="430" viewBox="0 0 1440 430">
+  <rect width="1440" height="430" rx="32" fill="#0f172a"/>
+  <g font-family="Inter,Segoe UI,Arial,sans-serif">
+    <text x="72" y="72" font-size="19" font-weight="700" fill="#a5b4fc">REVIEW-FIRST ACTION ROUTER</text>
+    <text x="72" y="114" font-size="32" font-weight="800" fill="#ffffff">Natural language in. Schema-backed action draft out.</text>
+    <text x="72" y="148" font-size="17" fill="#94a3b8">Risk is surfaced before execution, and guarded actions stay behind explicit user review.</text>
+
+    <g transform="translate(72,205)">
+      <rect width="286" height="132" rx="22" fill="#172033" stroke="#334155"/>
+      <circle cx="38" cy="38" r="16" fill="#312e81"/><text x="38" y="44" text-anchor="middle" font-size="16" font-weight="800" fill="#c7d2fe">1</text>
+      <text x="68" y="43" font-size="16" font-weight="800" fill="#ffffff">Describe intent</text>
+      <text x="24" y="82" font-size="14" fill="#cbd5e1">“Find the right tool and draft</text>
+      <text x="24" y="104" font-size="14" fill="#cbd5e1">the parameters for this task.”</text>
+
+      <path d="M306 66h54" stroke="#6366f1" stroke-width="3" stroke-linecap="round"/><path d="M350 57l12 9-12 9" fill="none" stroke="#6366f1" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+
+      <g transform="translate(382,0)"><rect width="286" height="132" rx="22" fill="#172033" stroke="#334155"/><circle cx="38" cy="38" r="16" fill="#064e3b"/><text x="38" y="44" text-anchor="middle" font-size="16" font-weight="800" fill="#a7f3d0">2</text><text x="68" y="43" font-size="16" font-weight="800" fill="#ffffff">Match capability</text><text x="24" y="82" font-size="14" fill="#cbd5e1">Reuse MCP Core routing and</text><text x="24" y="104" font-size="14" fill="#cbd5e1">tool schemas to build a draft.</text></g>
+
+      <path d="M688 66h54" stroke="#6366f1" stroke-width="3" stroke-linecap="round"/><path d="M732 57l12 9-12 9" fill="none" stroke="#6366f1" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+
+      <g transform="translate(764,0)"><rect width="286" height="132" rx="22" fill="#172033" stroke="#334155"/><circle cx="38" cy="38" r="16" fill="#7c2d12"/><text x="38" y="44" text-anchor="middle" font-size="16" font-weight="800" fill="#fed7aa">3</text><text x="68" y="43" font-size="16" font-weight="800" fill="#ffffff">Preview risk</text><text x="24" y="82" font-size="14" fill="#cbd5e1">Show action, parameters and</text><text x="24" y="104" font-size="14" fill="#cbd5e1">guardrail status before calling.</text></g>
+
+      <path d="M1070 66h54" stroke="#6366f1" stroke-width="3" stroke-linecap="round"/><path d="M1114 57l12 9-12 9" fill="none" stroke="#6366f1" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+
+      <g transform="translate(1146,0)"><rect width="222" height="132" rx="22" fill="#ffffff"/><circle cx="38" cy="38" r="16" fill="#111827"/><text x="38" y="44" text-anchor="middle" font-size="16" font-weight="800" fill="#ffffff">4</text><text x="68" y="43" font-size="16" font-weight="800" fill="#111827">Review</text><text x="24" y="82" font-size="14" fill="#475569">Open the action for</text><text x="24" y="104" font-size="14" fill="#475569">explicit user approval.</text></g>
+    </g>
+
+    <text x="72" y="382" font-size="13" fill="#64748b">Guarded execution stays separate from intent interpretation: the router prepares; the existing call path enforces.</text>
+  </g>
+</svg>
