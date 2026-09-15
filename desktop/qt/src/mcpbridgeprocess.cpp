@@ -144,8 +144,14 @@ void McpBridgeProcess::handleProtocolLine(const QByteArray &line) {
   }
 
   const QJsonObject object = document.object();
-  if (object.value(QStringLiteral("type")).toString() == QStringLiteral("ready")) {
+  const QString type = object.value(QStringLiteral("type")).toString();
+  if (type == QStringLiteral("ready")) {
     emit bridgeReady(object.value(QStringLiteral("transport")).toString());
+    return;
+  }
+  if (type == QStringLiteral("conversation")) {
+    const QJsonObject event = object.value(QStringLiteral("event")).toObject();
+    if (!event.isEmpty()) emit conversationEvent(event);
     return;
   }
 
