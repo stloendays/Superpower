@@ -1,5 +1,6 @@
+import { createServer, type IncomingMessage, type Server, type ServerResponse } from 'node:http';
 import { createInterface } from 'node:readline';
-import { stdin, stdout } from 'node:process';
+import { stdin, stdout, stderr } from 'node:process';
 import {
   McpGatewayConfirmationRequiredError,
   McpGatewayRejectedError,
@@ -22,6 +23,18 @@ type BridgeRequest = {
   params?: unknown;
 };
 
+type ConversationEvent = {
+  eventId: string;
+  sessionId: string;
+  source: 'chatgpt';
+  role: 'user' | 'assistant';
+  text: string;
+  phase: 'streaming' | 'completed';
+  url: string;
+  title: string;
+  timestamp: number;
+};
+
 class BridgeRequestError extends Error {
   constructor(
     public readonly code: string,
@@ -32,6 +45,13 @@ class BridgeRequestError extends Error {
     this.name = 'BridgeRequestError';
   }
 }
+
+const CONVERSATION_BRIDGE_PORT = 32147;
+const CONVERSATION_BRIDGE_HOST = '127.0.0.1';
+const CONVERSATION_BRIDGE_PATH = '/v1/conversation';
+const CONVERSATION_BRIDGE_HEADER = 'x-superpower-conversation-bridge';
+const MAX_CONVERSATION_BODY_BYTES = 128 * 1024;
+const MAX_CONVERSATION_TEXT_LENGTH = 64 * 1024;
 
 const asRecord = (value: unknown): Record<string, unknown> | null => {
   if (!value || typeof value !== 'object' || Array.isArray(value)) return null;
@@ -46,6 +66,154 @@ const policyDetails = (policy: ExecutionPolicyResult): Record<string, unknown> =
 
 const writeMessage = (message: unknown): void => {
   stdout.write(`${JSON.stringify(message)}\n`);
+};
+
+const isExtensionOrigin = (origin: string | undefined): boolean =>
+  !origin || origin.startsWith('chrome-extension://') || origin.startsWith('moz-extension://');
+
+const addExtensionCorsHeaders = (response: ServerResponse, origin: string | undefined): void => {
+  if (origin && isExtensionOrigin(origin)) response.setHeader('access-control-allow-origin', origin);
+  response.setHeader('access-control-allow-methods', 'POST, OPTIONS');
+  response.setHeader('access-control-allow-headers', `content-type, ${CONVERSATION_BRIDGE_HEADER}`);
+  response.setHeader('cache-control', 'no-store');
+};
+
+const sendHttpJson = (response: ServerResponse, status: number, payload: unknown): void => {
+  response.statusCode = status;
+  response.setHeader('content-type', 'application/json; charset=utf-8');
+  response.end(JSON.stringify(payload));
+};
+
+const readRequestBody = async (request: IncomingMessage): Promise<string> =>
+  new Promise((resolve, reject) => {
+    const chunks: Buffer[] = [];
+    let total = 0;
+    let exceeded = false;
+
+    request.on('data', (chunk: Buffer) => {
+      if (exceeded) return;
+      total += chunk.length;
+      if (total > MAX_CONVERSATION_BODY_BYTES) {
+        exceeded = true;
+        return;
+      }
+      chunks.push(chunk);
+    });
+    request.on('end', () => {
+      if (exceeded) {
+        reject(new Error('payload_too_large'));
+        return;
+      }
+      resolve(Buffer.concat(chunks).toString('utf8'));
+    });
+    request.on('error', reject);
+  });
+
+const sanitizeConversationEvent = (value: unknown): ConversationEvent | null => {
+  const record = asRecord(value);
+  if (!record) return null;
+  const eventId = typeof record.eventId === 'string' ? record.eventId.trim() : '';
+  const sessionId = typeof record.sessionId === 'string' ? record.sessionId.trim() : '';
+  const source = record.source;
+  const role = record.role;
+  const text = typeof record.text === 'string' ? record.text : '';
+  const phase = record.phase;
+
+  if (
+    !eventId ||
+    !sessionId ||
+    source !== 'chatgpt' ||
+    (role !== 'user' && role !== 'assistant') ||
+    !text.trim() ||
+    (phase !== 'streaming' && phase !== 'completed')
+  ) {
+    return null;
+  }
+
+  return {
+    eventId: eventId.slice(0, 512),
+    sessionId: sessionId.slice(0, 1024),
+    source,
+    role,
+    text: text.slice(0, MAX_CONVERSATION_TEXT_LENGTH),
+    phase,
+    url: typeof record.url === 'string' ? record.url.slice(0, 2048) : '',
+    title: typeof record.title === 'string' ? record.title.slice(0, 256) : '',
+    timestamp:
+      typeof record.timestamp === 'number' && Number.isFinite(record.timestamp) ? record.timestamp : Date.now(),
+  };
+};
+
+const handleConversationRequest = async (request: IncomingMessage, response: ServerResponse): Promise<void> => {
+  const origin = typeof request.headers.origin === 'string' ? request.headers.origin : undefined;
+  addExtensionCorsHeaders(response, origin);
+
+  if (!isExtensionOrigin(origin)) {
+    sendHttpJson(response, 403, { ok: false, error: 'origin_not_allowed' });
+    return;
+  }
+
+  if (request.method === 'OPTIONS') {
+    response.statusCode = 204;
+    response.end();
+    return;
+  }
+
+  if (request.method !== 'POST' || request.url !== CONVERSATION_BRIDGE_PATH) {
+    sendHttpJson(response, 404, { ok: false, error: 'not_found' });
+    return;
+  }
+
+  if (request.headers[CONVERSATION_BRIDGE_HEADER] !== '1') {
+    sendHttpJson(response, 403, { ok: false, error: 'bridge_header_required' });
+    return;
+  }
+
+  try {
+    const body = await readRequestBody(request);
+    const event = sanitizeConversationEvent(JSON.parse(body) as unknown);
+    if (!event) {
+      sendHttpJson(response, 400, { ok: false, error: 'invalid_conversation_event' });
+      return;
+    }
+
+    writeMessage({ type: 'conversation', event });
+    sendHttpJson(response, 200, { ok: true });
+  } catch (error) {
+    const tooLarge = error instanceof Error && error.message === 'payload_too_large';
+    sendHttpJson(response, tooLarge ? 413 : 400, {
+      ok: false,
+      error: tooLarge ? 'payload_too_large' : 'invalid_json',
+    });
+  }
+};
+
+const startConversationBridge = async (): Promise<Server | null> => {
+  const server = createServer((request, response) => {
+    void handleConversationRequest(request, response);
+  });
+
+  return new Promise(resolve => {
+    const onError = (error: NodeJS.ErrnoException) => {
+      server.off('listening', onListening);
+      stderr.write(
+        `Desktop conversation bridge unavailable on ${CONVERSATION_BRIDGE_HOST}:${CONVERSATION_BRIDGE_PORT}: ${error.message}\n`,
+      );
+      resolve(null);
+    };
+    const onListening = () => {
+      server.off('error', onError);
+      resolve(server);
+    };
+    server.once('error', onError);
+    server.once('listening', onListening);
+    server.listen(CONVERSATION_BRIDGE_PORT, CONVERSATION_BRIDGE_HOST);
+  });
+};
+
+const closeConversationBridge = async (server: Server | null): Promise<void> => {
+  if (!server) return;
+  await new Promise<void>(resolve => server.close(() => resolve()));
 };
 
 const listTools = async (host: ConnectedSuperpowerHost): Promise<Record<string, unknown>> => {
@@ -117,15 +285,17 @@ export const runBridge = async (options: BridgeRunOptions): Promise<void> => {
     confirm: async () => approvalForCurrentCall,
     clientName: 'superpower-desktop-bridge',
   });
+  const conversationServer = await startConversationBridge();
   const readline = createInterface({ input: stdin, crlfDelay: Infinity });
 
   writeMessage({
     type: 'ready',
     protocol: 'superpower-desktop-bridge',
-    version: 1,
+    version: 2,
     transport: host.transportKind,
     taskFocus: host.gateway.getTaskFocus(),
     policyMode: host.gateway.getPolicyMode(),
+    conversationBridge: conversationServer ? { host: CONVERSATION_BRIDGE_HOST, port: CONVERSATION_BRIDGE_PORT } : null,
   });
 
   try {
@@ -239,6 +409,7 @@ export const runBridge = async (options: BridgeRunOptions): Promise<void> => {
     }
   } finally {
     readline.close();
+    await closeConversationBridge(conversationServer);
     await host.close();
   }
 };

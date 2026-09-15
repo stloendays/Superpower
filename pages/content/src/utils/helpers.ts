@@ -9,6 +9,7 @@
  * Example utility function
  * @param message The message to log
  */
+import './desktop-conversation-sync';
 import { createLogger } from '@extension/shared/lib/logger';
 
 const logger = createLogger('logMessage');
