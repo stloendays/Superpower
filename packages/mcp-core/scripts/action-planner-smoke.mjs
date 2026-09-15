@@ -75,6 +75,23 @@ assert.equal(searchPlan.selected?.tool.name, 'github_search_repositories');
 assert.equal(typeof searchPlan.arguments.query, 'string');
 assert.equal(searchPlan.missingRequired.length, 0);
 
+const emailPlan = planAction(
+  tools,
+  '给 paula@example.com 发邮件，主题 "Project update"，内容 "The latest build is ready for review"',
+);
+assert.equal(emailPlan.selected?.tool.name, 'gmail_send_email');
+assert.equal(emailPlan.arguments.to, 'paula@example.com');
+assert.equal(emailPlan.arguments.subject, 'Project update');
+assert.equal(emailPlan.arguments.body, 'The latest build is ready for review');
+assert.deepEqual(emailPlan.missingRequired, []);
+assert.equal(emailPlan.requiresReview, true);
+
+const incompleteEmailPlan = planAction(tools, 'send an email to paula@example.com');
+assert.equal(incompleteEmailPlan.selected?.tool.name, 'gmail_send_email');
+assert.equal(incompleteEmailPlan.arguments.to, 'paula@example.com');
+assert.deepEqual(incompleteEmailPlan.missingRequired.sort(), ['body', 'subject']);
+assert.equal(incompleteEmailPlan.requiresReview, true);
+
 const unmatched = planAction(tools, 'quantum avocado resonance');
 assert.equal(unmatched.selected, null);
 assert.equal(unmatched.confidence, 'low');
