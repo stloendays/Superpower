@@ -1,0 +1,50 @@
+name: Package Chrome Web Store Extension
+
+on:
+  workflow_dispatch:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: read
+
+jobs:
+  package:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up pnpm
+        uses: pnpm/action-setup@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: '.nvmrc'
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile --prefer-offline
+
+      - name: Build production extension
+        run: pnpm base-build
+
+      - name: Read extension version
+        id: version
+        shell: bash
+        run: echo "version=$(node -p \"JSON.parse(require('fs').readFileSync('chrome-extension/package.json','utf8')).version\")" >> "$GITHUB_OUTPUT"
+
+      - name: Create Chrome Web Store ZIP
+        shell: bash
+        run: |
+          cd dist
+          zip -r "../superpower-chrome-${{ steps.version.outputs.version }}.zip" .
+
+      - name: Upload package artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: superpower-chrome-${{ steps.version.outputs.version }}
+          path: superpower-chrome-${{ steps.version.outputs.version }}.zip
+          if-no-files-found: error
