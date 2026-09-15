@@ -87,8 +87,18 @@ assert.equal(chinese.steps[2].kind, 'action');
 assert.equal(chinese.steps[2].action?.selected?.tool.name, 'notion_create_page');
 assert.equal(chinese.steps[2].needsPreviousOutput, true);
 assert.ok(chinese.steps[2].action?.missingRequired.includes('content'));
+assert.equal(chinese.bindings.length, 2);
+assert.deepEqual(
+  chinese.bindings.map(binding => [binding.sourceStepId, binding.targetStepId, binding.targetArgument, binding.coercion]),
+  [
+    ['step-1', 'step-2', '$input', 'text'],
+    ['step-2', 'step-3', 'content', 'text'],
+  ],
+);
+assert.ok(chinese.bindings.every(binding => binding.requiresReview));
 assert.ok(chinese.reviewReasons.some(reason => reason.includes('Cross-step output bindings')));
-assert.ok(chinese.reviewReasons.some(reason => reason.includes('Local transform steps')));
+assert.ok(chinese.reviewReasons.some(reason => reason.includes('explicitly approved')));
+assert.ok(chinese.reviewReasons.some(reason => reason.includes('user-provided output')));
 
 const unresolved = planWorkflow(tools, 'quantum avocado resonance then summarize it');
 assert.equal(unresolved.steps.length, 2);
