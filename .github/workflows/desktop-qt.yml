@@ -1,0 +1,22 @@
+name: Desktop Qt Build
+
+on:
+  pull_request:
+    paths:
+      - 'desktop/qt/**'
+      - '.github/workflows/desktop-qt.yml'
+  workflow_dispatch:
+
+jobs:
+  build-linux:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - name: Install Qt 6 build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y cmake ninja-build qt6-base-dev
+      - name: Configure Superpower Desktop
+        run: cmake -S desktop/qt -B desktop/qt/build -G Ninja -DCMAKE_BUILD_TYPE=Release
+      - name: Build Superpower Desktop
+        run: cmake --build desktop/qt/build --parallel 2

@@ -64,6 +64,7 @@ jobs:
           packages/mcp-host/tsconfig.json
           packages/mcp-host/src/host.ts
           packages/mcp-host/src/index.ts
+          packages/mcp-host/src/bridge.ts
           packages/mcp-host/src/cli.ts
           packages/shared/lib/mcp-core/index.ts
           packages/shared/index.mts

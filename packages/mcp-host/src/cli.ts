@@ -8,9 +8,10 @@ import {
   type ExecutionPolicyMode,
   type McpGatewayConfirmationHandler,
 } from '@superpower/mcp-core';
+import { runBridge } from './bridge.js';
 import { connectSuperpowerHost, type ConnectedSuperpowerHost, type HostConnection } from './host.js';
 
-type CliCommand = 'connect' | 'tools' | 'call' | 'help';
+type CliCommand = 'connect' | 'tools' | 'call' | 'bridge' | 'help';
 
 type ReadlineInterface = ReturnType<typeof createInterface>;
 
@@ -32,6 +33,7 @@ Usage:
   superpower connect --stdio <command> [--server-arg <arg> ...] [options]
   superpower tools   --http <url> [options]
   superpower call <tool> --args <json> --http <url> [options]
+  superpower bridge --http <url> [options]
 
 Connection options:
   --http <url>                 Connect with MCP Streamable HTTP
@@ -48,6 +50,10 @@ Gateway options:
   --args <json>                JSON object passed to a direct tool call
   -h, --help                   Show this help
 
+Desktop bridge:
+  bridge keeps one MCP session alive and reads newline-delimited JSON requests from stdin.
+  It is intended for first-party native shells such as Superpower Desktop, not for MCP servers.
+
 Interactive commands after 'connect':
   tools                        Show the currently routed tool catalog
   focus <text>                 Change task focus locally
@@ -61,6 +67,7 @@ Examples:
   superpower connect --http http://localhost:3000/mcp --focus "find files"
   superpower connect --stdio node --server-arg server.js
   superpower call search --args '{"query":"MCP"}' --http http://localhost:3000/mcp
+  superpower bridge --http http://localhost:3000/mcp --policy guarded
 `;
 
 const takeValue = (argv: string[], index: number, flag: string): string => {
@@ -104,7 +111,7 @@ const parseCli = (argv: string[]): ParsedCli => {
   }
 
   const rawCommand = argv[0];
-  if (!['connect', 'tools', 'call'].includes(rawCommand)) throw new Error(`Unknown command: ${rawCommand}`);
+  if (!['connect', 'tools', 'call', 'bridge'].includes(rawCommand)) throw new Error(`Unknown command: ${rawCommand}`);
   const command = rawCommand as Exclude<CliCommand, 'help'>;
   let index = 1;
   let toolName: string | undefined;
@@ -346,6 +353,15 @@ const main = async (): Promise<void> => {
   const cli = parseCli(process.argv.slice(2));
   if (cli.command === 'help') {
     stdout.write(HELP);
+    return;
+  }
+
+  if (cli.command === 'bridge') {
+    await runBridge({
+      connection: cli.connection!,
+      taskFocus: cli.taskFocus,
+      policyMode: cli.policyMode,
+    });
     return;
   }
 
