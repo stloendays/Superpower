@@ -841,7 +841,7 @@ QWidget *MainWindow::createFieldEditor(const QString &name, const QJsonObject &s
 }
 
 bool MainWindow::collectFormArguments(QJsonObject *arguments, QString *errorMessage) const {
-  arguments->clear();
+  *arguments = QJsonObject();
 
   for (auto it = fieldSchemas_.constBegin(); it != fieldSchemas_.constEnd(); ++it) {
     const QString name = it.key();
