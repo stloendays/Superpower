@@ -1,6 +1,6 @@
 {
     "name":  "superpower",
-    "version":  "1.1.0",
+    "version":  "1.2.0",
     "description":  "Superpower - MCP tools for web AI assistants",
     "license":  "MIT",
     "private":  true,
