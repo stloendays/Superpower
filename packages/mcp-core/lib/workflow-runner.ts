@@ -44,8 +44,10 @@ export interface PreparedWorkflowRunStep<T extends ActionPlannerTool> {
 const currentStepState = <T extends ActionPlannerTool>(state: WorkflowRunState<T>): WorkflowRunStepState | null =>
   state.currentStepId ? (state.stepStates.find(item => item.stepId === state.currentStepId) ?? null) : null;
 
-const stepById = <T extends ActionPlannerTool>(state: WorkflowRunState<T>, stepId: string): WorkflowPlanStep<T> | null =>
-  state.plan.steps.find(step => step.id === stepId) ?? null;
+const stepById = <T extends ActionPlannerTool>(
+  state: WorkflowRunState<T>,
+  stepId: string,
+): WorkflowPlanStep<T> | null => state.plan.steps.find(step => step.id === stepId) ?? null;
 
 const refreshedState = <T extends ActionPlannerTool>(state: WorkflowRunState<T>): WorkflowRunState<T> => {
   const failed = state.stepStates.find(step => step.status === 'failed');
