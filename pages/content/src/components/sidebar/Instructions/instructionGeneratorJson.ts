@@ -64,6 +64,10 @@ Tool-call protocol:
 const CSN_LEGEND =
   'Schema notation: o=object, s=string, i=integer, n=number, b=boolean, a[]=array, e[]=enum, r=required, ?=optional.';
 
+const MAX_PARAMETER_NOTES = 10;
+const MAX_PARAMETER_NOTES_CHARS = 480;
+const MAX_PARAMETER_DESCRIPTION_CHARS = 120;
+
 const normalizeText = (value: string, maxLength = 280): string => truncateFreeText(value || '', maxLength);
 
 const compactType = (definition: any): string => {
@@ -74,7 +78,7 @@ const compactType = (definition: any): string => {
   return definition.type || 'any';
 };
 
-/** Safe fallback for unusually large schemas. It keeps complete top-level parameter names/types. */
+/** Safe fallback for unusually large or unsupported schemas. It keeps complete top-level parameter names/types. */
 const summarizeSchema = (schema: any): string => {
   if (!schema || typeof schema !== 'object') return 'object';
   const properties = schema.properties && typeof schema.properties === 'object' ? schema.properties : {};
@@ -85,23 +89,89 @@ const summarizeSchema = (schema: any): string => {
   return parts.length > 0 ? `o { ${parts.join('; ')} }` : compactType(schema);
 };
 
+const isUsableCompactSchema = (value: string): boolean => {
+  const normalized = value.trim();
+  if (!normalized || normalized === 'undefined') return false;
+
+  // jsonSchemaToCsn intentionally supports a compact subset of JSON Schema.
+  // Unsupported nested constructs can otherwise leak the literal word
+  // "undefined" into an apparently valid schema string.
+  return !/(^|[:\[,\s])undefined(?=$|[;\]},\]\s])/.test(normalized);
+};
+
+/**
+ * Preserve a small amount of parameter semantics that structural schema
+ * compression cannot encode. Notes are bounded globally per tool and recurse at
+ * most one nested level, so useful descriptions do not defeat context savings.
+ */
+const getParameterNotes = (schema: any): string => {
+  const notes: string[] = [];
+
+  const visit = (node: any, prefix = '', depth = 0) => {
+    if (!node || typeof node !== 'object' || notes.length >= MAX_PARAMETER_NOTES) return;
+    const properties = node.properties && typeof node.properties === 'object' ? node.properties : {};
+
+    for (const [name, definition] of Object.entries(properties) as Array<[string, any]>) {
+      if (notes.length >= MAX_PARAMETER_NOTES) break;
+
+      const path = prefix ? `${prefix}.${name}` : name;
+      const description = normalizeText(definition?.description || '', MAX_PARAMETER_DESCRIPTION_CHARS);
+      if (description) notes.push(`${path}: ${description}`);
+
+      if (depth >= 1 || notes.length >= MAX_PARAMETER_NOTES) continue;
+
+      if (definition?.type === 'object' && definition.properties) {
+        visit(definition, path, depth + 1);
+      } else if (definition?.type === 'array' && definition.items?.type === 'object') {
+        visit(definition.items, `${path}[]`, depth + 1);
+      }
+    }
+  };
+
+  visit(schema);
+  return notes.length > 0 ? truncateFreeText(notes.join('; '), MAX_PARAMETER_NOTES_CHARS) : '';
+};
+
+const buildToolEntry = (name: string, description: string, schema: string, parameterNotes = ''): string => {
+  const lines = [`- ${name}${description ? ` — ${description}` : ''}`, `  schema: ${schema}`];
+  if (parameterNotes) lines.push(`  params: ${parameterNotes}`);
+  return lines.join('\n');
+};
+
 const formatTool = (tool: InstructionTool, budget: ContextBudgetConfig): string => {
   const name = normalizeText(tool.name, 120);
   const description = normalizeText(tool.description || '', 280);
-  const descriptionPart = description ? ` — ${description}` : '';
 
   try {
     const parsedSchema = JSON.parse(tool.schema || '{}');
-    const compactSchema = jsonSchemaToCsn(parsedSchema);
-    const fullEntry = `- ${name}${descriptionPart}\n  schema: ${compactSchema}`;
+    const parameterNotes = getParameterNotes(parsedSchema);
+
+    let compactSchema: string;
+    try {
+      const converted = jsonSchemaToCsn(parsedSchema);
+      compactSchema = isUsableCompactSchema(converted) ? converted : summarizeSchema(parsedSchema);
+      if (!isUsableCompactSchema(converted)) {
+        logger.debug(`[InstructionGenerator] Falling back to schema summary for ${tool.name}`);
+      }
+    } catch (error) {
+      logger.warn(`Unable to convert schema for ${tool.name}; using safe summary.`, error);
+      compactSchema = summarizeSchema(parsedSchema);
+    }
+
+    const fullEntry = buildToolEntry(name, description, compactSchema, parameterNotes);
     if (fullEntry.length <= budget.maxToolChars) return fullEntry;
 
     const reducedDescription = normalizeText(tool.description || '', 140);
-    const reducedDescriptionPart = reducedDescription ? ` — ${reducedDescription}` : '';
-    return `- ${name}${reducedDescriptionPart}\n  schema: ${summarizeSchema(parsedSchema)}`;
+    const reducedNotes = parameterNotes ? truncateFreeText(parameterNotes, 240) : '';
+    const reducedEntry = buildToolEntry(name, reducedDescription, summarizeSchema(parsedSchema), reducedNotes);
+    if (reducedEntry.length <= budget.maxToolChars) return reducedEntry;
+
+    // Semantics are useful, but never let them be the reason an otherwise usable
+    // tool is excluded from the overall context budget.
+    return buildToolEntry(name, reducedDescription, summarizeSchema(parsedSchema));
   } catch (error) {
-    logger.warn(`Unable to compact schema for ${tool.name}:`, error);
-    return `- ${name}${descriptionPart}\n  schema: unavailable`;
+    logger.warn(`Unable to parse schema for ${tool.name}:`, error);
+    return buildToolEntry(name, description, 'unavailable');
   }
 };
 
