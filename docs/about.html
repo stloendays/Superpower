@@ -1,0 +1,50 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="description" content="About Superpower, an MCP browser extension project led by Tony and developed through Oxford and NUS collaboration." />
+  <title>About — Superpower</title>
+  <style>
+    body{margin:0;font-family:Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;background:#f7f8fb;color:#172033;line-height:1.72}main{max-width:860px;margin:auto;padding:56px 24px 80px}article{background:white;border:1px solid #e5e7eb;border-radius:18px;padding:36px;box-shadow:0 1px 2px rgba(16,24,40,.04)}h1{font-size:34px;letter-spacing:-.03em;margin:0 0 6px}h2{margin-top:30px;font-size:20px}p,li{color:#344054}.meta{color:#667085;font-size:14px}.back{display:inline-block;margin-bottom:22px;color:#4f46e5;text-decoration:none}a{color:#4f46e5}code{background:#f2f4f7;padding:2px 5px;border-radius:5px}
+  </style>
+</head>
+<body><main><a class="back" href="index.html">← Superpower Legal & Support</a><article>
+<h1>About Superpower</h1>
+<p class="meta">Model Context Protocol tools inside the AI web applications you already use</p>
+<p>Superpower is a Chrome extension that connects supported AI web interfaces to Model Context Protocol (MCP) servers and tools. It is designed to reduce the friction between conversational AI and external capabilities by keeping tool discovery, execution, and returned results inside the user's existing chat workflow.</p>
+
+<h2>Project & collaboration</h2>
+<p>Superpower is developed as a collaborative project between the <strong>University of Oxford</strong> and the <strong>National University of Singapore (NUS)</strong>. The current project is <strong>led by Tony</strong>, who drives project direction, architecture, integration strategy, and release coordination.</p>
+<p>The collaboration focuses on practical human–AI workflows: making MCP-based agent systems easier to deploy, reducing unnecessary tool and context overhead, and improving how models discover, call, and chain external tools from familiar web interfaces.</p>
+
+<h2>What Superpower does</h2>
+<ul>
+<li>connects to user-configured local or remote MCP servers;</li>
+<li>discovers the tools exposed by connected MCP servers;</li>
+<li>lets users enable or disable individual tools;</li>
+<li>generates MCP-compatible instructions for supported AI interfaces;</li>
+<li>detects supported structured tool-call output;</li>
+<li>routes user-requested tool calls to the configured MCP endpoint;</li>
+<li>returns tool results to the active conversation; and</li>
+<li>provides connection, workflow, and automation controls from a browser sidebar.</li>
+</ul>
+
+<h2>How it works</h2>
+<p>At a high level, Superpower sits between the active AI web interface and the MCP endpoint configured by the user. The extension handles the browser-side user interface and supported-site integration. The configured MCP server remains responsible for exposing and executing tools. This separation allows users to retain control over the servers and capabilities they connect.</p>
+<p>Superpower currently supports MCP workflows over transports including SSE, WebSocket, and Streamable HTTP where supported by the configured environment.</p>
+
+<h2>Supported AI interfaces</h2>
+<p>The project includes adapters for a growing set of AI and developer chat interfaces, including ChatGPT, Gemini, Perplexity, Grok, OpenRouter, DeepSeek, GitHub Copilot, Mistral, Kimi, Qwen Chat, Z.ai, and other supported sites listed by the project. Third-party website changes can affect compatibility, so the supported set may evolve between releases.</p>
+
+<h2>Open-source foundation</h2>
+<p>Superpower V1 is a modified derivative of <a href="https://github.com/srbhptl39/MCP-SuperAssistant">MCP SuperAssistant</a>. The original MIT license and upstream attribution are preserved in the project's <a href="https://github.com/stloendays/Superpower-V1/blob/main/LICENSE">LICENSE</a> and <a href="https://github.com/stloendays/Superpower-V1/blob/main/NOTICE.md">NOTICE.md</a> files.</p>
+<p>The current Superpower project extends that foundation with its own product direction, branding, workflow design, compatibility work, and release engineering.</p>
+
+<h2>Privacy and security</h2>
+<p>Superpower is designed so users remain in control of the MCP servers and tools they connect. Because MCP tools can interact with external systems, users should only connect trusted servers and review tool behavior appropriate to their environment.</p>
+<p>See the <a href="privacy.html">Privacy Policy</a> for data handling details and the <a href="security.html">Security Policy</a> for vulnerability reporting and security guidance.</p>
+
+<h2>Project links</h2>
+<p><a href="https://github.com/stloendays/Superpower-V1">GitHub repository</a> · <a href="support.html">Support</a> · <a href="terms.html">Terms of Use</a></p>
+</article></main></body></html>
