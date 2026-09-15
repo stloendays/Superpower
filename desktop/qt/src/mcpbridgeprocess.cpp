@@ -1,6 +1,9 @@
 #include "mcpbridgeprocess.h"
 
+#include <QDir>
+#include <QFileInfo>
 #include <QJsonDocument>
+#include <QProcessEnvironment>
 #include <QTimer>
 
 McpBridgeProcess::McpBridgeProcess(QObject *parent) : QObject(parent) {
@@ -65,6 +68,18 @@ void McpBridgeProcess::startWithConnectionArguments(const QString &nodeProgram, 
     arguments << QStringLiteral("--focus") << taskFocus.trimmed();
   }
 
+  QProcessEnvironment environment = QProcessEnvironment::systemEnvironment();
+  const QFileInfo nodeInfo(nodeProgram);
+  if (nodeInfo.isAbsolute() && nodeInfo.exists()) {
+    const QString runtimeDir = nodeInfo.absolutePath();
+    const QString existingPath = environment.value(QStringLiteral("PATH"));
+    environment.insert(QStringLiteral("PATH"),
+                       existingPath.isEmpty()
+                           ? runtimeDir
+                           : runtimeDir + QDir::listSeparator() + existingPath);
+  }
+
+  process_.setProcessEnvironment(environment);
   process_.setProgram(nodeProgram);
   process_.setArguments(arguments);
   process_.start();

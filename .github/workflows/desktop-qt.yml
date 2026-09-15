@@ -71,11 +71,12 @@ jobs:
           $nodeDir = Join-Path $env:RUNNER_TEMP "node-v$nodeVersion-win-x64"
           Invoke-WebRequest "https://nodejs.org/dist/v$nodeVersion/node-v$nodeVersion-win-x64.zip" -OutFile $nodeZip
           Expand-Archive $nodeZip -DestinationPath $env:RUNNER_TEMP -Force
-          New-Item -ItemType Directory -Force (Join-Path $package 'runtime') | Out-Null
-          Copy-Item (Join-Path $nodeDir 'node.exe') (Join-Path $package 'runtime/node.exe') -Force
-          Copy-Item (Join-Path $nodeDir 'LICENSE') (Join-Path $package 'runtime/NODE-LICENSE.txt') -Force
+          $runtime = Join-Path $package 'runtime'
+          New-Item -ItemType Directory -Force $runtime | Out-Null
+          Copy-Item (Join-Path $nodeDir '*') $runtime -Recurse -Force
 
-          & (Join-Path $package 'runtime/node.exe') (Join-Path $package 'bridge/superpower-host.mjs') --help | Select-String 'Superpower MCP Host'
+          & (Join-Path $runtime 'node.exe') (Join-Path $package 'bridge/superpower-host.mjs') --help | Select-String 'Superpower MCP Host'
+          if (!(Test-Path (Join-Path $runtime 'npx.cmd'))) { throw 'Bundled Node runtime is missing npx.cmd.' }
           if (!(Test-Path (Join-Path $package 'Qt6Core.dll'))) { throw 'Qt runtime deployment is incomplete.' }
           if (!(Test-Path (Join-Path $package 'platforms/qwindows.dll'))) { throw 'Qt Windows platform plugin is missing.' }
           if (!(Test-Path (Join-Path $package 'bridge/superpower-host.mjs'))) { throw 'MCP host bridge is missing.' }

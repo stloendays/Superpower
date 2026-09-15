@@ -86,16 +86,16 @@ The desktop client defaults to `guarded` mode. When a tool is classified as high
 
 ## Windows portable package
 
-The `Desktop Qt Build` GitHub Actions workflow now validates a Windows MSVC/Qt build and produces `Superpower-Desktop-Windows-x64.zip`.
+The `Desktop Qt Build` GitHub Actions workflow validates a Windows MSVC/Qt build and produces `Superpower-Desktop-Windows-x64.zip`.
 
 The portable package contains:
 
 - `Superpower Desktop.exe`
 - Qt runtime DLLs and `qwindows.dll`
-- a Node runtime under `runtime/`
+- the complete portable Node distribution under `runtime/`, including `node`, `npm`, and `npx`
 - a single-file bundled MCP host under `bridge/`
 
-The packaged app auto-detects those bundled runtimes, so end users do not need to install Qt or Node. Third-party/local MCP server executables are intentionally not bundled.
+The packaged app auto-detects those bundled runtimes and prepends the Node runtime directory to the MCP bridge `PATH`. End users therefore do not need to install Qt or Node, and common `npx ...` stdio MCP configurations can use the bundled npx command. Third-party MCP packages themselves are not pre-bundled.
 
 ## Security notes
 

@@ -5,7 +5,7 @@ This folder is self-contained for the Superpower desktop shell itself:
 
 - Superpower Desktop.exe
 - Qt 6 runtime files and Windows platform plugin
-- runtime/node.exe
+- a portable Node distribution under runtime/ (node, npm, npx)
 - bridge/superpower-host.mjs
 
 Launch
@@ -13,7 +13,7 @@ Launch
 
 Double-click "Superpower Desktop.exe".
 
-The app automatically detects the bundled Node runtime and MCP host bridge. No Qt installation is required.
+The app automatically detects the bundled Node runtime and MCP host bridge. No Qt or Node installation is required.
 
 Connections
 -----------
@@ -30,7 +30,7 @@ Connections
    Example arguments:
      ["@modelcontextprotocol/server-filesystem", "."]
 
-Important: the portable bundle includes Node itself but does not include arbitrary third-party MCP servers such as npx packages, Python packages, or local executables. Those server commands must already be available on the user's machine or be addressed by an absolute path.
+The packaged Node runtime directory is prepended to the bridge PATH, so bundled npm/npx commands are available to stdio MCP configurations. Third-party MCP packages are not pre-bundled; npx may fetch them according to its normal behavior, or you can point the command at an already installed/local server executable.
 
 Security
 --------
