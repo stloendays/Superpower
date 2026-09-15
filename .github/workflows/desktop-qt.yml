@@ -44,9 +44,14 @@ jobs:
           $body = 'desktop/qt/package/bridge/superpower-host.body.mjs'
           $bundle = 'desktop/qt/package/bridge/superpower-host.mjs'
           pnpm exec esbuild packages/mcp-host/src/cli.ts --bundle --platform=node --format=esm --target=node22 --outfile=$body
+          $bodyText = Get-Content -Path $body -Raw
+          if ($bodyText.StartsWith('#!')) {
+            $firstNewline = $bodyText.IndexOf("`n")
+            if ($firstNewline -ge 0) { $bodyText = $bodyText.Substring($firstNewline + 1) }
+          }
           $shim = 'import { createRequire } from "node:module"; const require = createRequire(import.meta.url);'
-          Set-Content -Path $bundle -Value $shim -Encoding utf8NoBOM
-          Get-Content -Path $body -Raw | Add-Content -Path $bundle -Encoding utf8NoBOM
+          $bundleText = "#!/usr/bin/env node`n$shim`n$bodyText"
+          Set-Content -Path $bundle -Value $bundleText -Encoding utf8NoBOM -NoNewline
           Remove-Item $body
           node $bundle --help | Select-String 'Superpower MCP Host'
       - name: Install Qt 6.8.3
