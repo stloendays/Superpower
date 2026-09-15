@@ -2,6 +2,7 @@
 
 #include <QDialog>
 
+class QCloseEvent;
 class QLabel;
 class QPushButton;
 class QTimer;
