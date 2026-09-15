@@ -15,6 +15,7 @@
     "build": "tsc -b",
     "type-check": "tsc --noEmit",
     "test:router": "node scripts/tool-router-smoke.mjs",
+    "test:policy": "node scripts/execution-policy-smoke.mjs",
     "prettier": "prettier . --write --ignore-path ../../.prettierignore"
   },
   "devDependencies": {
