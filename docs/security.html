@@ -1,0 +1,69 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="description" content="Security Policy and vulnerability reporting guidance for the Superpower browser extension." />
+  <title>Security Policy — Superpower</title>
+  <style>
+    body{margin:0;font-family:Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;background:#f7f8fb;color:#172033;line-height:1.72}main{max-width:860px;margin:auto;padding:56px 24px 80px}article{background:white;border:1px solid #e5e7eb;border-radius:18px;padding:36px;box-shadow:0 1px 2px rgba(16,24,40,.04)}h1{font-size:34px;letter-spacing:-.03em;margin:0 0 6px}h2{margin-top:30px;font-size:20px}p,li{color:#344054}.meta{color:#667085;font-size:14px}.back{display:inline-block;margin-bottom:22px;color:#4f46e5;text-decoration:none}a{color:#4f46e5}code{background:#f2f4f7;padding:2px 5px;border-radius:5px}
+  </style>
+</head>
+<body><main><a class="back" href="index.html">← Superpower Legal & Support</a><article>
+<h1>Security Policy for Superpower</h1>
+<p class="meta">Last updated: September 15, 2026</p>
+<p>Security reports are important to the Superpower project. This policy explains which issues are most relevant, how to report them responsibly, and the trust boundaries users should understand when connecting Model Context Protocol (MCP) servers and third-party tools.</p>
+
+<h2>1. Security model</h2>
+<p>Superpower runs as a browser extension on supported AI web applications and communicates with MCP endpoints configured by the user. The extension can detect supported tool-call output, send user-requested tool calls to configured MCP servers, and insert returned results into the active conversation.</p>
+<p>MCP servers and tools may have capabilities outside the browser. Users should therefore connect only to servers and tools they trust, protect credentials used by those services, and understand the effects of a tool before authorizing or automating execution.</p>
+
+<h2>2. Issues in scope</h2>
+<p>Examples of security issues that are especially useful to report include:</p>
+<ul>
+<li>unauthorized execution of MCP tools or actions without the expected user workflow;</li>
+<li>credential, token, API key, or secret exposure caused by Superpower;</li>
+<li>cross-origin or message-passing weaknesses that allow an untrusted page to control extension behavior;</li>
+<li>privilege or permission misuse by the extension;</li>
+<li>injection vulnerabilities in Superpower-controlled UI or tool-result rendering;</li>
+<li>unsafe handling of remote configuration that could cause code execution;</li>
+<li>sensitive data being transmitted to an unexpected destination;</li>
+<li>security-relevant dependency vulnerabilities that are exploitable through Superpower; and</li>
+<li>other vulnerabilities that materially compromise confidentiality, integrity, or authorized tool execution.</li>
+</ul>
+
+<h2>3. Issues generally outside scope</h2>
+<p>Issues that exist only in a third-party AI website, MCP server, model provider, API, or external tool are normally outside the Superpower project's scope unless Superpower introduces or materially amplifies the vulnerability.</p>
+<p>Reports based only on automated scanner output without a reproducible security impact, denial-of-service testing against third-party infrastructure, social engineering, and attempts to access data that is not your own are not appropriate security reports.</p>
+
+<h2>4. Reporting a vulnerability</h2>
+<p>Please do not publish credentials, private data, or actionable exploit details in a public GitHub issue.</p>
+<p>For a potentially sensitive vulnerability, use the private publisher contact information provided in the Chrome Web Store listing. If private security reporting is available through the project's GitHub repository, that channel may also be used.</p>
+<p>A useful report should include:</p>
+<ul>
+<li>the affected Superpower version;</li>
+<li>browser and operating system information;</li>
+<li>the affected supported website or MCP transport, if relevant;</li>
+<li>clear reproduction steps;</li>
+<li>the expected and observed behavior;</li>
+<li>the security impact;</li>
+<li>a minimal proof of concept when safe to provide; and</li>
+<li>any proposed mitigation or additional context.</li>
+</ul>
+<p>Do not include live API keys, passwords, session cookies, private conversations, or other secrets in the report.</p>
+
+<h2>5. Coordinated disclosure</h2>
+<p>The project will make a reasonable effort to validate credible reports, determine whether the issue is within scope, develop an appropriate remediation, and coordinate disclosure when a vulnerability is confirmed. Public disclosure should avoid unnecessarily exposing users before a practical fix or mitigation is available.</p>
+
+<h2>6. Good-faith security research</h2>
+<p>Good-faith research should be limited to systems and data you are authorized to test. Avoid privacy violations, service disruption, destruction of data, persistence on third-party systems, or accessing information beyond what is necessary to demonstrate the issue.</p>
+
+<h2>7. MCP server and tool responsibility</h2>
+<p>Superpower does not operate or audit every MCP server or tool that a user may connect. Third-party MCP servers can define their own authentication, authorization, logging, data retention, and tool behavior. Users are responsible for evaluating those services before connecting them.</p>
+
+<h2>8. Security updates</h2>
+<p>Security-related fixes may be delivered through normal Superpower releases. Users should keep the extension and connected MCP software up to date and review release information when security-relevant changes are announced.</p>
+
+<h2>9. Related information</h2>
+<p>For information about data handling, see the <a href="privacy.html">Privacy Policy</a>. For general help and non-sensitive bug reports, see <a href="support.html">Support</a>.</p>
+</article></main></body></html>
