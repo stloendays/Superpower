@@ -28,6 +28,13 @@ class MainWindow final : public QMainWindow {
  public:
   explicit MainWindow(QWidget *parent = nullptr);
 
+  [[nodiscard]] bool isMcpConnected() const;
+  [[nodiscard]] QString mcpStatusText() const;
+  [[nodiscard]] int discoveredAppCount() const;
+  [[nodiscard]] int discoveredActionCount() const;
+  [[nodiscard]] int runCount() const;
+  [[nodiscard]] QStringList recentRunSummaries(int limit = 5) const;
+
   struct ServerProfile {
     QString id;
     QString name;
