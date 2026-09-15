@@ -52,7 +52,4 @@ jobs:
 
           printf 'Checking %s changed file(s):\n' "${#CHANGED_FILES[@]}"
           printf ' - %s\n' "${CHANGED_FILES[@]}"
-          pnpm exec prettier --write "${CHANGED_FILES[@]}"
-          echo '--- canonical prettier diff ---'
-          git diff -- "${CHANGED_FILES[@]}"
-          test -z "$(git status --short -- "${CHANGED_FILES[@]}")"
+          pnpm exec prettier --check "${CHANGED_FILES[@]}"
