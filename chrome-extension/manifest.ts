@@ -14,9 +14,11 @@ const manifest = {
   manifest_version: 3,
   default_locale: 'en',
   name: 'Superpower',
+  short_name: 'Superpower',
   version: packageJson.version,
   version_name: `V${packageJson.version}`,
-  description: 'Connect supported AI web apps to local MCP tools with Superpower.',
+  description:
+    'Connect supported web AI assistants to MCP servers and tools, then run real workflows without leaving the conversation.',
   host_permissions: [
     '*://*.perplexity.ai/*',
     '*://*.chat.openai.com/*',
