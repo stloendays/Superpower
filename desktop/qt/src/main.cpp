@@ -2,8 +2,10 @@
 #include "mainwindow.h"
 #include "mcpbridgeprocess.h"
 #include "onboardingdialog.h"
+#include "workspacedashboard.h"
 
 #include <QAction>
+#include <QActionGroup>
 #include <QApplication>
 #include <QCoreApplication>
 #include <QDir>
@@ -14,8 +16,10 @@
 #include <QMenu>
 #include <QMenuBar>
 #include <QSettings>
+#include <QStackedWidget>
 #include <QStandardPaths>
 #include <QTimer>
+#include <QToolBar>
 
 namespace {
 QString findDefaultNodeProgram() {
@@ -63,6 +67,44 @@ int main(int argc, char *argv[]) {
 
   MainWindow window;
 
+  QWidget *actionsWorkspace = window.takeCentralWidget();
+  auto *workspaceStack = new QStackedWidget(&window);
+  auto *dashboard = new WorkspaceDashboard(&window, workspaceStack);
+  workspaceStack->addWidget(dashboard);
+  workspaceStack->addWidget(actionsWorkspace);
+  window.setCentralWidget(workspaceStack);
+
+  auto *workspaceToolbar = window.addToolBar(QStringLiteral("Workspace"));
+  workspaceToolbar->setObjectName(QStringLiteral("workspaceToolbar"));
+  workspaceToolbar->setMovable(false);
+  workspaceToolbar->setFloatable(false);
+  workspaceToolbar->setToolButtonStyle(Qt::ToolButtonTextOnly);
+
+  auto *workspaceGroup = new QActionGroup(workspaceToolbar);
+  workspaceGroup->setExclusive(true);
+  QAction *homeAction = workspaceToolbar->addAction(QStringLiteral("Home"));
+  homeAction->setCheckable(true);
+  homeAction->setChecked(true);
+  homeAction->setShortcut(QKeySequence(QStringLiteral("Ctrl+1")));
+  workspaceGroup->addAction(homeAction);
+
+  QAction *actionsAction = workspaceToolbar->addAction(QStringLiteral("Actions"));
+  actionsAction->setCheckable(true);
+  actionsAction->setShortcut(QKeySequence(QStringLiteral("Ctrl+2")));
+  workspaceGroup->addAction(actionsAction);
+
+  const auto showHome = [workspaceStack, homeAction]() {
+    workspaceStack->setCurrentIndex(0);
+    homeAction->setChecked(true);
+  };
+  const auto showActions = [workspaceStack, actionsAction]() {
+    workspaceStack->setCurrentIndex(1);
+    actionsAction->setChecked(true);
+  };
+  QObject::connect(homeAction, &QAction::triggered, &window, showHome);
+  QObject::connect(actionsAction, &QAction::triggered, &window, showActions);
+  QObject::connect(dashboard, &WorkspaceDashboard::browseActionsRequested, &window, showActions);
+
   auto *conversationDock = new QDockWidget(QStringLiteral("Conversation"), &window);
   conversationDock->setObjectName(QStringLiteral("conversationDock"));
   conversationDock->setAllowedAreas(Qt::RightDockWidgetArea | Qt::BottomDockWidgetArea);
@@ -74,40 +116,64 @@ int main(int argc, char *argv[]) {
   window.resizeDocks({conversationDock}, {430}, Qt::Horizontal);
 
   QMenu *viewMenu = window.menuBar()->addMenu(QStringLiteral("View"));
+  viewMenu->addAction(homeAction);
+  viewMenu->addAction(actionsAction);
+  viewMenu->addSeparator();
   QAction *conversationAction = conversationDock->toggleViewAction();
   conversationAction->setText(QStringLiteral("Conversation"));
   conversationAction->setShortcut(QKeySequence(QStringLiteral("Ctrl+Shift+C")));
   viewMenu->addAction(conversationAction);
 
+  QObject::connect(dashboard, &WorkspaceDashboard::openConversationRequested, &window,
+                   [conversationDock]() {
+                     conversationDock->show();
+                     conversationDock->raise();
+                   });
+
   auto *onboarding = new OnboardingDialog(&window);
   QMenu *helpMenu = window.menuBar()->addMenu(QStringLiteral("Help"));
   QAction *gettingStartedAction = helpMenu->addAction(QStringLiteral("Getting Started..."));
   gettingStartedAction->setShortcut(QKeySequence(QStringLiteral("Ctrl+Shift+G")));
-  QObject::connect(gettingStartedAction, &QAction::triggered, onboarding, &OnboardingDialog::showForCurrentState);
+  QObject::connect(gettingStartedAction, &QAction::triggered, &window,
+                   [onboarding, showActions]() {
+                     showActions();
+                     onboarding->showForCurrentState();
+                   });
+  QObject::connect(dashboard, &WorkspaceDashboard::gettingStartedRequested, &window,
+                   [onboarding, showActions]() {
+                     showActions();
+                     onboarding->showForCurrentState();
+                   });
 
   auto *conversationRelay = new McpBridgeProcess(&window);
+  dashboard->setConversationRelayStatus(QStringLiteral("Starting local conversation relay..."), false);
   QObject::connect(conversationRelay, &McpBridgeProcess::bridgeReady, conversation,
-                   [conversation](const QString &transport) {
+                   [conversation, dashboard](const QString &transport) {
                      Q_UNUSED(transport);
-                     conversation->setRelayStatus(
-                         QStringLiteral("Listening locally on 127.0.0.1:32148 · no MCP server connection required."),
-                         true);
+                     const QString status =
+                         QStringLiteral("Listening locally on 127.0.0.1:32148 · no MCP server connection required.");
+                     conversation->setRelayStatus(status, true);
+                     dashboard->setConversationRelayStatus(status, true);
                    });
   QObject::connect(conversationRelay, &McpBridgeProcess::conversationEvent, &window,
-                   [conversation, conversationDock](const QJsonObject &event) {
+                   [conversation, conversationDock, dashboard](const QJsonObject &event) {
                      conversation->ingestEvent(event);
+                     dashboard->noteConversationActivity();
                      if (!conversationDock->isVisible()) conversationDock->show();
                    });
   QObject::connect(conversationRelay, &McpBridgeProcess::processError, conversation,
-                   [conversation](const QString &message) {
-                     conversation->setRelayStatus(QStringLiteral("Conversation relay unavailable · %1").arg(message), false);
+                   [conversation, dashboard](const QString &message) {
+                     const QString status = QStringLiteral("Conversation relay unavailable · %1").arg(message);
+                     conversation->setRelayStatus(status, false);
+                     dashboard->setConversationRelayStatus(status, false);
                    });
   QObject::connect(conversationRelay, &McpBridgeProcess::processExited, conversation,
-                   [conversation](int exitCode, QProcess::ExitStatus) {
-                     conversation->setRelayStatus(
+                   [conversation, dashboard](int exitCode, QProcess::ExitStatus) {
+                     const QString status =
                          QStringLiteral("Conversation relay stopped (exit %1). Restart Superpower Desktop to resume sync.")
-                             .arg(exitCode),
-                         false);
+                             .arg(exitCode);
+                     conversation->setRelayStatus(status, false);
+                     dashboard->setConversationRelayStatus(status, false);
                    });
   QObject::connect(conversationRelay, &McpBridgeProcess::logLine, conversation,
                    [conversation](const QString &line) {
@@ -121,7 +187,12 @@ int main(int argc, char *argv[]) {
 
   QSettings settings(QStringLiteral("Superpower"), QStringLiteral("Superpower Desktop"));
   if (!settings.value(QStringLiteral("onboarding/v1_5_seen"), false).toBool()) {
-    QTimer::singleShot(350, onboarding, [onboarding]() { onboarding->showForCurrentState(); });
+    QTimer::singleShot(350, onboarding, [onboarding, showActions]() {
+      showActions();
+      onboarding->showForCurrentState();
+    });
+  } else {
+    showHome();
   }
 
   return app.exec();
