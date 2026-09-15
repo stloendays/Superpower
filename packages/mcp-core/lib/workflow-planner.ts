@@ -242,7 +242,9 @@ export const planWorkflow = <T extends ActionPlannerTool>(
     reviewReasons.push('Every proposed output binding is visible and must be explicitly approved for a run session.');
   }
   if (steps.some(step => step.kind === 'transform')) {
-    reviewReasons.push('Local transform steps require explicit user-provided output in the first Workflow Runner slice.');
+    reviewReasons.push(
+      'Local transform steps require explicit user-provided output in the first Workflow Runner slice.',
+    );
   }
   if (unresolvedStepCount > 0) {
     reviewReasons.push('One or more workflow steps could not be mapped confidently to an MCP action.');
