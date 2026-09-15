@@ -1,7 +1,7 @@
 import { createLogger } from '@extension/shared/lib/logger';
 
 const logger = createLogger('DesktopConversationForwarder');
-const DESKTOP_ENDPOINT = 'http://127.0.0.1:32147/v1/conversation';
+const DESKTOP_ENDPOINT = 'http://127.0.0.1:32148/v1/conversation';
 const BRIDGE_HEADER = 'x-superpower-conversation-bridge';
 const FORWARD_TIMEOUT_MS = 1800;
 
