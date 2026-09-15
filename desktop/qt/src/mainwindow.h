@@ -37,6 +37,9 @@ class MainWindow final : public QMainWindow {
   void planAction(const QString &query);
   void planWorkflow(const QString &query);
   void reviewWorkflowStep(const QJsonObject &actionPlan);
+  void startWorkflowRun(const QString &planId, const QStringList &approvedBindingIds);
+  void advanceWorkflowRun(bool approve);
+  void provideWorkflowStepOutput(const QString &stepId, const QString &output);
 
   struct ServerProfile {
     QString id;
@@ -74,6 +77,8 @@ class MainWindow final : public QMainWindow {
   void workflowPlanStarted(const QString &query);
   void workflowPlanPrepared(const QString &summary, const QJsonObject &plan);
   void workflowPlanFailed(const QString &message);
+  void workflowRunUpdated(const QJsonObject &state);
+  void workflowRunFailed(const QString &message);
 
  private:
   void buildUi();
@@ -189,6 +194,7 @@ class MainWindow final : public QMainWindow {
   QString plannedToolName_;
   QString latestActionPlanId_;
   QString latestWorkflowPlanId_;
+  QString activeWorkflowRunId_;
   QStringList logLines_;
   QList<ServerProfile> serverProfiles_;
   QList<RunRecord> runHistory_;
@@ -201,6 +207,7 @@ class MainWindow final : public QMainWindow {
   QSet<QString> requiredFields_;
   QSet<QString> pendingActionPlanIds_;
   QSet<QString> pendingWorkflowPlanIds_;
+  QSet<QString> pendingWorkflowRunIds_;
   bool actionRouterSignalsConnected_ = false;
   bool workflowPlannerSignalsConnected_ = false;
 };

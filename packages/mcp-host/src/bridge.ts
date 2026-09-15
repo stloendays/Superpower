@@ -8,6 +8,7 @@ import {
   type ExecutionPolicyResult,
 } from '@superpower/mcp-core';
 import { connectSuperpowerHost, type ConnectedSuperpowerHost, type HostConnection } from './host.js';
+import { WorkflowRunRegistry } from './workflow-runner-bridge.js';
 
 export interface BridgeRunOptions {
   connection: HostConnection;
@@ -53,10 +54,17 @@ const CONVERSATION_BRIDGE_HEADER = 'x-superpower-conversation-bridge';
 const MAX_CONVERSATION_BODY_BYTES = 128 * 1024;
 const MAX_CONVERSATION_TEXT_LENGTH = 64 * 1024;
 const MAX_ACTION_QUERY_LENGTH = 8 * 1024;
+const MAX_WORKFLOW_IDENTIFIER_LENGTH = 512;
 
 const asRecord = (value: unknown): Record<string, unknown> | null => {
   if (!value || typeof value !== 'object' || Array.isArray(value)) return null;
   return value as Record<string, unknown>;
+};
+
+const asStringArray = (value: unknown): string[] | null => {
+  if (!Array.isArray(value)) return null;
+  if (!value.every(item => typeof item === 'string')) return null;
+  return value.map(item => item.trim()).filter(Boolean);
 };
 
 const policyDetails = (policy: ExecutionPolicyResult): Record<string, unknown> => ({
@@ -273,70 +281,6 @@ const planAction = async (host: ConnectedSuperpowerHost, query: string): Promise
   };
 };
 
-const planWorkflow = async (host: ConnectedSuperpowerHost, query: string): Promise<Record<string, unknown>> => {
-  const workflow = await host.gateway.planWorkflow(query, { maxCandidates: 5, maxSteps: 6 });
-
-  return {
-    transport: host.transportKind,
-    query: workflow.query,
-    confidence: workflow.confidence,
-    requiresReview: workflow.requiresReview,
-    autoExecutable: workflow.autoExecutable,
-    unresolvedStepCount: workflow.unresolvedStepCount,
-    reviewReasons: workflow.reviewReasons,
-    steps: workflow.steps.map(step => {
-      const action = step.action;
-      const selected = action?.selected ?? null;
-      const policy = selected
-        ? host.gateway.evaluate(selected.tool.name, action?.arguments ?? {}, selected.tool.description ?? '')
-        : null;
-
-      return {
-        id: step.id,
-        index: step.index,
-        instruction: step.instruction,
-        kind: step.kind,
-        dependsOn: step.dependsOn,
-        needsPreviousOutput: step.needsPreviousOutput,
-        confidence: step.confidence,
-        requiresReview: step.requiresReview,
-        transform: step.transform,
-        action: action
-          ? {
-              query: action.query,
-              selected: selected
-                ? {
-                    name: selected.tool.name,
-                    description: selected.tool.description ?? '',
-                    inputSchema: selected.tool.inputSchema ?? {},
-                    score: selected.score,
-                    matchedTerms: selected.matchedTerms,
-                  }
-                : null,
-              candidates: action.candidates.map(item => ({
-                name: item.tool.name,
-                description: item.tool.description ?? '',
-                score: item.score,
-                matchedTerms: item.matchedTerms,
-              })),
-              arguments: action.arguments,
-              draftedFields: action.draftedFields,
-              missingRequired: action.missingRequired,
-              confidence: action.confidence,
-              requiresReview: action.requiresReview,
-              policy: policy
-                ? {
-                    decision: policy.decision,
-                    ...policyDetails(policy),
-                  }
-                : null,
-            }
-          : null,
-      };
-    }),
-  };
-};
-
 const findToolDescription = async (host: ConnectedSuperpowerHost, toolName: string): Promise<string> => {
   const response = await host.client.listTools();
   return response.tools.find(tool => tool.name === toolName)?.description ?? '';
@@ -378,8 +322,8 @@ const callTool = async (
  * Long-lived, newline-delimited JSON bridge for native shells such as the Qt desktop client.
  *
  * The bridge deliberately keeps connection setup, routing, action/workflow planning,
- * policy evaluation and telemetry in the existing TypeScript host. Native clients
- * only own presentation and user interaction.
+ * workflow run state, policy evaluation and telemetry in the existing TypeScript host.
+ * Native clients only own presentation, binding review and user interaction.
  */
 export const runBridge = async (options: BridgeRunOptions): Promise<void> => {
   let approvalForCurrentCall = false;
@@ -390,13 +334,18 @@ export const runBridge = async (options: BridgeRunOptions): Promise<void> => {
     confirm: async () => approvalForCurrentCall,
     clientName: 'superpower-desktop-bridge',
   });
+  const workflowRunner = new WorkflowRunRegistry(host, (toolName, args, approve) =>
+    callTool(host, toolName, args, approve, approved => {
+      approvalForCurrentCall = approved;
+    }),
+  );
   const conversationServer = await startConversationBridge();
   const readline = createInterface({ input: stdin, crlfDelay: Infinity });
 
   writeMessage({
     type: 'ready',
     protocol: 'superpower-desktop-bridge',
-    version: 4,
+    version: 5,
     transport: host.transportKind,
     taskFocus: host.gateway.getTaskFocus(),
     policyMode: host.gateway.getPolicyMode(),
@@ -462,7 +411,75 @@ export const runBridge = async (options: BridgeRunOptions): Promise<void> => {
             if (query.length > MAX_ACTION_QUERY_LENGTH) {
               throw new BridgeRequestError('invalid_params', 'workflowPlan query is too long.');
             }
-            result = await planWorkflow(host, query.trim());
+            result = await workflowRunner.plan(query.trim());
+            break;
+          }
+          case 'workflowStart': {
+            const planId = typeof params.planId === 'string' ? params.planId.trim() : '';
+            if (!planId || planId.length > MAX_WORKFLOW_IDENTIFIER_LENGTH) {
+              throw new BridgeRequestError('invalid_params', 'workflowStart requires a valid planId.');
+            }
+            if (!workflowRunner.hasPlan(planId)) {
+              throw new BridgeRequestError(
+                'workflow_plan_not_found',
+                'Workflow plan is not available in this MCP session. Re-plan the workflow.',
+              );
+            }
+            const approvedBindingIds =
+              params.approvedBindingIds === undefined ? [] : asStringArray(params.approvedBindingIds);
+            if (!approvedBindingIds) {
+              throw new BridgeRequestError('invalid_params', 'approvedBindingIds must be an array of strings.');
+            }
+            result = workflowRunner.start(planId, approvedBindingIds);
+            break;
+          }
+          case 'workflowStatus': {
+            const runId = typeof params.runId === 'string' ? params.runId.trim() : '';
+            if (!runId || runId.length > MAX_WORKFLOW_IDENTIFIER_LENGTH) {
+              throw new BridgeRequestError('invalid_params', 'workflowStatus requires a valid runId.');
+            }
+            if (!workflowRunner.hasRun(runId)) {
+              throw new BridgeRequestError(
+                'workflow_run_not_found',
+                'Workflow run is not available in this MCP session. Start a new reviewed run.',
+              );
+            }
+            result = workflowRunner.status(runId);
+            break;
+          }
+          case 'workflowAdvance': {
+            const runId = typeof params.runId === 'string' ? params.runId.trim() : '';
+            if (!runId || runId.length > MAX_WORKFLOW_IDENTIFIER_LENGTH) {
+              throw new BridgeRequestError('invalid_params', 'workflowAdvance requires a valid runId.');
+            }
+            if (!workflowRunner.hasRun(runId)) {
+              throw new BridgeRequestError(
+                'workflow_run_not_found',
+                'Workflow run is not available in this MCP session. Start a new reviewed run.',
+              );
+            }
+            result = await workflowRunner.advance(runId, params.approve === true);
+            break;
+          }
+          case 'workflowProvideOutput': {
+            const runId = typeof params.runId === 'string' ? params.runId.trim() : '';
+            const stepId = typeof params.stepId === 'string' ? params.stepId.trim() : '';
+            if (!runId || runId.length > MAX_WORKFLOW_IDENTIFIER_LENGTH) {
+              throw new BridgeRequestError('invalid_params', 'workflowProvideOutput requires a valid runId.');
+            }
+            if (!stepId || stepId.length > MAX_WORKFLOW_IDENTIFIER_LENGTH) {
+              throw new BridgeRequestError('invalid_params', 'workflowProvideOutput requires a valid stepId.');
+            }
+            if (!Object.prototype.hasOwnProperty.call(params, 'output')) {
+              throw new BridgeRequestError('invalid_params', 'workflowProvideOutput requires an output value.');
+            }
+            if (!workflowRunner.hasRun(runId)) {
+              throw new BridgeRequestError(
+                'workflow_run_not_found',
+                'Workflow run is not available in this MCP session. Start a new reviewed run.',
+              );
+            }
+            result = workflowRunner.provideOutput(runId, stepId, params.output);
             break;
           }
           case 'focus': {

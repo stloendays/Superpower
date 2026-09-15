@@ -8,6 +8,17 @@ import {
 
 export type WorkflowStepKind = 'action' | 'transform' | 'unresolved';
 export type WorkflowTransformOperation = 'summarize' | 'rewrite' | 'extract' | 'format';
+export type WorkflowBindingCoercion = 'raw' | 'text';
+
+export interface WorkflowBinding {
+  id: string;
+  sourceStepId: string;
+  sourcePath: string;
+  targetStepId: string;
+  targetArgument: string;
+  coercion: WorkflowBindingCoercion;
+  requiresReview: true;
+}
 
 export interface WorkflowPlannerOptions extends ActionPlannerOptions {
   maxSteps?: number;
@@ -34,6 +45,7 @@ export interface WorkflowPlanStep<T extends ActionPlannerTool> {
 export interface WorkflowPlan<T extends ActionPlannerTool> {
   query: string;
   steps: WorkflowPlanStep<T>[];
+  bindings: WorkflowBinding[];
   confidence: ActionPlanConfidence;
   requiresReview: true;
   autoExecutable: false;
@@ -92,6 +104,21 @@ const missingLooksLikeHandoff = (fields: string[]): boolean =>
     );
   });
 
+const handoffFields = (fields: string[]): string[] =>
+  fields.filter(field => {
+    const key = canonicalKey(field);
+    return (
+      key.includes('content') ||
+      key.includes('body') ||
+      key.includes('text') ||
+      key.includes('message') ||
+      key.includes('summary') ||
+      key.includes('description') ||
+      key.includes('input') ||
+      key.includes('data')
+    );
+  });
+
 const workflowConfidence = <T extends ActionPlannerTool>(steps: WorkflowPlanStep<T>[]): ActionPlanConfidence => {
   if (steps.length === 0 || steps.some(step => step.kind === 'unresolved' || step.confidence === 'low')) return 'low';
   if (steps.some(step => step.kind === 'transform' || step.confidence === 'medium' || step.needsPreviousOutput)) {
@@ -100,14 +127,53 @@ const workflowConfidence = <T extends ActionPlannerTool>(steps: WorkflowPlanStep
   return 'high';
 };
 
+const buildBindings = <T extends ActionPlannerTool>(steps: WorkflowPlanStep<T>[]): WorkflowBinding[] => {
+  const bindings: WorkflowBinding[] = [];
+
+  steps.forEach((step, index) => {
+    if (index === 0 || !step.needsPreviousOutput) return;
+    const sourceStepId = step.dependsOn[step.dependsOn.length - 1] ?? steps[index - 1]?.id;
+    if (!sourceStepId) return;
+
+    if (step.kind === 'transform') {
+      bindings.push({
+        id: `${sourceStepId}-to-${step.id}-input`,
+        sourceStepId,
+        sourcePath: '$',
+        targetStepId: step.id,
+        targetArgument: '$input',
+        coercion: 'text',
+        requiresReview: true,
+      });
+      return;
+    }
+
+    if (step.kind !== 'action' || !step.action) return;
+    handoffFields(step.action.missingRequired).forEach(field => {
+      bindings.push({
+        id: `${sourceStepId}-to-${step.id}-${canonicalKey(field) || 'value'}`,
+        sourceStepId,
+        sourcePath: '$',
+        targetStepId: step.id,
+        targetArgument: field,
+        coercion: 'text',
+        requiresReview: true,
+      });
+    });
+  });
+
+  return bindings;
+};
+
 /**
  * Deterministic zero-model workflow planner.
  *
  * It decomposes explicit multi-step language, reuses the existing Action Planner
  * for every MCP action clause, and represents local text transformations without
  * pretending that they are executable MCP tools. Cross-step output handoffs are
- * deliberately marked for review instead of inventing bindings. The returned plan
- * is never auto-executable; native clients must keep using the normal guarded call path.
+ * represented as explicit review-required bindings instead of hidden data plumbing.
+ * The returned plan is never auto-executable; native clients must keep using the
+ * normal guarded call path.
  */
 export const planWorkflow = <T extends ActionPlannerTool>(
   tools: T[],
@@ -163,6 +229,7 @@ export const planWorkflow = <T extends ActionPlannerTool>(
     };
   });
 
+  const bindings = buildBindings(steps);
   const unresolvedStepCount = steps.filter(step => step.kind === 'unresolved').length;
   const reviewReasons = [
     'Workflow plans are review-first and never execute tools automatically.',
@@ -171,8 +238,13 @@ export const planWorkflow = <T extends ActionPlannerTool>(
   if (steps.some(step => step.needsPreviousOutput)) {
     reviewReasons.push('Cross-step output bindings require explicit review before they can be executed.');
   }
+  if (bindings.length > 0) {
+    reviewReasons.push('Every proposed output binding is visible and must be explicitly approved for a run session.');
+  }
   if (steps.some(step => step.kind === 'transform')) {
-    reviewReasons.push('Local transform steps are descriptive only until an explicit transform executor is available.');
+    reviewReasons.push(
+      'Local transform steps require explicit user-provided output in the first Workflow Runner slice.',
+    );
   }
   if (unresolvedStepCount > 0) {
     reviewReasons.push('One or more workflow steps could not be mapped confidently to an MCP action.');
@@ -181,6 +253,7 @@ export const planWorkflow = <T extends ActionPlannerTool>(
   return {
     query: trimmed,
     steps,
+    bindings,
     confidence: workflowConfidence(steps),
     requiresReview: true,
     autoExecutable: false,

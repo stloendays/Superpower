@@ -40,6 +40,7 @@ jobs:
           pnpm -F @superpower/mcp-core test:router
           pnpm -F @superpower/mcp-core test:planner
           pnpm -F @superpower/mcp-core test:workflow
+          pnpm -F @superpower/mcp-core test:runner
           pnpm -F @superpower/mcp-core test:policy
 
       - name: Check browserless MCP host
@@ -57,9 +58,11 @@ jobs:
           packages/mcp-core/scripts/tool-router-smoke.mjs
           packages/mcp-core/scripts/action-planner-smoke.mjs
           packages/mcp-core/scripts/workflow-planner-smoke.mjs
+          packages/mcp-core/scripts/workflow-runner-smoke.mjs
           packages/mcp-core/scripts/execution-policy-smoke.mjs
           packages/mcp-core/lib/action-planner.ts
           packages/mcp-core/lib/workflow-planner.ts
+          packages/mcp-core/lib/workflow-runner.ts
           packages/mcp-core/lib/context-budget.ts
           packages/mcp-core/lib/tool-router.ts
           packages/mcp-core/lib/execution-policy.ts
@@ -71,6 +74,7 @@ jobs:
           packages/mcp-host/src/host.ts
           packages/mcp-host/src/index.ts
           packages/mcp-host/src/bridge.ts
+          packages/mcp-host/src/workflow-runner-bridge.ts
           packages/mcp-host/src/cli.ts
           packages/shared/lib/mcp-core/index.ts
           packages/shared/index.mts
