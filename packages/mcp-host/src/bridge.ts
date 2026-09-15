@@ -273,6 +273,70 @@ const planAction = async (host: ConnectedSuperpowerHost, query: string): Promise
   };
 };
 
+const planWorkflow = async (host: ConnectedSuperpowerHost, query: string): Promise<Record<string, unknown>> => {
+  const workflow = await host.gateway.planWorkflow(query, { maxCandidates: 5, maxSteps: 6 });
+
+  return {
+    transport: host.transportKind,
+    query: workflow.query,
+    confidence: workflow.confidence,
+    requiresReview: workflow.requiresReview,
+    autoExecutable: workflow.autoExecutable,
+    unresolvedStepCount: workflow.unresolvedStepCount,
+    reviewReasons: workflow.reviewReasons,
+    steps: workflow.steps.map(step => {
+      const action = step.action;
+      const selected = action?.selected ?? null;
+      const policy = selected
+        ? host.gateway.evaluate(selected.tool.name, action?.arguments ?? {}, selected.tool.description ?? '')
+        : null;
+
+      return {
+        id: step.id,
+        index: step.index,
+        instruction: step.instruction,
+        kind: step.kind,
+        dependsOn: step.dependsOn,
+        needsPreviousOutput: step.needsPreviousOutput,
+        confidence: step.confidence,
+        requiresReview: step.requiresReview,
+        transform: step.transform,
+        action: action
+          ? {
+              query: action.query,
+              selected: selected
+                ? {
+                    name: selected.tool.name,
+                    description: selected.tool.description ?? '',
+                    inputSchema: selected.tool.inputSchema ?? {},
+                    score: selected.score,
+                    matchedTerms: selected.matchedTerms,
+                  }
+                : null,
+              candidates: action.candidates.map(item => ({
+                name: item.tool.name,
+                description: item.tool.description ?? '',
+                score: item.score,
+                matchedTerms: item.matchedTerms,
+              })),
+              arguments: action.arguments,
+              draftedFields: action.draftedFields,
+              missingRequired: action.missingRequired,
+              confidence: action.confidence,
+              requiresReview: action.requiresReview,
+              policy: policy
+                ? {
+                    decision: policy.decision,
+                    ...policyDetails(policy),
+                  }
+                : null,
+            }
+          : null,
+      };
+    }),
+  };
+};
+
 const findToolDescription = async (host: ConnectedSuperpowerHost, toolName: string): Promise<string> => {
   const response = await host.client.listTools();
   return response.tools.find(tool => tool.name === toolName)?.description ?? '';
@@ -313,8 +377,9 @@ const callTool = async (
 /**
  * Long-lived, newline-delimited JSON bridge for native shells such as the Qt desktop client.
  *
- * The bridge deliberately keeps connection setup, routing, action planning, policy evaluation
- * and telemetry in the existing TypeScript host. Native clients only own presentation and user interaction.
+ * The bridge deliberately keeps connection setup, routing, action/workflow planning,
+ * policy evaluation and telemetry in the existing TypeScript host. Native clients
+ * only own presentation and user interaction.
  */
 export const runBridge = async (options: BridgeRunOptions): Promise<void> => {
   let approvalForCurrentCall = false;
@@ -331,7 +396,7 @@ export const runBridge = async (options: BridgeRunOptions): Promise<void> => {
   writeMessage({
     type: 'ready',
     protocol: 'superpower-desktop-bridge',
-    version: 3,
+    version: 4,
     transport: host.transportKind,
     taskFocus: host.gateway.getTaskFocus(),
     policyMode: host.gateway.getPolicyMode(),
@@ -387,6 +452,17 @@ export const runBridge = async (options: BridgeRunOptions): Promise<void> => {
               throw new BridgeRequestError('invalid_params', 'plan query is too long.');
             }
             result = await planAction(host, query.trim());
+            break;
+          }
+          case 'workflowPlan': {
+            const query = params.query;
+            if (typeof query !== 'string' || !query.trim()) {
+              throw new BridgeRequestError('invalid_params', 'workflowPlan requires a non-empty query.');
+            }
+            if (query.length > MAX_ACTION_QUERY_LENGTH) {
+              throw new BridgeRequestError('invalid_params', 'workflowPlan query is too long.');
+            }
+            result = await planWorkflow(host, query.trim());
             break;
           }
           case 'focus': {
