@@ -3,12 +3,12 @@
 
   <h1>Superpower</h1>
 
-  <p><strong>Bring MCP tools into the AI web apps you already use.</strong></p>
+  <p><strong>A Tony-led Oxford × NUS project for bringing MCP tools into the AI web apps you already use.</strong></p>
   <p>Run local and remote MCP tools from ChatGPT, Gemini, Perplexity, Grok, GitHub Copilot and other supported web assistants without leaving the conversation.</p>
 
   <p>
     <a href="https://github.com/stloendays/Superpower-V1/stargazers"><img src="https://img.shields.io/github/stars/stloendays/Superpower-V1?style=flat-square&label=Stars" alt="GitHub stars" /></a>
-    <img src="https://img.shields.io/badge/version-V1-111827?style=flat-square" alt="Version V1" />
+    <img src="https://img.shields.io/badge/release-1.1.0-111827?style=flat-square" alt="Release 1.1.0" />
     <img src="https://img.shields.io/badge/Chrome-Manifest%20V3-4285F4?style=flat-square&logo=googlechrome&logoColor=white" alt="Chrome Manifest V3" />
     <img src="https://img.shields.io/badge/Protocol-MCP-4F46E5?style=flat-square" alt="Model Context Protocol" />
     <img src="https://img.shields.io/badge/TypeScript-5.x-3178C6?style=flat-square&logo=typescript&logoColor=white" alt="TypeScript" />
@@ -20,6 +20,7 @@
     <a href="#features">Features</a> ·
     <a href="#supported-platforms">Supported platforms</a> ·
     <a href="#how-it-works">Architecture</a> ·
+    <a href="#project--collaboration">Project</a> ·
     <a href="#development">Development</a>
   </p>
 </div>
@@ -36,7 +37,15 @@
 
 Superpower is a Chrome extension that connects supported AI web interfaces to the [Model Context Protocol](https://modelcontextprotocol.io/) through an MCP proxy. It detects structured tool calls in the conversation, routes them to connected MCP servers, executes the requested tools, and renders the results back into the same chat workflow.
 
-The browser UI stays where you already work. MCP execution stays behind the local or remote endpoint you configure.
+The browser UI stays where you already work. MCP execution stays behind the local or remote endpoint you configure. The goal is to make agentic tool use available inside familiar AI interfaces without forcing users to move into a separate orchestration environment.
+
+## Project & collaboration
+
+Superpower is developed as a collaborative project between the **University of Oxford** and the **National University of Singapore (NUS)**. The current project is **led by Tony**, who drives the project direction, architecture, integration strategy, and release coordination.
+
+The collaboration focuses on practical human–AI workflows: reducing the friction between conversational models and external tools, making MCP-based agent workflows easier to deploy, and improving how models discover, call, and chain tools inside existing web interfaces.
+
+Superpower V1 is a modified derivative of **MCP SuperAssistant**. The original MIT license and upstream attribution are preserved in [`LICENSE`](LICENSE) and [`NOTICE.md`](NOTICE.md). The current Superpower project extends that foundation with its own product direction, branding, workflow design, compatibility work, and release engineering.
 
 ## Features
 
@@ -61,7 +70,7 @@ The browser UI stays where you already work. MCP execution stays behind the loca
 - Render tool-call and tool-result blocks
 - Manual or automated execution flows
 - Insert results back into the conversation
-- ChatGPT MCP attachment handling in V1
+- ChatGPT MCP attachment handling
 
 </td>
 </tr>
@@ -82,7 +91,9 @@ The browser UI stays where you already work. MCP execution stays behind the loca
 
 ### Built for real MCP workflows
 
-Superpower supports **SSE**, **WebSocket**, and **Streamable HTTP** connections. Tool instructions are generated from the tools exposed by the connected server, while V1 adds dependency-aware batching guidance and separate function-call blocks to make multi-tool workflows easier for models to follow.
+Superpower supports **SSE**, **WebSocket**, and **Streamable HTTP** connections. Tool instructions are generated from the tools exposed by the connected server. The current workflow also includes dependency-aware batching guidance and separate function-call blocks so models can handle multi-tool tasks with less redundant context and clearer execution boundaries.
+
+This design is especially useful for agent-style workflows where a model must discover tools, decide which tools are actually needed, execute them in sequence or in parallel where appropriate, and continue reasoning from returned results.
 
 ## Supported platforms
 
@@ -114,16 +125,40 @@ At a high level:
 4. The MCP server executes the tool and returns its result.
 5. Superpower renders or inserts the result back into the conversation so the model can continue.
 
+This keeps the conversational interface, tool-control layer, and MCP execution layer separated while still allowing them to operate as one continuous agent workflow.
+
 ## Quick start
 
-### Requirements
+### Recommended for Windows users
+
+The latest V1 release includes a **v1.1.0 release-ready ZIP** and a Windows bootstrap installer flow.
+
+1. Open the [latest release](https://github.com/stloendays/Superpower-V1/releases/latest).
+2. Download and extract the Superpower Windows ZIP package.
+3. Double-click:
+
+```text
+Install-Superpower.cmd
+```
+
+4. Let the installer prepare the extension and environment checks.
+5. Open `chrome://extensions/` in Chrome.
+6. Enable **Developer mode**.
+7. Select **Load unpacked**.
+8. Choose the generated `dist/` directory.
+
+See [`RELEASE_INSTALL.md`](RELEASE_INSTALL.md) for the release installation guide.
+
+### Developer / source installation
+
+#### Requirements
 
 - Node.js **22.12+**
 - pnpm **9.x**
 - Chrome or another Chromium-based browser
 - One or more MCP servers you want to expose through the proxy
 
-### 1. Clone and install
+#### 1. Clone and install
 
 ```bash
 git clone https://github.com/stloendays/Superpower-V1.git
@@ -131,7 +166,7 @@ cd Superpower-V1
 pnpm install
 ```
 
-### 2. Create an MCP proxy configuration
+#### 2. Create an MCP proxy configuration
 
 Create `config.json` outside the repository or in a local ignored path:
 
@@ -148,7 +183,7 @@ Create `config.json` outside the repository or in a local ignored path:
 
 Do not commit credentials, API keys, access tokens, or private machine paths.
 
-### 3. Start the MCP proxy
+#### 3. Start the MCP proxy
 
 SSE:
 
@@ -170,7 +205,7 @@ npx -y @srbhptl39/mcp-superassistant-proxy@latest --config ./config.json --outpu
 
 > The proxy package currently uses the `mcp-superassistant-proxy` package name. Superpower uses it as an external compatibility dependency.
 
-### 4. Build the extension
+#### 4. Build the extension
 
 ```bash
 pnpm base-build
@@ -178,7 +213,7 @@ pnpm base-build
 
 The unpacked extension is generated in `dist/`.
 
-### 5. Load it in Chrome
+#### 5. Load it in Chrome
 
 1. Open `chrome://extensions/`.
 2. Enable **Developer mode**.
@@ -188,7 +223,7 @@ The unpacked extension is generated in `dist/`.
 
 ### Connection endpoints
 
-The default V1 connection is SSE at `http://localhost:3006/sse`.
+The default connection is SSE at `http://localhost:3006/sse`.
 
 | Transport | Typical local endpoint |
 | --- | --- |
@@ -203,22 +238,25 @@ The default V1 connection is SSE at `http://localhost:3006/sse`.
 3. Connect Superpower to the proxy from the server-status UI.
 4. Choose which tools should be exposed to the assistant.
 5. Insert or attach the generated MCP instructions when needed.
-6. Ask the assistant to perform a task that requires one of the enabled tools.
-7. Review the detected function call and run it manually, or use the available automation controls.
-8. Continue the conversation with the returned tool result.
+6. Ask the assistant to perform a task that requires one or more enabled tools.
+7. Review the detected function calls and execute them manually, or use the available automation controls.
+8. Continue the conversation with the returned tool results.
 
-## V1 highlights
+## Current release highlights — v1.1.0
 
-Superpower focuses on a streamlined browser-side MCP workflow:
+The current release builds on the V1 rebrand and focuses on making Superpower easier to install and use outside a development environment:
 
-- Superpower branding and the custom lightning-S extension icon
-- Chrome extension version `1.0.0` with display version `V1`
+- Superpower branding and the minimalist lightning-S extension icon
+- Chrome extension version **1.1.0**
+- Windows DIY installer bootstrap and double-click launcher
+- Automatic Node.js and pnpm environment checks during source installation
+- Automated GitHub Release packaging with a Windows ZIP and checksum workflow
 - Dependency-aware MCP instruction guidance for multi-tool workflows
 - Separate function-call blocks in generated instructions
 - ChatGPT MCP-file submission refresh handling
-- Release-oriented environment templates, security notes, and repository cleanup
+- Release-oriented environment templates, security guidance, and repository cleanup
 
-See [CHANGELOG.md](CHANGELOG.md) for the release summary.
+See [`CHANGELOG.md`](CHANGELOG.md) for the release history.
 
 ## Development
 
@@ -261,7 +299,11 @@ Superpower-V1/
 ├── packages/                  # Shared monorepo packages
 ├── scripts/                   # Local repository setup helpers
 ├── docs/readme/               # README visual assets
+├── DIY-Install-Superpower.ps1 # Windows bootstrap installation logic
+├── Install-Superpower.cmd     # Double-click Windows launcher
+├── RELEASE_INSTALL.md         # Release installation guide
 ├── CHANGELOG.md
+├── NOTICE.md                  # Upstream attribution
 ├── SECURITY.md
 └── README.md
 ```
@@ -277,22 +319,22 @@ In particular:
 - Keep secrets in local environment/configuration files that are excluded from Git.
 - Treat tool output and file attachments as potentially sensitive data.
 
-See [SECURITY.md](SECURITY.md) for project-specific guidance.
+See [`SECURITY.md`](SECURITY.md) for project-specific guidance.
 
 ## Contributing
 
 Issues and pull requests are welcome.
 
-When reporting bugs, please include the affected AI platform, browser version, reproduction steps, and the relevant page behavior. For compatibility-related changes, please keep unrelated refactors separate so that fixes can be reviewed and maintained more effectively.
+When reporting bugs, please include the affected AI platform, browser version, reproduction steps, and the relevant page behavior. For compatibility-related changes, please keep unrelated refactors separate so fixes can be reviewed and maintained more effectively.
 
-## Author
+## Project leadership
 
-**Superpower** is created and maintained by **Junbo**, from the **National University of Singapore (NUS)**.
+**Superpower** is an **Oxford × NUS collaborative project led by Tony**.
 
-The project is independently developed with the goal of building a more powerful, flexible, and seamless interface for connecting AI platforms with external tools and workflows.
+The project is focused on building a practical, flexible interface between web-based AI assistants and external MCP tools, with particular attention to agent workflows, tool orchestration, compatibility, and reducing unnecessary interaction/context overhead.
+
+For upstream provenance and licensing details, see [`NOTICE.md`](NOTICE.md) and [`LICENSE`](LICENSE).
 
 ## License
 
-Released under the [MIT License](LICENSE).
-
-Copyright © 2026 Junbo.
+Released under the [MIT License](LICENSE), with upstream attribution preserved as described in [NOTICE.md](NOTICE.md).
