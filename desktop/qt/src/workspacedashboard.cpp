@@ -5,6 +5,7 @@
 #include <QFrame>
 #include <QHBoxLayout>
 #include <QLabel>
+#include <QLineEdit>
 #include <QListWidget>
 #include <QPushButton>
 #include <QTimer>
@@ -77,6 +78,16 @@ QWidget *WorkspaceDashboard::createMetricCard(const QString &title, QLabel **val
   return frame;
 }
 
+void WorkspaceDashboard::submitActionQuery() {
+  const QString query = actionQueryEdit_->text().trimmed();
+  if (query.isEmpty()) {
+    setActionRouterStatus(QStringLiteral("Describe the action you want Superpower to route."), false);
+    actionQueryEdit_->setFocus();
+    return;
+  }
+  emit actionQueryRequested(query);
+}
+
 void WorkspaceDashboard::buildUi() {
   auto *root = new QVBoxLayout(this);
   root->setContentsMargins(28, 26, 28, 26);
@@ -93,7 +104,7 @@ void WorkspaceDashboard::buildUi() {
   headerLayout->addWidget(title);
 
   auto *subtitle = new QLabel(
-      QStringLiteral("One place to see browser sync, MCP health, discovered capabilities, and recent agent activity."),
+      QStringLiteral("Route natural-language requests into MCP Actions, then review every parameter before execution."),
       headerBlock);
   subtitle->setProperty("dashboardMuted", true);
   subtitle->setWordWrap(true);
@@ -105,6 +116,50 @@ void WorkspaceDashboard::buildUi() {
   connect(browseButton, &QPushButton::clicked, this, &WorkspaceDashboard::browseActionsRequested);
   headerRow->addWidget(browseButton);
   root->addLayout(headerRow);
+
+  auto *routerCard = dashboardCard(this);
+  routerCard->setProperty("actionRouterCard", true);
+  auto *routerLayout = new QVBoxLayout(routerCard);
+  routerLayout->setContentsMargins(20, 18, 20, 18);
+  routerLayout->setSpacing(9);
+
+  auto *routerEyebrow = new QLabel(QStringLiteral("ACTION ROUTER"), routerCard);
+  routerEyebrow->setProperty("dashboardEyebrow", true);
+  routerLayout->addWidget(routerEyebrow);
+
+  auto *routerTitle = new QLabel(QStringLiteral("Search or run an action"), routerCard);
+  routerTitle->setProperty("actionRouterTitle", true);
+  routerLayout->addWidget(routerTitle);
+
+  auto *routerHint = new QLabel(
+      QStringLiteral("Describe the outcome in natural language. Superpower ranks the full MCP catalog, drafts schema-backed parameters, previews execution risk, and opens the proposal for review. It never auto-runs the result."),
+      routerCard);
+  routerHint->setProperty("dashboardMuted", true);
+  routerHint->setWordWrap(true);
+  routerLayout->addWidget(routerHint);
+
+  auto *routerInputRow = new QHBoxLayout();
+  routerInputRow->setSpacing(8);
+  actionQueryEdit_ = new QLineEdit(routerCard);
+  actionQueryEdit_->setProperty("actionRouterInput", true);
+  actionQueryEdit_->setClearButtonEnabled(true);
+  actionQueryEdit_->setPlaceholderText(
+      QStringLiteral("e.g. Find issue #29 in stloendays/Superpower-V1, or 给客户发一封邮件"));
+  connect(actionQueryEdit_, &QLineEdit::returnPressed, this, &WorkspaceDashboard::submitActionQuery);
+  routerInputRow->addWidget(actionQueryEdit_, 1);
+
+  actionRouteButton_ = new QPushButton(QStringLiteral("Route action"), routerCard);
+  actionRouteButton_->setProperty("dashboardPrimary", true);
+  connect(actionRouteButton_, &QPushButton::clicked, this, &WorkspaceDashboard::submitActionQuery);
+  routerInputRow->addWidget(actionRouteButton_);
+  routerLayout->addLayout(routerInputRow);
+
+  actionRouterStatusLabel_ = new QLabel(
+      QStringLiteral("Nothing runs from Home. A routed proposal always opens in Actions for review."), routerCard);
+  actionRouterStatusLabel_->setProperty("actionRouterStatus", true);
+  actionRouterStatusLabel_->setWordWrap(true);
+  routerLayout->addWidget(actionRouterStatusLabel_);
+  root->addWidget(routerCard);
 
   auto *healthTitle = new QLabel(QStringLiteral("System health"), this);
   healthTitle->setProperty("dashboardSection", true);
@@ -150,13 +205,13 @@ void WorkspaceDashboard::buildUi() {
   root->addLayout(activityHeader);
 
   recentRunsList_ = new QListWidget(this);
-  recentRunsList_->setMinimumHeight(180);
-  recentRunsList_->setMaximumHeight(260);
+  recentRunsList_->setMinimumHeight(150);
+  recentRunsList_->setMaximumHeight(230);
   recentRunsList_->setFocusPolicy(Qt::NoFocus);
   root->addWidget(recentRunsList_, 1);
 
   auto *privacy = new QLabel(
-      QStringLiteral("Home is session-oriented. Conversation text, credentials, tool arguments, and execution results are not persisted by this dashboard."),
+      QStringLiteral("Home is session-oriented. Action queries and drafted parameters are not persisted by the dashboard; execution still goes through the existing MCP guarded policy."),
       this);
   privacy->setProperty("dashboardMuted", true);
   privacy->setWordWrap(true);
@@ -174,10 +229,25 @@ void WorkspaceDashboard::applyStyle() {
       border: 1px solid #dddddd;
       border-radius: 12px;
     }
+    QFrame[actionRouterCard="true"] {
+      border: 1px solid #c9c9c9;
+    }
     QLabel[dashboardTitle="true"] {
       font-size: 28px;
       font-weight: 750;
       color: #000000;
+    }
+    QLabel[actionRouterTitle="true"] {
+      font-size: 20px;
+      font-weight: 750;
+      color: #000000;
+    }
+    QLabel[actionRouterStatus="true"] {
+      background: #f7f7f7;
+      border: 1px solid #e2e2e2;
+      border-radius: 8px;
+      color: #4e4e4e;
+      padding: 8px 10px;
     }
     QLabel[dashboardSection="true"] {
       font-size: 15px;
@@ -203,6 +273,17 @@ void WorkspaceDashboard::applyStyle() {
     QLabel[dashboardMuted="true"] {
       color: #737373;
     }
+    QLineEdit[actionRouterInput="true"] {
+      background: #ffffff;
+      color: #111111;
+      border: 1px solid #bfbfbf;
+      border-radius: 9px;
+      padding: 10px 12px;
+      font-size: 14px;
+      selection-background-color: #111111;
+      selection-color: #ffffff;
+    }
+    QLineEdit[actionRouterInput="true"]:focus { border: 1px solid #111111; }
     QPushButton {
       background: #ffffff;
       color: #111111;
@@ -212,6 +293,11 @@ void WorkspaceDashboard::applyStyle() {
       font-weight: 650;
     }
     QPushButton:hover { background: #f0f0f0; }
+    QPushButton:disabled {
+      background: #eeeeee;
+      color: #999999;
+      border-color: #dddddd;
+    }
     QPushButton[dashboardPrimary="true"] {
       background: #000000;
       color: #ffffff;
@@ -219,6 +305,11 @@ void WorkspaceDashboard::applyStyle() {
       padding: 10px 14px;
     }
     QPushButton[dashboardPrimary="true"]:hover { background: #202020; }
+    QPushButton[dashboardPrimary="true"]:disabled {
+      background: #9a9a9a;
+      color: #ffffff;
+      border-color: #9a9a9a;
+    }
     QListWidget {
       background: #ffffff;
       color: #111111;
@@ -239,6 +330,12 @@ void WorkspaceDashboard::setConversationRelayStatus(const QString &text, bool on
   conversationRelayText_ = text;
   conversationRelayOnline_ = online;
   refreshFromWorkspace();
+}
+
+void WorkspaceDashboard::setActionRouterStatus(const QString &text, bool busy) {
+  if (actionRouterStatusLabel_) actionRouterStatusLabel_->setText(text);
+  if (actionRouteButton_) actionRouteButton_->setEnabled(!busy);
+  if (actionQueryEdit_) actionQueryEdit_->setEnabled(!busy);
 }
 
 void WorkspaceDashboard::noteConversationActivity() {
@@ -264,7 +361,7 @@ void WorkspaceDashboard::refreshFromWorkspace() {
   const QStringList summaries = workspace_->recentRunSummaries(6);
   recentRunsList_->clear();
   if (summaries.isEmpty()) {
-    recentRunsList_->addItem(QStringLiteral("No tool runs yet. Connect a server and browse Actions to start."));
+    recentRunsList_->addItem(QStringLiteral("No tool runs yet. Connect a server and route or browse an Action to start."));
     return;
   }
   for (const QString &summary : summaries) recentRunsList_->addItem(summary);

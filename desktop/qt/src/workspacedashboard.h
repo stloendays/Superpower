@@ -4,8 +4,10 @@
 #include <QWidget>
 
 class QLabel;
+class QLineEdit;
 class QListWidget;
 class MainWindow;
+class QPushButton;
 class QTimer;
 
 class WorkspaceDashboard final : public QWidget {
@@ -16,10 +18,12 @@ class WorkspaceDashboard final : public QWidget {
 
  public slots:
   void setConversationRelayStatus(const QString &text, bool online);
+  void setActionRouterStatus(const QString &text, bool busy);
   void noteConversationActivity();
   void refreshFromWorkspace();
 
  signals:
+  void actionQueryRequested(const QString &query);
   void browseActionsRequested();
   void gettingStartedRequested();
   void openConversationRequested();
@@ -27,10 +31,14 @@ class WorkspaceDashboard final : public QWidget {
  private:
   QWidget *createStatusCard(const QString &title, QLabel **valueLabel, QLabel **detailLabel);
   QWidget *createMetricCard(const QString &title, QLabel **valueLabel, const QString &detail);
+  void submitActionQuery();
   void buildUi();
   void applyStyle();
 
   MainWindow *workspace_ = nullptr;
+  QLineEdit *actionQueryEdit_ = nullptr;
+  QPushButton *actionRouteButton_ = nullptr;
+  QLabel *actionRouterStatusLabel_ = nullptr;
   QLabel *conversationValueLabel_ = nullptr;
   QLabel *conversationDetailLabel_ = nullptr;
   QLabel *mcpValueLabel_ = nullptr;

@@ -34,6 +34,7 @@ class MainWindow final : public QMainWindow {
   [[nodiscard]] int discoveredActionCount() const;
   [[nodiscard]] int runCount() const;
   [[nodiscard]] QStringList recentRunSummaries(int limit = 5) const;
+  void planAction(const QString &query);
 
   struct ServerProfile {
     QString id;
@@ -63,6 +64,11 @@ class MainWindow final : public QMainWindow {
     QDateTime startedAt;
     qint64 durationMs = 0;
   };
+
+ signals:
+  void actionPlanStarted(const QString &query);
+  void actionPlanPrepared(const QString &summary);
+  void actionPlanFailed(const QString &message);
 
  private:
   void buildUi();
@@ -95,6 +101,8 @@ class MainWindow final : public QMainWindow {
   bool collectFormArguments(QJsonObject *arguments, QString *errorMessage) const;
   QWidget *createFieldEditor(const QString &name, const QJsonObject &schema, bool required);
 
+  void ensureActionRouterConnections();
+  void applyActionPlan(const QJsonObject &plan);
   void handleGlobalSearch(const QString &query);
   void executeGlobalCommand();
   void openSettingsDialog();
@@ -170,6 +178,7 @@ class MainWindow final : public QMainWindow {
   QString policyMode_ = QStringLiteral("guarded");
   QString activeProfileId_;
   QString activeConnectionName_;
+  QString plannedToolName_;
   QStringList logLines_;
   QList<ServerProfile> serverProfiles_;
   QList<RunRecord> runHistory_;
@@ -180,4 +189,6 @@ class MainWindow final : public QMainWindow {
   QHash<QString, QWidget *> fieldEditors_;
   QHash<QString, QJsonObject> fieldSchemas_;
   QSet<QString> requiredFields_;
+  QSet<QString> pendingActionPlanIds_;
+  bool actionRouterSignalsConnected_ = false;
 };

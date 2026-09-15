@@ -13,6 +13,7 @@ qt_add_executable(superpower-desktop
   src/main.cpp
   src/mainwindow.cpp
   src/mainwindow.h
+  src/mainwindowactionrouter.cpp
   src/mainwindowstate.cpp
   src/mcpbridgeprocess.cpp
   src/mcpbridgeprocess.h
