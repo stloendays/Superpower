@@ -52,6 +52,7 @@ const CONVERSATION_BRIDGE_PATH = '/v1/conversation';
 const CONVERSATION_BRIDGE_HEADER = 'x-superpower-conversation-bridge';
 const MAX_CONVERSATION_BODY_BYTES = 128 * 1024;
 const MAX_CONVERSATION_TEXT_LENGTH = 64 * 1024;
+const MAX_ACTION_QUERY_LENGTH = 8 * 1024;
 
 const asRecord = (value: unknown): Record<string, unknown> | null => {
   if (!value || typeof value !== 'object' || Array.isArray(value)) return null;
@@ -233,6 +234,45 @@ const listTools = async (host: ConnectedSuperpowerHost): Promise<Record<string, 
   };
 };
 
+const planAction = async (host: ConnectedSuperpowerHost, query: string): Promise<Record<string, unknown>> => {
+  const plan = await host.gateway.planAction(query, { maxCandidates: 5 });
+  const selected = plan.selected;
+  const policy = selected
+    ? host.gateway.evaluate(selected.tool.name, plan.arguments, selected.tool.description ?? '')
+    : null;
+
+  return {
+    transport: host.transportKind,
+    query: plan.query,
+    selected: selected
+      ? {
+          name: selected.tool.name,
+          description: selected.tool.description ?? '',
+          inputSchema: selected.tool.inputSchema ?? {},
+          score: selected.score,
+          matchedTerms: selected.matchedTerms,
+        }
+      : null,
+    candidates: plan.candidates.map(item => ({
+      name: item.tool.name,
+      description: item.tool.description ?? '',
+      score: item.score,
+      matchedTerms: item.matchedTerms,
+    })),
+    arguments: plan.arguments,
+    draftedFields: plan.draftedFields,
+    missingRequired: plan.missingRequired,
+    confidence: plan.confidence,
+    requiresReview: plan.requiresReview,
+    policy: policy
+      ? {
+          decision: policy.decision,
+          ...policyDetails(policy),
+        }
+      : null,
+  };
+};
+
 const findToolDescription = async (host: ConnectedSuperpowerHost, toolName: string): Promise<string> => {
   const response = await host.client.listTools();
   return response.tools.find(tool => tool.name === toolName)?.description ?? '';
@@ -273,8 +313,8 @@ const callTool = async (
 /**
  * Long-lived, newline-delimited JSON bridge for native shells such as the Qt desktop client.
  *
- * The bridge deliberately keeps connection setup, routing, policy evaluation and telemetry in
- * the existing TypeScript host. Native clients only own presentation and user interaction.
+ * The bridge deliberately keeps connection setup, routing, action planning, policy evaluation
+ * and telemetry in the existing TypeScript host. Native clients only own presentation and user interaction.
  */
 export const runBridge = async (options: BridgeRunOptions): Promise<void> => {
   let approvalForCurrentCall = false;
@@ -291,7 +331,7 @@ export const runBridge = async (options: BridgeRunOptions): Promise<void> => {
   writeMessage({
     type: 'ready',
     protocol: 'superpower-desktop-bridge',
-    version: 2,
+    version: 3,
     transport: host.transportKind,
     taskFocus: host.gateway.getTaskFocus(),
     policyMode: host.gateway.getPolicyMode(),
@@ -338,6 +378,17 @@ export const runBridge = async (options: BridgeRunOptions): Promise<void> => {
           case 'tools':
             result = await listTools(host);
             break;
+          case 'plan': {
+            const query = params.query;
+            if (typeof query !== 'string' || !query.trim()) {
+              throw new BridgeRequestError('invalid_params', 'plan requires a non-empty query.');
+            }
+            if (query.length > MAX_ACTION_QUERY_LENGTH) {
+              throw new BridgeRequestError('invalid_params', 'plan query is too long.');
+            }
+            result = await planAction(host, query.trim());
+            break;
+          }
           case 'focus': {
             const focus = params.focus;
             if (typeof focus !== 'string') throw new BridgeRequestError('invalid_params', 'focus requires a string.');
