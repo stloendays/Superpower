@@ -104,6 +104,21 @@ int main(int argc, char *argv[]) {
   QObject::connect(homeAction, &QAction::triggered, &window, showHome);
   QObject::connect(actionsAction, &QAction::triggered, &window, showActions);
   QObject::connect(dashboard, &WorkspaceDashboard::browseActionsRequested, &window, showActions);
+  QObject::connect(dashboard, &WorkspaceDashboard::actionQueryRequested, &window, &MainWindow::planAction);
+  QObject::connect(&window, &MainWindow::actionPlanStarted, dashboard,
+                   [dashboard](const QString &) {
+                     dashboard->setActionRouterStatus(
+                         QStringLiteral("Routing against the full MCP catalog and drafting parameters... Nothing has run."),
+                         true);
+                   });
+  QObject::connect(&window, &MainWindow::actionPlanPrepared, dashboard,
+                   [dashboard, showActions](const QString &summary) {
+                     dashboard->setActionRouterStatus(
+                         QStringLiteral("Prepared for review: %1").arg(summary), false);
+                     showActions();
+                   });
+  QObject::connect(&window, &MainWindow::actionPlanFailed, dashboard,
+                   [dashboard](const QString &message) { dashboard->setActionRouterStatus(message, false); });
 
   auto *conversationDock = new QDockWidget(QStringLiteral("Conversation"), &window);
   conversationDock->setObjectName(QStringLiteral("conversationDock"));
