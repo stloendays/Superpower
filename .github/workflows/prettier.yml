@@ -10,7 +10,7 @@ permissions:
 
 jobs:
   quality:
-    name: TypeScript and formatting
+    name: Instruction generator and formatting
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
@@ -30,8 +30,8 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile --prefer-offline
 
-      - name: Type-check content script
-        run: pnpm -F @extension/content-script type-check
+      - name: Type-check instruction generator
+        run: pnpm exec tsc -p pages/content/tsconfig.instructions.json --noEmit
 
       - name: Check formatting for changed files
         shell: bash
