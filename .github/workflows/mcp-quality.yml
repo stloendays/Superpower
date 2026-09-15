@@ -77,6 +77,7 @@ jobs:
         run: |
           pnpm -F @superpower/mcp-core type-check
           pnpm -F @superpower/mcp-core build
+          pnpm -F @superpower/mcp-core test:router
 
       - name: Check browserless MCP host
         run: |
@@ -90,6 +91,7 @@ jobs:
           packages/mcp-core/package.json
           packages/mcp-core/tsconfig.json
           packages/mcp-core/index.mts
+          packages/mcp-core/scripts/tool-router-smoke.mjs
           packages/mcp-core/lib/context-budget.ts
           packages/mcp-core/lib/tool-router.ts
           packages/mcp-core/lib/execution-policy.ts
