@@ -5,3 +5,4 @@ export * from './lib/gateway.js';
 export * from './lib/mcp-telemetry.js';
 export * from './lib/sdk-client-adapter.js';
 export * from './lib/tool-router.js';
+export * from './lib/workflow-planner.js';
