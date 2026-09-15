@@ -108,7 +108,9 @@ const InstructionManager: React.FC<InstructionManagerProps> = ({ adapter, tools 
   const [attachSuccess, setAttachSuccess] = useState(false);
 
   const [customInstructions, setCustomInstructions] = useState(preferences.customInstructions || '');
-  const [customInstructionsEnabled, setCustomInstructionsEnabled] = useState(preferences.customInstructionsEnabled || false);
+  const [customInstructionsEnabled, setCustomInstructionsEnabled] = useState(
+    preferences.customInstructionsEnabled || false,
+  );
   const [isEditingCustom, setIsEditingCustom] = useState(false);
 
   // Include schemas in the signature so server-side schema changes regenerate the prompt.
