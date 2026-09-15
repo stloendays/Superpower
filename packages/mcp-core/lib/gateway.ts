@@ -8,6 +8,11 @@ import { DEFAULT_CONTEXT_BUDGET, resolveContextBudget, type ContextBudgetConfig 
 import { evaluateToolExecution, type ExecutionPolicyMode, type ExecutionPolicyResult } from './execution-policy.js';
 import { McpTelemetry, type McpTelemetryRecord, type McpTelemetrySummary } from './mcp-telemetry.js';
 import { routeTools, type ToolRouteResult, type ToolRouterOptions } from './tool-router.js';
+import {
+  planWorkflow as buildWorkflowPlan,
+  type WorkflowPlan,
+  type WorkflowPlannerOptions,
+} from './workflow-planner.js';
 
 export interface McpGatewayTransport<TTool extends ActionPlannerTool = ActionPlannerTool> {
   /** Stable adapter label used for local telemetry. */
@@ -50,9 +55,9 @@ export class McpGatewayRejectedError extends Error {
 /**
  * Browser-agnostic orchestration layer between an AI client and any MCP transport.
  *
- * The gateway owns routing, action planning, budget configuration, execution policy
- * and privacy-safe telemetry. Browser DOM integration and concrete MCP transport
- * remain adapters.
+ * The gateway owns routing, action/workflow planning, budget configuration,
+ * execution policy and privacy-safe telemetry. Browser DOM integration and concrete
+ * MCP transport remain adapters.
  */
 export class McpGateway<TTool extends ActionPlannerTool = ActionPlannerTool> {
   private taskFocus: string;
@@ -107,6 +112,10 @@ export class McpGateway<TTool extends ActionPlannerTool = ActionPlannerTool> {
 
   async planAction(query: string, options: ActionPlannerOptions = {}): Promise<ActionPlan<TTool>> {
     return buildActionPlan(await this.transport.listTools(), query, options);
+  }
+
+  async planWorkflow(query: string, options: WorkflowPlannerOptions = {}): Promise<WorkflowPlan<TTool>> {
+    return buildWorkflowPlan(await this.transport.listTools(), query, options);
   }
 
   evaluate(toolName: string, args: Record<string, unknown> = {}, description = ''): ExecutionPolicyResult {
