@@ -2,17 +2,15 @@
 
 This document describes the release path and store-facing presentation for the Superpower Chrome extension.
 
-## Brand direction
+## Brand identity
 
-Superpower uses the existing **S icon** already shipped with the extension:
+Superpower uses the existing **S icon** shipped with the extension as its primary visual identity:
 
 - `chrome-extension/public/icon-16.png`
 - `chrome-extension/public/icon-34.png`
 - `chrome-extension/public/icon-128.png`
 
-These S assets are the canonical extension identity and should remain consistent across the Chrome toolbar, extension management page, GitHub README, release assets, and Chrome Web Store listing.
-
-Do **not** use mascot, teddy, dog, character, or cartoon imagery in the extension identity or Chrome Web Store creative. Store visuals should stay clean, technical, minimal, and product-focused, using the existing Superpower S mark.
+These assets should be used consistently across the Chrome toolbar, extension management page, GitHub documentation, release materials, and Chrome Web Store listing. Supporting visuals should follow a clean, restrained, product-focused system that emphasizes the Superpower interface, MCP connectivity, and practical AI tool workflows.
 
 ## Store listing copy
 
@@ -74,7 +72,7 @@ Before the first public submission:
 1. Create a new extension item in the Chrome Web Store Developer Dashboard.
 2. Upload the generated `superpower-chrome-<version>.zip` package.
 3. Complete the Store Listing and Privacy sections.
-4. Use the existing Superpower S icon and product-focused screenshots.
+4. Use the established Superpower brand assets and product-focused screenshots.
 5. Describe the extension's single purpose as connecting supported AI web interfaces to user-configured MCP tools.
 6. Review the requested host permissions and data disclosures before submitting for review.
 
