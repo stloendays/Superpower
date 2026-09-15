@@ -61,7 +61,8 @@ const forwardConversationEvent = async (payload: ConversationPayload): Promise<b
   }
 };
 
-const isServiceWorkerContext = typeof window === 'undefined' && typeof chrome !== 'undefined' && Boolean(chrome.runtime?.onMessage);
+const isServiceWorkerContext =
+  typeof window === 'undefined' && typeof chrome !== 'undefined' && Boolean(chrome.runtime?.onMessage);
 
 if (isServiceWorkerContext) {
   chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
