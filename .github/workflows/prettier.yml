@@ -22,6 +22,32 @@ jobs:
           cache: pnpm
       - run: pnpm install --frozen-lockfile --prefer-offline
 
+      - name: Prepare Action Router formatting diagnostic
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p prettier-diagnostic/packages/mcp-core/lib
+          mkdir -p prettier-diagnostic/packages/mcp-core/scripts
+          mkdir -p prettier-diagnostic/packages/mcp-host/src
+          cp packages/mcp-core/package.json prettier-diagnostic/packages/mcp-core/package.json
+          cp packages/mcp-core/lib/action-planner.ts prettier-diagnostic/packages/mcp-core/lib/action-planner.ts
+          cp packages/mcp-core/lib/gateway.ts prettier-diagnostic/packages/mcp-core/lib/gateway.ts
+          cp packages/mcp-core/scripts/action-planner-smoke.mjs prettier-diagnostic/packages/mcp-core/scripts/action-planner-smoke.mjs
+          cp packages/mcp-host/src/bridge.ts prettier-diagnostic/packages/mcp-host/src/bridge.ts
+          pnpm exec prettier --write \
+            prettier-diagnostic/packages/mcp-core/package.json \
+            prettier-diagnostic/packages/mcp-core/lib/action-planner.ts \
+            prettier-diagnostic/packages/mcp-core/lib/gateway.ts \
+            prettier-diagnostic/packages/mcp-core/scripts/action-planner-smoke.mjs \
+            prettier-diagnostic/packages/mcp-host/src/bridge.ts
+
+      - name: Upload Action Router formatting diagnostic
+        uses: actions/upload-artifact@v7
+        with:
+          name: action-router-prettier-diagnostic
+          path: prettier-diagnostic
+          retention-days: 1
+
       - name: Check formatting of changed files
         shell: bash
         env:
