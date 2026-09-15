@@ -94,11 +94,7 @@ const missingLooksLikeHandoff = (fields: string[]): boolean =>
 
 const workflowConfidence = <T extends ActionPlannerTool>(steps: WorkflowPlanStep<T>[]): ActionPlanConfidence => {
   if (steps.length === 0 || steps.some(step => step.kind === 'unresolved' || step.confidence === 'low')) return 'low';
-  if (
-    steps.some(
-      step => step.kind === 'transform' || step.confidence === 'medium' || step.needsPreviousOutput,
-    )
-  ) {
+  if (steps.some(step => step.kind === 'transform' || step.confidence === 'medium' || step.needsPreviousOutput)) {
     return 'medium';
   }
   return 'high';
