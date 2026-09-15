@@ -139,7 +139,8 @@ const sanitizeConversationEvent = (value: unknown): ConversationEvent | null => 
     phase,
     url: typeof record.url === 'string' ? record.url.slice(0, 2048) : '',
     title: typeof record.title === 'string' ? record.title.slice(0, 256) : '',
-    timestamp: typeof record.timestamp === 'number' && Number.isFinite(record.timestamp) ? record.timestamp : Date.now(),
+    timestamp:
+      typeof record.timestamp === 'number' && Number.isFinite(record.timestamp) ? record.timestamp : Date.now(),
   };
 };
 
@@ -195,7 +196,9 @@ const startConversationBridge = async (): Promise<Server | null> => {
   return new Promise(resolve => {
     const onError = (error: NodeJS.ErrnoException) => {
       server.off('listening', onListening);
-      stderr.write(`Desktop conversation bridge unavailable on ${CONVERSATION_BRIDGE_HOST}:${CONVERSATION_BRIDGE_PORT}: ${error.message}\n`);
+      stderr.write(
+        `Desktop conversation bridge unavailable on ${CONVERSATION_BRIDGE_HOST}:${CONVERSATION_BRIDGE_PORT}: ${error.message}\n`,
+      );
       resolve(null);
     };
     const onListening = () => {
@@ -292,9 +295,7 @@ export const runBridge = async (options: BridgeRunOptions): Promise<void> => {
     transport: host.transportKind,
     taskFocus: host.gateway.getTaskFocus(),
     policyMode: host.gateway.getPolicyMode(),
-    conversationBridge: conversationServer
-      ? { host: CONVERSATION_BRIDGE_HOST, port: CONVERSATION_BRIDGE_PORT }
-      : null,
+    conversationBridge: conversationServer ? { host: CONVERSATION_BRIDGE_HOST, port: CONVERSATION_BRIDGE_PORT } : null,
   });
 
   try {
