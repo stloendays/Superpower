@@ -1,6 +1,6 @@
 {
   "name": "@superpower/mcp-core",
-  "version": "1.3.0",
+  "version": "1.4.0",
   "description": "Browser-agnostic Superpower MCP routing, policy, budgeting and telemetry core",
   "type": "module",
   "private": true,
