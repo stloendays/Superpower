@@ -11,11 +11,7 @@ import {
 } from '@superpower/mcp-core';
 import type { ConnectedSuperpowerHost } from './host.js';
 
-type WorkflowToolCaller = (
-  toolName: string,
-  args: Record<string, unknown>,
-  approve: boolean,
-) => Promise<unknown>;
+type WorkflowToolCaller = (toolName: string, args: Record<string, unknown>, approve: boolean) => Promise<unknown>;
 
 type StoredRun = {
   planId: string;
