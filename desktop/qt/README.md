@@ -36,7 +36,7 @@ The first desktop UI supports Streamable HTTP endpoints. The host bridge itself 
 - Node.js matching the repository `.nvmrc`.
 - pnpm.
 - CMake 3.21+.
-- Qt 6.5+ with the Widgets module.
+- Qt 6.4+ with the Widgets module.
 - A C++20 compiler (MSVC 2022, Clang, or GCC).
 
 ## 1. Build the MCP host
