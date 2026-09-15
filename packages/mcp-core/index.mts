@@ -1,3 +1,4 @@
+export * from './lib/action-planner.js';
 export * from './lib/context-budget.js';
 export * from './lib/execution-policy.js';
 export * from './lib/gateway.js';
