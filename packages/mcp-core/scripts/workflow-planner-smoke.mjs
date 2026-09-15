@@ -89,7 +89,12 @@ assert.equal(chinese.steps[2].needsPreviousOutput, true);
 assert.ok(chinese.steps[2].action?.missingRequired.includes('content'));
 assert.equal(chinese.bindings.length, 2);
 assert.deepEqual(
-  chinese.bindings.map(binding => [binding.sourceStepId, binding.targetStepId, binding.targetArgument, binding.coercion]),
+  chinese.bindings.map(binding => [
+    binding.sourceStepId,
+    binding.targetStepId,
+    binding.targetArgument,
+    binding.coercion,
+  ]),
   [
     ['step-1', 'step-2', '$input', 'text'],
     ['step-2', 'step-3', 'content', 'text'],
