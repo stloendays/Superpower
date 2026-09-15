@@ -2,6 +2,7 @@
 #include "mainwindow.h"
 #include "mcpbridgeprocess.h"
 
+#include <QAction>
 #include <QApplication>
 #include <QCoreApplication>
 #include <QDir>
