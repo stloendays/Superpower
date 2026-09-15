@@ -1,0 +1,8 @@
+{
+  "extends": "./tsconfig.json",
+  "include": [
+    "src/components/sidebar/Instructions/instructionGeneratorJson.ts",
+    "src/components/sidebar/Instructions/schema_converter.ts",
+    "src/components/sidebar/Instructions/website_specific_instruction/**/*.ts"
+  ]
+}
