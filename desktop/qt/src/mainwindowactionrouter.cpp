@@ -10,6 +10,7 @@
 #include <QListWidgetItem>
 #include <QPlainTextEdit>
 #include <QPushButton>
+#include <QScrollBar>
 #include <QSize>
 
 namespace {
