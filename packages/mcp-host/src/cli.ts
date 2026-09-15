@@ -34,6 +34,7 @@ Usage:
   superpower tools   --http <url> [options]
   superpower call <tool> --args <json> --http <url> [options]
   superpower bridge --http <url> [options]
+  superpower bridge --stdio <command> [--server-arg <arg> ...] [options]
 
 Connection options:
   --http <url>                 Connect with MCP Streamable HTTP
@@ -52,7 +53,7 @@ Gateway options:
 
 Desktop bridge:
   bridge keeps one MCP session alive and reads newline-delimited JSON requests from stdin.
-  It is intended for first-party native shells such as Superpower Desktop, not for MCP servers.
+  It supports both Streamable HTTP and local stdio MCP servers for first-party native shells.
 
 Interactive commands after 'connect':
   tools                        Show the currently routed tool catalog
@@ -68,6 +69,7 @@ Examples:
   superpower connect --stdio node --server-arg server.js
   superpower call search --args '{"query":"MCP"}' --http http://localhost:3000/mcp
   superpower bridge --http http://localhost:3000/mcp --policy guarded
+  superpower bridge --stdio npx --server-arg @modelcontextprotocol/server-filesystem --server-arg . --policy guarded
 `;
 
 const takeValue = (argv: string[], index: number, flag: string): string => {
@@ -231,31 +233,42 @@ const print = (value: unknown, json = false): void => {
     stdout.write(`${JSON.stringify(value)}\n`);
     return;
   }
-  stdout.write(`${typeof value === 'string' ? value : JSON.stringify(value, null, 2)}\n`);
+  stdout.write(`${JSON.stringify(value, null, 2)}\n`);
+};
+
+const createConfirmationHandler = (
+  cli: ParsedCli,
+  readline: ReadlineInterface | null,
+): McpGatewayConfirmationHandler | undefined => {
+  if (cli.yes) return async () => true;
+  if (cli.policyMode !== 'guarded') return undefined;
+  if (!readline) return undefined;
+
+  return async context => {
+    const reasons = context.policy.reasons.length > 0 ? `\nReasons: ${context.policy.reasons.join('; ')}` : '';
+    const answer = await readline.question(
+      `Allow ${context.policy.risk}-risk tool ${context.toolName}?${reasons}\nType yes to continue: `,
+    );
+    return answer.trim().toLowerCase() === 'yes';
+  };
 };
 
 const describeRoute = async (host: ConnectedSuperpowerHost, json = false): Promise<void> => {
   const routed = await host.gateway.listTools();
-  if (json) {
-    print(
-      {
-        transport: host.transportKind,
-        selectedTools: routed.tools.map(tool => tool.name),
-        omitted: routed.omitted,
-        routed: routed.queryUsed,
-      },
-      true,
-    );
-    return;
-  }
-
-  stdout.write(`Connected via ${host.transportKind}. ${routed.tools.length} tool(s) selected`);
-  if (routed.omitted > 0) stdout.write(`, ${routed.omitted} omitted by routing/budget`);
-  stdout.write('.\n');
-  routed.ranked.forEach(item => {
-    const description = item.tool.description ? ` - ${item.tool.description}` : '';
-    stdout.write(`  ${item.tool.name}${description}\n`);
-  });
+  const payload = {
+    transport: host.transportKind,
+    taskFocus: host.gateway.getTaskFocus(),
+    policyMode: host.gateway.getPolicyMode(),
+    contextBudget: host.gateway.getContextBudget(),
+    omitted: routed.omitted,
+    queryUsed: routed.queryUsed,
+    tools: routed.tools.map(tool => ({
+      name: tool.name,
+      description: tool.description ?? '',
+      schema: tool.schema ?? '{}',
+    })),
+  };
+  print(payload, json);
 };
 
 const findToolDescription = async (host: ConnectedSuperpowerHost, toolName: string): Promise<string> => {
@@ -272,42 +285,14 @@ const callTool = async (
   return host.gateway.callTool(toolName, args, description);
 };
 
-const createConfirmationHandler = (
-  cli: ParsedCli,
-  readline: ReadlineInterface | null,
-): McpGatewayConfirmationHandler | undefined => {
-  if (cli.yes) return async () => true;
-  if (!readline) return undefined;
-
-  return async ({ toolName, policy }) => {
-    stderr.write(`Guarded action: ${toolName} [${policy.risk}] ${policy.reasons.join('; ')}\n`);
-    if (policy.sensitiveArgumentKeys.length > 0) {
-      stderr.write(`Sensitive-looking argument keys: ${policy.sensitiveArgumentKeys.join(', ')}\n`);
-    }
-    const answer = (await readline.question('Allow this action? [y/N] ')).trim().toLowerCase();
-    return answer === 'y' || answer === 'yes';
-  };
-};
-
-const printInteractiveHelp = (): void => {
-  stdout.write('Commands: tools | focus <text> | policy <audit|guarded> | call <tool> [json] | stats | help | exit\n');
-};
-
 const runInteractiveShell = async (host: ConnectedSuperpowerHost, readline: ReadlineInterface): Promise<void> => {
-  printInteractiveHelp();
-
+  stdout.write('Interactive MCP shell. Type help for commands.\n');
   while (true) {
-    let input: string;
-    try {
-      input = (await readline.question('superpower> ')).trim();
-    } catch {
-      return;
-    }
-
+    const input = (await readline.question('superpower> ')).trim();
     if (!input) continue;
     if (input === 'exit' || input === 'quit') return;
     if (input === 'help') {
-      printInteractiveHelp();
+      stdout.write('tools | focus <text> | policy <audit|guarded> | call <tool> [json] | stats | exit\n');
       continue;
     }
 
@@ -322,7 +307,7 @@ const runInteractiveShell = async (host: ConnectedSuperpowerHost, readline: Read
       }
       if (input.startsWith('focus ')) {
         host.gateway.setTaskFocus(input.slice('focus '.length));
-        stdout.write(`Task focus updated.\n`);
+        await describeRoute(host);
         continue;
       }
       if (input.startsWith('policy ')) {

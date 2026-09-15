@@ -1,6 +1,9 @@
 #include "mcpbridgeprocess.h"
 
+#include <QDir>
+#include <QFileInfo>
 #include <QJsonDocument>
+#include <QProcessEnvironment>
 #include <QTimer>
 
 McpBridgeProcess::McpBridgeProcess(QObject *parent) : QObject(parent) {
@@ -28,9 +31,27 @@ McpBridgeProcess::~McpBridgeProcess() {
 
 bool McpBridgeProcess::isRunning() const { return process_.state() != QProcess::NotRunning; }
 
-void McpBridgeProcess::start(const QString &nodeProgram, const QString &hostScript,
-                             const QString &serverUrl, const QString &taskFocus,
-                             const QString &policyMode) {
+void McpBridgeProcess::startHttp(const QString &nodeProgram, const QString &hostScript,
+                                 const QString &serverUrl, const QString &taskFocus,
+                                 const QString &policyMode) {
+  startWithConnectionArguments(nodeProgram, hostScript,
+                               {QStringLiteral("--http"), serverUrl}, taskFocus, policyMode);
+}
+
+void McpBridgeProcess::startStdio(const QString &nodeProgram, const QString &hostScript,
+                                  const QString &serverCommand, const QStringList &serverArgs,
+                                  const QString &taskFocus, const QString &policyMode) {
+  QStringList connectionArguments{QStringLiteral("--stdio"), serverCommand};
+  for (const QString &argument : serverArgs) {
+    connectionArguments << QStringLiteral("--server-arg") << argument;
+  }
+  startWithConnectionArguments(nodeProgram, hostScript, connectionArguments, taskFocus, policyMode);
+}
+
+void McpBridgeProcess::startWithConnectionArguments(const QString &nodeProgram, const QString &hostScript,
+                                                    const QStringList &connectionArguments,
+                                                    const QString &taskFocus,
+                                                    const QString &policyMode) {
   if (isRunning()) {
     emit processError(QStringLiteral("The MCP desktop bridge is already running."));
     return;
@@ -40,12 +61,25 @@ void McpBridgeProcess::start(const QString &nodeProgram, const QString &hostScri
   pendingMethods_.clear();
   stopping_ = false;
 
-  QStringList arguments{hostScript, QStringLiteral("bridge"), QStringLiteral("--http"), serverUrl,
-                        QStringLiteral("--policy"), policyMode};
+  QStringList arguments{hostScript, QStringLiteral("bridge")};
+  arguments.append(connectionArguments);
+  arguments << QStringLiteral("--policy") << policyMode;
   if (!taskFocus.trimmed().isEmpty()) {
     arguments << QStringLiteral("--focus") << taskFocus.trimmed();
   }
 
+  QProcessEnvironment environment = QProcessEnvironment::systemEnvironment();
+  const QFileInfo nodeInfo(nodeProgram);
+  if (nodeInfo.isAbsolute() && nodeInfo.exists()) {
+    const QString runtimeDir = nodeInfo.absolutePath();
+    const QString existingPath = environment.value(QStringLiteral("PATH"));
+    environment.insert(QStringLiteral("PATH"),
+                       existingPath.isEmpty()
+                           ? runtimeDir
+                           : runtimeDir + QDir::listSeparator() + existingPath);
+  }
+
+  process_.setProcessEnvironment(environment);
   process_.setProgram(nodeProgram);
   process_.setArguments(arguments);
   process_.start();

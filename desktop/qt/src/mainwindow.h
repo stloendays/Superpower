@@ -5,6 +5,7 @@
 #include <QJsonValue>
 #include <QMainWindow>
 #include <QString>
+#include <QStringList>
 
 class QComboBox;
 class QLabel;
@@ -12,6 +13,7 @@ class QLineEdit;
 class QListWidget;
 class QPlainTextEdit;
 class QPushButton;
+class QWidget;
 class McpBridgeProcess;
 
 class MainWindow final : public QMainWindow {
@@ -30,6 +32,7 @@ class MainWindow final : public QMainWindow {
   void applyStyle();
   void connectSignals();
   void setConnectedUi(bool connected);
+  void updateConnectionForm();
   void connectOrDisconnect();
   void refreshTools();
   void applyFocus();
@@ -45,12 +48,19 @@ class MainWindow final : public QMainWindow {
   void setStatus(const QString &text, bool connected);
 
   static QString findDefaultHostScript();
+  static QString findDefaultNodeProgram();
+  static bool parseStdioArguments(const QString &text, QStringList *arguments, QString *errorMessage);
   static QJsonValue sampleValueForSchema(const QJsonObject &schema);
   static QJsonObject argumentTemplate(const QJsonObject &schema);
 
   McpBridgeProcess *bridge_ = nullptr;
 
+  QComboBox *transportCombo_ = nullptr;
+  QWidget *httpConnectionWidget_ = nullptr;
+  QWidget *stdioConnectionWidget_ = nullptr;
   QLineEdit *endpointEdit_ = nullptr;
+  QLineEdit *stdioCommandEdit_ = nullptr;
+  QLineEdit *stdioArgsEdit_ = nullptr;
   QLineEdit *nodeEdit_ = nullptr;
   QLineEdit *hostScriptEdit_ = nullptr;
   QLineEdit *focusEdit_ = nullptr;
