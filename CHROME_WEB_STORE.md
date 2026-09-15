@@ -1,6 +1,52 @@
 # Chrome Web Store release guide
 
-This document describes the release path for the Superpower Chrome extension.
+This document describes the release path and store-facing presentation for the Superpower Chrome extension.
+
+## Brand direction
+
+Superpower uses the existing **S icon** already shipped with the extension:
+
+- `chrome-extension/public/icon-16.png`
+- `chrome-extension/public/icon-34.png`
+- `chrome-extension/public/icon-128.png`
+
+These S assets are the canonical extension identity and should remain consistent across the Chrome toolbar, extension management page, GitHub README, release assets, and Chrome Web Store listing.
+
+Do **not** use mascot, teddy, dog, character, or cartoon imagery in the extension identity or Chrome Web Store creative. Store visuals should stay clean, technical, minimal, and product-focused, using the existing Superpower S mark.
+
+## Store listing copy
+
+### Product name
+
+**Superpower**
+
+### Short description
+
+> Connect supported web AI assistants to MCP servers and tools, then run real workflows without leaving the conversation.
+
+### Positioning line
+
+> MCP tools, directly inside the AI interfaces you already use.
+
+### Detailed description
+
+Superpower brings Model Context Protocol (MCP) tools into supported AI web applications.
+
+Connect an MCP server, choose the tools you want available, and let the assistant call those tools directly from the conversation. Superpower handles tool discovery, structured tool calls, execution, and result insertion so you can keep working in the same AI interface instead of moving between separate apps.
+
+Superpower supports MCP workflows over SSE, Streamable HTTP, and WebSocket transports. It is designed for practical tool use such as files, developer workflows, research utilities, databases, custom services, and agent-style task execution.
+
+The extension works as the browser interaction layer. Tool execution remains behind the MCP endpoint configured by the user, and users retain control over the connected server and enabled tools.
+
+### Store feature bullets
+
+- Connect supported AI web apps to MCP servers.
+- Discover and manage available MCP tools.
+- Run structured tool calls without leaving the conversation.
+- Insert tool results back into the active AI workflow.
+- Support SSE, Streamable HTTP, and WebSocket transports.
+- Keep MCP execution behind a user-configured endpoint.
+- Use the same Superpower workflow across multiple supported AI interfaces.
 
 ## Product scope
 
@@ -28,7 +74,7 @@ Before the first public submission:
 1. Create a new extension item in the Chrome Web Store Developer Dashboard.
 2. Upload the generated `superpower-chrome-<version>.zip` package.
 3. Complete the Store Listing and Privacy sections.
-4. Add screenshots and the Superpower icon/branding assets.
+4. Use the existing Superpower S icon and product-focused screenshots.
 5. Describe the extension's single purpose as connecting supported AI web interfaces to user-configured MCP tools.
 6. Review the requested host permissions and data disclosures before submitting for review.
 
