@@ -17,7 +17,7 @@
     "lint": "eslint .",
     "lint:fix": "pnpm lint --fix",
     "prettier": "prettier . --write --ignore-path ../../.prettierignore",
-    "type-check": "tsc --noEmit"
+    "type-check": "tsc --noEmit && tsc --noEmit -p tsconfig.vite.json"
   },
   "dependencies": {
     "@extension/env": "workspace:*",

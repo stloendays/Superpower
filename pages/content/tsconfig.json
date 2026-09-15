@@ -5,7 +5,8 @@
     "paths": {
       "@src/*": ["src/*"]
     },
-    "types": ["chrome", "node"]
+    "lib": ["DOM", "DOM.Iterable", "ESNext"],
+    "types": ["chrome", "vite/client"]
   },
-  "include": ["src", "vite.config.mts"]
+  "include": ["src"]
 }

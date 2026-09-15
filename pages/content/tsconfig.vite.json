@@ -1,0 +1,7 @@
+{
+  "extends": "@extension/tsconfig/base",
+  "compilerOptions": {
+    "types": ["node"]
+  },
+  "include": ["vite.config.mts"]
+}
