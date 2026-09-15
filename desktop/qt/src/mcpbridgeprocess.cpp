@@ -48,25 +48,32 @@ void McpBridgeProcess::startStdio(const QString &nodeProgram, const QString &hos
   startWithConnectionArguments(nodeProgram, hostScript, connectionArguments, taskFocus, policyMode);
 }
 
-void McpBridgeProcess::startWithConnectionArguments(const QString &nodeProgram, const QString &hostScript,
-                                                    const QStringList &connectionArguments,
-                                                    const QString &taskFocus,
-                                                    const QString &policyMode) {
+void McpBridgeProcess::startConversation(const QString &nodeProgram, const QString &hostScript) {
   if (isRunning()) {
-    emit processError(QStringLiteral("The MCP desktop bridge is already running."));
+    emit processError(QStringLiteral("The desktop conversation relay is already running."));
     return;
   }
 
+  const QFileInfo hostInfo(hostScript);
+  const QString relayFileName = hostInfo.fileName() == QStringLiteral("superpower-host.mjs")
+                                    ? QStringLiteral("superpower-conversation.mjs")
+                                    : QStringLiteral("conversation-relay.js");
+  const QString relayScript = hostInfo.dir().filePath(relayFileName);
+  if (!QFileInfo::exists(relayScript)) {
+    emit processError(QStringLiteral("Conversation relay script not found: %1").arg(QDir::toNativeSeparators(relayScript)));
+    return;
+  }
+
+  prepareProcess(nodeProgram);
+  process_.setProgram(nodeProgram);
+  process_.setArguments(QStringList{QDir::toNativeSeparators(relayScript)});
+  process_.start();
+}
+
+void McpBridgeProcess::prepareProcess(const QString &nodeProgram) {
   stdoutBuffer_.clear();
   pendingMethods_.clear();
   stopping_ = false;
-
-  QStringList arguments{hostScript, QStringLiteral("bridge")};
-  arguments.append(connectionArguments);
-  arguments << QStringLiteral("--policy") << policyMode;
-  if (!taskFocus.trimmed().isEmpty()) {
-    arguments << QStringLiteral("--focus") << taskFocus.trimmed();
-  }
 
   QProcessEnvironment environment = QProcessEnvironment::systemEnvironment();
   const QFileInfo nodeInfo(nodeProgram);
@@ -78,8 +85,27 @@ void McpBridgeProcess::startWithConnectionArguments(const QString &nodeProgram, 
                            ? runtimeDir
                            : runtimeDir + QDir::listSeparator() + existingPath);
   }
-
   process_.setProcessEnvironment(environment);
+}
+
+void McpBridgeProcess::startWithConnectionArguments(const QString &nodeProgram, const QString &hostScript,
+                                                    const QStringList &connectionArguments,
+                                                    const QString &taskFocus,
+                                                    const QString &policyMode) {
+  if (isRunning()) {
+    emit processError(QStringLiteral("The MCP desktop bridge is already running."));
+    return;
+  }
+
+  prepareProcess(nodeProgram);
+
+  QStringList arguments{hostScript, QStringLiteral("bridge")};
+  arguments.append(connectionArguments);
+  arguments << QStringLiteral("--policy") << policyMode;
+  if (!taskFocus.trimmed().isEmpty()) {
+    arguments << QStringLiteral("--focus") << taskFocus.trimmed();
+  }
+
   process_.setProgram(nodeProgram);
   process_.setArguments(arguments);
   process_.start();
