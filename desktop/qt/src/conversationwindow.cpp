@@ -1,39 +1,40 @@
 #include "conversationwindow.h"
 
-#include <QDialogButtonBox>
+#include <QHBoxLayout>
 #include <QLabel>
 #include <QPlainTextEdit>
 #include <QPushButton>
 #include <QScrollBar>
 #include <QVBoxLayout>
 
-ConversationWindow::ConversationWindow(QWidget *parent) : QDialog(parent) {
-  setWindowTitle(QStringLiteral("Superpower Conversation"));
-  resize(760, 680);
-  setMinimumSize(560, 420);
-  setModal(false);
-  setAttribute(Qt::WA_QuitOnClose, false);
+ConversationWindow::ConversationWindow(QWidget *parent) : QWidget(parent) {
+  setMinimumWidth(360);
 
   auto *layout = new QVBoxLayout(this);
   layout->setContentsMargins(18, 18, 18, 18);
   layout->setSpacing(10);
 
+  auto *header = new QHBoxLayout();
   auto *title = new QLabel(QStringLiteral("Conversation"), this);
   title->setStyleSheet(QStringLiteral("font-size:18px;font-weight:750;"));
-  layout->addWidget(title);
+  header->addWidget(title);
+  header->addStretch(1);
+  auto *clearButton = new QPushButton(QStringLiteral("Clear session"), this);
+  connect(clearButton, &QPushButton::clicked, this, &ConversationWindow::clearConversation);
+  header->addWidget(clearButton);
+  layout->addLayout(header);
 
   auto *note = new QLabel(
-      QStringLiteral("Live ChatGPT browser text · local loopback only · session-only memory. Ctrl+Shift+C reopens this window."),
+      QStringLiteral("Live ChatGPT browser text · local loopback only · session-only memory · no MCP server connection required."),
       this);
   note->setWordWrap(true);
   note->setStyleSheet(QStringLiteral("color:#737373;"));
   layout->addWidget(note);
 
-  statusLabel_ = new QLabel(QStringLiteral("Waiting for ChatGPT browser activity. Connect Superpower Desktop to activate browser sync."), this);
+  statusLabel_ = new QLabel(QStringLiteral("Starting local conversation relay..."), this);
   statusLabel_->setWordWrap(true);
-  statusLabel_->setStyleSheet(
-      QStringLiteral("background:#f3f3f3;border:1px solid #dfdfdf;border-radius:8px;padding:8px 10px;color:#444444;"));
   layout->addWidget(statusLabel_);
+  setRelayStatus(QStringLiteral("Starting local conversation relay..."), false);
 
   conversationView_ = new QPlainTextEdit(this);
   conversationView_->setReadOnly(true);
@@ -41,12 +42,6 @@ ConversationWindow::ConversationWindow(QWidget *parent) : QDialog(parent) {
   conversationView_->setStyleSheet(
       QStringLiteral("QPlainTextEdit{background:#ffffff;border:1px solid #dddddd;border-radius:10px;padding:12px;font-family:'Segoe UI',sans-serif;font-size:13px;}"));
   layout->addWidget(conversationView_, 1);
-
-  auto *buttons = new QDialogButtonBox(QDialogButtonBox::Close, this);
-  auto *clearButton = buttons->addButton(QStringLiteral("Clear session"), QDialogButtonBox::ResetRole);
-  connect(clearButton, &QPushButton::clicked, this, &ConversationWindow::clearConversation);
-  connect(buttons, &QDialogButtonBox::rejected, this, &QDialog::hide);
-  layout->addWidget(buttons);
 }
 
 void ConversationWindow::ingestEvent(const QJsonObject &event) {
@@ -87,20 +82,19 @@ void ConversationWindow::ingestEvent(const QJsonObject &event) {
     while (records_.size() > 200) records_.removeFirst();
   }
 
-  statusLabel_->setText(role == QStringLiteral("assistant") && phase == QStringLiteral("streaming")
-                            ? QStringLiteral("Live · ChatGPT is responding")
-                            : QStringLiteral("Live · browser conversation synchronized locally"));
+  setRelayStatus(role == QStringLiteral("assistant") && phase == QStringLiteral("streaming")
+                     ? QStringLiteral("Live · ChatGPT is responding")
+                     : QStringLiteral("Live · browser conversation synchronized locally"),
+                 true);
   renderConversation();
-
-  if (!autoShown_) {
-    autoShown_ = true;
-    showConversation();
-  }
 }
 
-void ConversationWindow::showConversation() {
-  show();
-  raise();
+void ConversationWindow::setRelayStatus(const QString &text, bool online) {
+  statusLabel_->setText(text);
+  statusLabel_->setStyleSheet(
+      online
+          ? QStringLiteral("background:#111111;border:1px solid #111111;border-radius:8px;padding:8px 10px;color:#ffffff;font-weight:650;")
+          : QStringLiteral("background:#f3f3f3;border:1px solid #dfdfdf;border-radius:8px;padding:8px 10px;color:#444444;font-weight:650;"));
 }
 
 void ConversationWindow::renderConversation() {
@@ -134,5 +128,5 @@ void ConversationWindow::renderConversation() {
 void ConversationWindow::clearConversation() {
   records_.clear();
   conversationView_->clear();
-  statusLabel_->setText(QStringLiteral("Conversation cleared for this desktop session. New browser updates will appear here."));
+  setRelayStatus(QStringLiteral("Listening locally · conversation cleared for this desktop session."), true);
 }
