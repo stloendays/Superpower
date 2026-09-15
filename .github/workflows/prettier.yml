@@ -62,4 +62,10 @@ jobs:
 
           printf 'Checking %d changed file(s):\n' "${#files[@]}"
           printf ' - %s\n' "${files[@]}"
-          pnpm exec prettier --check "${files[@]}"
+
+          if ! pnpm exec prettier --check "${files[@]}"; then
+            echo "Prettier suggested the following changes:"
+            pnpm exec prettier --write "${files[@]}"
+            git diff -- "${files[@]}"
+            exit 1
+          fi
