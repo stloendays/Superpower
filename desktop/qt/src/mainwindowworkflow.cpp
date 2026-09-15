@@ -3,6 +3,7 @@
 #include "mcpbridgeprocess.h"
 
 #include <QJsonArray>
+#include <QPlainTextEdit>
 #include <QProcess>
 
 void MainWindow::ensureWorkflowPlannerConnections() {
