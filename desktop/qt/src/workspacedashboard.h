@@ -24,6 +24,7 @@ class WorkspaceDashboard final : public QWidget {
 
  signals:
   void actionQueryRequested(const QString &query);
+  void workflowQueryRequested(const QString &query);
   void browseActionsRequested();
   void gettingStartedRequested();
   void openConversationRequested();
@@ -32,12 +33,14 @@ class WorkspaceDashboard final : public QWidget {
   QWidget *createStatusCard(const QString &title, QLabel **valueLabel, QLabel **detailLabel);
   QWidget *createMetricCard(const QString &title, QLabel **valueLabel, const QString &detail);
   void submitActionQuery();
+  void submitWorkflowQuery();
   void buildUi();
   void applyStyle();
 
   MainWindow *workspace_ = nullptr;
   QLineEdit *actionQueryEdit_ = nullptr;
   QPushButton *actionRouteButton_ = nullptr;
+  QPushButton *workflowPlanButton_ = nullptr;
   QLabel *actionRouterStatusLabel_ = nullptr;
   QLabel *conversationValueLabel_ = nullptr;
   QLabel *conversationDetailLabel_ = nullptr;
