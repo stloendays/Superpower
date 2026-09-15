@@ -17,6 +17,20 @@ jobs:
           cache: pnpm
       - run: pnpm install --frozen-lockfile --prefer-offline
       - run: pnpm build
+
+      - name: Verify built extension version
+        shell: bash
+        run: |
+          PACKAGE_VERSION=$(node -p "require('./package.json').version")
+          BUILT_VERSION=$(node -p "require('./dist/manifest.json').version")
+
+          if [[ "$PACKAGE_VERSION" != "$BUILT_VERSION" ]]; then
+            echo "Built manifest version $BUILT_VERSION does not match package.json version $PACKAGE_VERSION."
+            exit 1
+          fi
+
+          echo "Verified extension version $BUILT_VERSION."
+
       - uses: actions/upload-artifact@v7
         with:
           path: dist/*
