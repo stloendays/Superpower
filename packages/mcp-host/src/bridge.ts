@@ -83,7 +83,10 @@ const callTool = async (
   try {
     return await host.gateway.callTool(toolName, args, description);
   } catch (error) {
-    if (error instanceof McpGatewayConfirmationRequiredError || (error instanceof McpGatewayRejectedError && !approve)) {
+    if (
+      error instanceof McpGatewayConfirmationRequiredError ||
+      (error instanceof McpGatewayRejectedError && !approve)
+    ) {
       throw new BridgeRequestError(
         'confirmation_required',
         'This guarded MCP action requires desktop confirmation before execution.',
