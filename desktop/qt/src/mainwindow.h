@@ -28,7 +28,6 @@ class MainWindow final : public QMainWindow {
  public:
   explicit MainWindow(QWidget *parent = nullptr);
 
- private:
   struct ServerProfile {
     QString id;
     QString name;
@@ -58,6 +57,7 @@ class MainWindow final : public QMainWindow {
     qint64 durationMs = 0;
   };
 
+ private:
   void buildUi();
   void applyStyle();
   void connectSignals();
