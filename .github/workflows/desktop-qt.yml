@@ -36,11 +36,12 @@ jobs:
           cache: pnpm
       - name: Install JavaScript dependencies
         run: pnpm install --frozen-lockfile --prefer-offline
-      - name: Build and bundle MCP host
+      - name: Build and bundle desktop Node bridges
         shell: pwsh
         run: |
           pnpm -F @superpower/mcp-host build
           New-Item -ItemType Directory -Force desktop/qt/package/bridge | Out-Null
+
           $body = 'desktop/qt/package/bridge/superpower-host.body.mjs'
           $bundle = 'desktop/qt/package/bridge/superpower-host.mjs'
           pnpm exec esbuild packages/mcp-host/src/cli.ts --bundle --platform=node --format=esm --target=node22 --outfile=$body
@@ -53,7 +54,12 @@ jobs:
           $bundleText = "#!/usr/bin/env node`n$shim`n$bodyText"
           Set-Content -Path $bundle -Value $bundleText -Encoding utf8NoBOM -NoNewline
           Remove-Item $body
+
+          $conversationBundle = 'desktop/qt/package/bridge/superpower-conversation.mjs'
+          pnpm exec esbuild packages/mcp-host/src/conversation-relay.ts --bundle --platform=node --format=esm --target=node22 --outfile=$conversationBundle
+
           node $bundle --help | Select-String 'Superpower MCP Host'
+          if (!(Test-Path $conversationBundle)) { throw 'Conversation relay bundle is missing.' }
       - name: Install Qt 6.8.3
         shell: pwsh
         run: |
@@ -91,6 +97,7 @@ jobs:
           if (!(Test-Path (Join-Path $package 'Qt6Core.dll'))) { throw 'Qt runtime deployment is incomplete.' }
           if (!(Test-Path (Join-Path $package 'platforms/qwindows.dll'))) { throw 'Qt Windows platform plugin is missing.' }
           if (!(Test-Path (Join-Path $package 'bridge/superpower-host.mjs'))) { throw 'MCP host bridge is missing.' }
+          if (!(Test-Path (Join-Path $package 'bridge/superpower-conversation.mjs'))) { throw 'Conversation relay is missing.' }
 
           $zip = Join-Path $PWD 'desktop/qt/Superpower-Desktop-Windows-x64.zip'
           Compress-Archive -Path "$package/*" -DestinationPath $zip -Force
