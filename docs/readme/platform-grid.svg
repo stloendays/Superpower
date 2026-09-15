@@ -1,0 +1,25 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1440" height="520" viewBox="0 0 1440 520">
+  <rect width="1440" height="520" rx="32" fill="#fafafa"/>
+  <g font-family="Inter,Segoe UI,Arial,sans-serif">
+    <text x="72" y="72" font-size="20" font-weight="700" fill="#6366f1">SUPPORTED AI SURFACES</text>
+    <text x="72" y="116" font-size="34" font-weight="800" fill="#111827">One MCP layer across the AI tools you already use.</text>
+    <text x="72" y="150" font-size="18" fill="#64748b">Adapters keep tool execution inside the browser workflow instead of forcing a separate agent console.</text>
+
+    <g transform="translate(72,205)">
+      <g><rect width="248" height="96" rx="20" fill="#fff" stroke="#e5e7eb"/><circle cx="44" cy="48" r="22" fill="#111827"/><text x="44" y="55" text-anchor="middle" font-size="22" font-weight="900" fill="#fff">C</text><text x="82" y="42" font-size="16" font-weight="800" fill="#111827">ChatGPT</text><text x="82" y="65" font-size="13" fill="#64748b">chatgpt.com</text></g>
+      <g transform="translate(272,0)"><rect width="248" height="96" rx="20" fill="#fff" stroke="#e5e7eb"/><circle cx="44" cy="48" r="22" fill="#eef2ff"/><text x="44" y="55" text-anchor="middle" font-size="20" font-weight="900" fill="#4f46e5">G</text><text x="82" y="42" font-size="16" font-weight="800" fill="#111827">Gemini</text><text x="82" y="65" font-size="13" fill="#64748b">gemini.google.com</text></g>
+      <g transform="translate(544,0)"><rect width="248" height="96" rx="20" fill="#fff" stroke="#e5e7eb"/><circle cx="44" cy="48" r="22" fill="#f0fdf4"/><text x="44" y="55" text-anchor="middle" font-size="20" font-weight="900" fill="#15803d">P</text><text x="82" y="42" font-size="16" font-weight="800" fill="#111827">Perplexity</text><text x="82" y="65" font-size="13" fill="#64748b">perplexity.ai</text></g>
+      <g transform="translate(816,0)"><rect width="248" height="96" rx="20" fill="#fff" stroke="#e5e7eb"/><circle cx="44" cy="48" r="22" fill="#fef2f2"/><text x="44" y="55" text-anchor="middle" font-size="20" font-weight="900" fill="#b91c1c">X</text><text x="82" y="42" font-size="16" font-weight="800" fill="#111827">Grok</text><text x="82" y="65" font-size="13" fill="#64748b">grok.com / x.com</text></g>
+      <g transform="translate(1088,0)"><rect width="248" height="96" rx="20" fill="#fff" stroke="#e5e7eb"/><circle cx="44" cy="48" r="22" fill="#f3f4f6"/><text x="44" y="55" text-anchor="middle" font-size="19" font-weight="900" fill="#111827">GH</text><text x="82" y="42" font-size="16" font-weight="800" fill="#111827">Copilot</text><text x="82" y="65" font-size="13" fill="#64748b">github.com/copilot</text></g>
+
+      <g transform="translate(0,120)"><rect width="248" height="96" rx="20" fill="#fff" stroke="#e5e7eb"/><circle cx="44" cy="48" r="22" fill="#f5f3ff"/><text x="44" y="55" text-anchor="middle" font-size="18" font-weight="900" fill="#7c3aed">AI</text><text x="82" y="42" font-size="16" font-weight="800" fill="#111827">AI Studio</text><text x="82" y="65" font-size="13" fill="#64748b">aistudio.google.com</text></g>
+      <g transform="translate(272,120)"><rect width="248" height="96" rx="20" fill="#fff" stroke="#e5e7eb"/><circle cx="44" cy="48" r="22" fill="#eff6ff"/><text x="44" y="55" text-anchor="middle" font-size="18" font-weight="900" fill="#2563eb">OR</text><text x="82" y="42" font-size="16" font-weight="800" fill="#111827">OpenRouter</text><text x="82" y="65" font-size="13" fill="#64748b">openrouter.ai</text></g>
+      <g transform="translate(544,120)"><rect width="248" height="96" rx="20" fill="#fff" stroke="#e5e7eb"/><circle cx="44" cy="48" r="22" fill="#ecfeff"/><text x="44" y="55" text-anchor="middle" font-size="18" font-weight="900" fill="#0e7490">DS</text><text x="82" y="42" font-size="16" font-weight="800" fill="#111827">DeepSeek</text><text x="82" y="65" font-size="13" fill="#64748b">chat.deepseek.com</text></g>
+      <g transform="translate(816,120)"><rect width="248" height="96" rx="20" fill="#fff" stroke="#e5e7eb"/><circle cx="44" cy="48" r="22" fill="#fff7ed"/><text x="44" y="55" text-anchor="middle" font-size="18" font-weight="900" fill="#c2410c">Q</text><text x="82" y="42" font-size="16" font-weight="800" fill="#111827">Qwen</text><text x="82" y="65" font-size="13" fill="#64748b">chat.qwen.ai</text></g>
+      <g transform="translate(1088,120)"><rect width="248" height="96" rx="20" fill="#fff" stroke="#e5e7eb"/><circle cx="44" cy="48" r="22" fill="#fdf2f8"/><text x="44" y="55" text-anchor="middle" font-size="18" font-weight="900" fill="#be185d">+</text><text x="82" y="42" font-size="16" font-weight="800" fill="#111827">More adapters</text><text x="82" y="65" font-size="13" fill="#64748b">Kimi · Mistral · T3 · Z.ai</text></g>
+    </g>
+
+    <rect x="72" y="450" width="1296" height="1" fill="#e5e7eb"/>
+    <text x="720" y="486" text-anchor="middle" font-size="14" fill="#64748b">Adapter compatibility depends on each site's current DOM and composer behavior.</text>
+  </g>
+</svg>
