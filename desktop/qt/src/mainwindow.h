@@ -35,6 +35,8 @@ class MainWindow final : public QMainWindow {
   [[nodiscard]] int runCount() const;
   [[nodiscard]] QStringList recentRunSummaries(int limit = 5) const;
   void planAction(const QString &query);
+  void planWorkflow(const QString &query);
+  void reviewWorkflowStep(const QJsonObject &actionPlan);
 
   struct ServerProfile {
     QString id;
@@ -69,6 +71,9 @@ class MainWindow final : public QMainWindow {
   void actionPlanStarted(const QString &query);
   void actionPlanPrepared(const QString &summary);
   void actionPlanFailed(const QString &message);
+  void workflowPlanStarted(const QString &query);
+  void workflowPlanPrepared(const QString &summary, const QJsonObject &plan);
+  void workflowPlanFailed(const QString &message);
 
  private:
   void buildUi();
@@ -104,6 +109,8 @@ class MainWindow final : public QMainWindow {
   void ensureActionRouterConnections();
   void clearActionPlanReview();
   void applyActionPlan(const QJsonObject &plan);
+  void ensureWorkflowPlannerConnections();
+  void applyWorkflowPlan(const QJsonObject &plan);
   void handleGlobalSearch(const QString &query);
   void executeGlobalCommand();
   void openSettingsDialog();
@@ -181,6 +188,7 @@ class MainWindow final : public QMainWindow {
   QString activeConnectionName_;
   QString plannedToolName_;
   QString latestActionPlanId_;
+  QString latestWorkflowPlanId_;
   QStringList logLines_;
   QList<ServerProfile> serverProfiles_;
   QList<RunRecord> runHistory_;
@@ -192,5 +200,7 @@ class MainWindow final : public QMainWindow {
   QHash<QString, QJsonObject> fieldSchemas_;
   QSet<QString> requiredFields_;
   QSet<QString> pendingActionPlanIds_;
+  QSet<QString> pendingWorkflowPlanIds_;
   bool actionRouterSignalsConnected_ = false;
+  bool workflowPlannerSignalsConnected_ = false;
 };

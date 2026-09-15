@@ -2,6 +2,7 @@
 #include "mainwindow.h"
 #include "mcpbridgeprocess.h"
 #include "onboardingdialog.h"
+#include "workflowreviewdialog.h"
 #include "workspacedashboard.h"
 
 #include <QAction>
@@ -74,6 +75,8 @@ int main(int argc, char *argv[]) {
   workspaceStack->addWidget(actionsWorkspace);
   window.setCentralWidget(workspaceStack);
 
+  auto *workflowReview = new WorkflowReviewDialog(&window);
+
   auto *workspaceToolbar = window.addToolBar(QStringLiteral("Workspace"));
   workspaceToolbar->setObjectName(QStringLiteral("workspaceToolbar"));
   workspaceToolbar->setMovable(false);
@@ -105,6 +108,8 @@ int main(int argc, char *argv[]) {
   QObject::connect(actionsAction, &QAction::triggered, &window, showActions);
   QObject::connect(dashboard, &WorkspaceDashboard::browseActionsRequested, &window, showActions);
   QObject::connect(dashboard, &WorkspaceDashboard::actionQueryRequested, &window, &MainWindow::planAction);
+  QObject::connect(dashboard, &WorkspaceDashboard::workflowQueryRequested, &window, &MainWindow::planWorkflow);
+
   QObject::connect(&window, &MainWindow::actionPlanStarted, dashboard,
                    [dashboard](const QString &) {
                      dashboard->setActionRouterStatus(
@@ -120,6 +125,28 @@ int main(int argc, char *argv[]) {
   QObject::connect(&window, &MainWindow::actionPlanFailed, dashboard,
                    [dashboard](const QString &message) { dashboard->setActionRouterStatus(message, false); });
 
+  QObject::connect(&window, &MainWindow::workflowPlanStarted, dashboard,
+                   [dashboard](const QString &) {
+                     dashboard->setActionRouterStatus(
+                         QStringLiteral("Planning ordered workflow steps and policy previews... Nothing has run."), true);
+                   });
+  QObject::connect(&window, &MainWindow::workflowPlanPrepared, dashboard,
+                   [dashboard, workflowReview](const QString &summary, const QJsonObject &plan) {
+                     dashboard->setActionRouterStatus(
+                         QStringLiteral("Workflow prepared for review: %1").arg(summary), false);
+                     workflowReview->setPlan(plan);
+                     workflowReview->show();
+                     workflowReview->raise();
+                     workflowReview->activateWindow();
+                   });
+  QObject::connect(&window, &MainWindow::workflowPlanFailed, dashboard,
+                   [dashboard](const QString &message) { dashboard->setActionRouterStatus(message, false); });
+  QObject::connect(workflowReview, &WorkflowReviewDialog::reviewActionRequested, &window,
+                   [&window, showActions](const QJsonObject &actionPlan) {
+                     showActions();
+                     window.reviewWorkflowStep(actionPlan);
+                   });
+
   auto *conversationDock = new QDockWidget(QStringLiteral("Conversation"), &window);
   conversationDock->setObjectName(QStringLiteral("conversationDock"));
   conversationDock->setAllowedAreas(Qt::RightDockWidgetArea | Qt::BottomDockWidgetArea);
@@ -133,6 +160,12 @@ int main(int argc, char *argv[]) {
   QMenu *viewMenu = window.menuBar()->addMenu(QStringLiteral("View"));
   viewMenu->addAction(homeAction);
   viewMenu->addAction(actionsAction);
+  QAction *workflowReviewAction = viewMenu->addAction(QStringLiteral("Workflow Review..."));
+  QObject::connect(workflowReviewAction, &QAction::triggered, workflowReview,
+                   [workflowReview]() {
+                     workflowReview->show();
+                     workflowReview->raise();
+                   });
   viewMenu->addSeparator();
   QAction *conversationAction = conversationDock->toggleViewAction();
   conversationAction->setText(QStringLiteral("Conversation"));

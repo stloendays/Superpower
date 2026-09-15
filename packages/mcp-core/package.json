@@ -16,6 +16,7 @@
     "type-check": "tsc --noEmit",
     "test:router": "node scripts/tool-router-smoke.mjs",
     "test:planner": "node scripts/action-planner-smoke.mjs",
+    "test:workflow": "node scripts/workflow-planner-smoke.mjs",
     "test:policy": "node scripts/execution-policy-smoke.mjs",
     "prettier": "prettier . --write --ignore-path ../../.prettierignore"
   },
