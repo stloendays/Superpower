@@ -1,26 +1,65 @@
-name: Formating validation
+name: Code quality
 
 on:
   pull_request:
   push:
-    branches: [ main, dev ]
+    branches: [main, dev]
+
+permissions:
+  contents: read
 
 jobs:
-  prettier:
-    name: Prettier Check
+  quality:
+    name: TypeScript and formatting
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout Repository
-        uses: actions/checkout@v4
-      - name: Run Prettier
-        id: prettier-run
-        uses: rutajdash/prettier-cli-action@v1.0.0
+      - name: Checkout repository
+        uses: actions/checkout@v7
         with:
-          config_path: ./.prettierrc
-          file_pattern: "*.{js,jsx,ts,tsx,json}"
-      - name: Prettier Output
-        if: ${{ failure() }}
+          fetch-depth: 0
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version-file: '.nvmrc'
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile --prefer-offline
+
+      - name: Type-check content script
+        run: pnpm -F @extension/content-script type-check
+
+      - name: Check formatting for changed files
         shell: bash
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          PR_BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          PUSH_BEFORE_SHA: ${{ github.event.before }}
         run: |
-          echo "The following files aren't formatted properly:"
-          echo "${{steps.prettier-run.outputs.prettier_output}}"
+          if [[ "$EVENT_NAME" == "pull_request" ]]; then
+            BASE_SHA="$PR_BASE_SHA"
+          else
+            BASE_SHA="$PUSH_BEFORE_SHA"
+          fi
+
+          if [[ -z "$BASE_SHA" || "$BASE_SHA" =~ ^0+$ ]]; then
+            BASE_SHA="$(git rev-parse HEAD^)"
+          fi
+
+          mapfile -t files < <(
+            git diff --name-only --diff-filter=ACMR "$BASE_SHA" "$GITHUB_SHA" -- \
+              '*.js' '*.jsx' '*.ts' '*.tsx' '*.json' '*.md' '*.yml' '*.yaml'
+          )
+
+          if (( ${#files[@]} == 0 )); then
+            echo "No changed files require Prettier validation."
+            exit 0
+          fi
+
+          printf 'Checking %d changed file(s):\n' "${#files[@]}"
+          printf ' - %s\n' "${files[@]}"
+          pnpm exec prettier --check "${files[@]}"
