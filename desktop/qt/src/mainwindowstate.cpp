@@ -4,6 +4,7 @@
 
 #include <QComboBox>
 #include <QLabel>
+#include <QtGlobal>
 
 bool MainWindow::isMcpConnected() const {
   return bridge_ && bridge_->isRunning();
