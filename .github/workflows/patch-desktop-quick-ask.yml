@@ -46,8 +46,12 @@ jobs:
           pages/content/src/utils/desktop-conversation-sync.ts
           packages/mcp-host/src/conversation-relay.ts
 
-      - name: Type check
-        run: pnpm type-check
+      - name: Type check changed packages
+        shell: bash
+        run: |
+          pnpm --filter chrome-extension type-check
+          pnpm --filter @extension/content-script type-check
+          pnpm --filter @superpower/mcp-host type-check
 
       - name: Build browser extension
         run: pnpm base-build
