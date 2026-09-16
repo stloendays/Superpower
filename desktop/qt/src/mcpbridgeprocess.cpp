@@ -180,6 +180,11 @@ void McpBridgeProcess::handleProtocolLine(const QByteArray &line) {
     if (!event.isEmpty()) emit conversationEvent(event);
     return;
   }
+  if (type == QStringLiteral("provider")) {
+    const QString provider = object.value(QStringLiteral("provider")).toString().trimmed();
+    if (!provider.isEmpty()) emit providerStatus(provider);
+    return;
+  }
 
   const QString id = object.value(QStringLiteral("id")).toVariant().toString();
   const QString method = pendingMethods_.take(id);
