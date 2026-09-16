@@ -27,6 +27,7 @@ signals:
 private:
   QString currentVersion() const;
   bool isNewerVersion(const QString &candidate) const;
+  bool isManagedInstall() const;
   void fetchChecksumAndPackage();
   void downloadPackage();
   void fail(const QString &message);
@@ -37,7 +38,8 @@ private:
   QUrl packageUrl_;
   QUrl checksumsUrl_;
   QByteArray expectedSha256_;
-  QString downloadedArchive_;
+  QString downloadedPackage_;
+  bool packageIsInstaller_{false};
   bool checking_{false};
   bool downloading_{false};
   bool userInitiated_{false};
