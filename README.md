@@ -6,8 +6,8 @@
   <p><strong>One MCP layer for browser AI and native desktop workflows.</strong></p>
 
   <p>
-    <a href="https://github.com/stloendays/Superpower-V1/stargazers"><img src="https://img.shields.io/github/stars/stloendays/Superpower-V1?style=flat-square&logo=github&label=Stars" alt="GitHub stars" /></a>
-    <a href="https://github.com/stloendays/Superpower-V1/releases/tag/v1.4.0"><img src="https://img.shields.io/badge/stable-v1.4.0-111827?style=flat-square" alt="Stable release v1.4.0" /></a>
+    <a href="https://github.com/stloendays/Superpower/stargazers"><img src="https://img.shields.io/github/stars/stloendays/Superpower?style=flat-square&logo=github&label=Stars" alt="GitHub stars" /></a>
+    <a href="https://github.com/stloendays/Superpower/releases/tag/v1.4.0"><img src="https://img.shields.io/badge/stable-v1.4.0-111827?style=flat-square" alt="Stable release v1.4.0" /></a>
     <img src="https://img.shields.io/badge/development-V1.5-6B7280?style=flat-square" alt="V1.5 development" />
     <img src="https://img.shields.io/badge/Protocol-MCP-4F46E5?style=flat-square" alt="Model Context Protocol" />
     <a href="LICENSE"><img src="https://img.shields.io/badge/License-MIT-16A34A?style=flat-square" alt="MIT License" /></a>
@@ -158,7 +158,7 @@ The browser extension currently supports ChatGPT, Google Gemini, Perplexity, Goo
 
 ### Browser Extension
 
-1. Download the [latest release](https://github.com/stloendays/Superpower-V1/releases/latest).
+1. Download the [latest release](https://github.com/stloendays/Superpower/releases/latest).
 2. Extract it and run `Install-Superpower.cmd`.
 3. Open `chrome://extensions/` and enable **Developer mode**.
 4. Select **Load unpacked** and choose the generated `dist/` folder.
@@ -167,7 +167,7 @@ See [`docs/install/windows-extension.md`](docs/install/windows-extension.md) for
 
 ### Desktop App
 
-1. Open the [latest release](https://github.com/stloendays/Superpower-V1/releases/latest).
+1. Open the [latest release](https://github.com/stloendays/Superpower/releases/latest).
 2. Download `Superpower-Desktop-*-Windows-x64.zip`.
 3. Extract the archive and launch the packaged desktop application.
 
@@ -176,8 +176,8 @@ See [`docs/install/windows-extension.md`](docs/install/windows-extension.md) for
 Requirements: **Node.js 22.12+**, **pnpm 9.x**, and a Chromium-based browser.
 
 ```bash
-git clone https://github.com/stloendays/Superpower-V1.git
-cd Superpower-V1
+git clone https://github.com/stloendays/Superpower.git
+cd Superpower
 pnpm install
 pnpm base-build
 ```
@@ -198,7 +198,7 @@ pnpm lint         # Lint
 The repository root is intentionally kept as an entry surface: standard project documents, workspace/build configuration, and the main product directories stay visible; implementation helpers and optional examples live under dedicated folders.
 
 ```text
-Superpower-V1/
+Superpower/
 ├── chrome-extension/          # Browser extension shell and background integration
 ├── desktop/                   # Native Qt desktop application and desktop examples
 ├── docs/                      # Documentation, install guides and README/site assets
