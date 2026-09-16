@@ -6,6 +6,7 @@ on:
       - main
     paths:
       - .github/workflows/patch-desktop-quick-ask.yml
+      - scripts/patch-desktop-quick-ask.py
   workflow_dispatch:
 
 permissions:
