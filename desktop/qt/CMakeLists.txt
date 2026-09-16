@@ -29,6 +29,7 @@ qt_add_executable(superpower-desktop
   src/workflowreviewdialog.h
   src/updatemanager.cpp
   src/updatemanager.h
+  src/desktopfeatures.cpp
   resources.qrc
 )
 
