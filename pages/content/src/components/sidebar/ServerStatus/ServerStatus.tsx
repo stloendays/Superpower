@@ -31,6 +31,8 @@ const TRANSPORT_LABELS: Record<ConnectionType, string> = {
   websocket: 'WebSocket',
 };
 
+const LOCAL_DEFAULT_URI = 'http://localhost:3006/mcp';
+
 const recentConnectionLabel = (connection: RecentConnection): string => {
   try {
     const url = new URL(connection.uri);
@@ -316,6 +318,19 @@ const ServerStatus: React.FC<ServerStatusProps> = ({ status: initialStatus }) =>
     setAuthNotImported(parsed.value.ignoredAuth);
   }, []);
 
+  const useLocalDefault = useCallback(() => {
+    setServerUri(LOCAL_DEFAULT_URI);
+    setConnectionType('streamable-http');
+    setManualTransport(false);
+    setIsEditingUri(true);
+    setLocalError('');
+    setRawConnectionError('');
+    setDiagnosis(null);
+    setRepairNotice('');
+    setRecognizedLabel('Local MCP');
+    setAuthNotImported(false);
+  }, []);
+
   const statusPresentation = useMemo(() => {
     if (busy) {
       return {
@@ -332,7 +347,7 @@ const ServerStatus: React.FC<ServerStatusProps> = ({ status: initialStatus }) =>
         title: 'MCP ready',
         message:
           toolCount > 0
-            ? `${toolCount} tool${toolCount === 1 ? '' : 's'} available. Superpower will choose relevant tools automatically as you type.`
+            ? `${toolCount} tool${toolCount === 1 ? '' : 's'} available. Review Available Tools, then start with a read-only request.`
             : 'Connected. Superpower is ready to load tools from this server.',
         icon: 'check' as const,
         iconClass: 'text-emerald-600 dark:text-emerald-400',
@@ -461,6 +476,24 @@ const ServerStatus: React.FC<ServerStatusProps> = ({ status: initialStatus }) =>
                 {busy ? 'Connecting…' : 'Connect'}
               </Button>
             </div>
+
+            {serverUri.trim() !== LOCAL_DEFAULT_URI && (
+              <div className="mt-2 flex items-center justify-between gap-2 rounded-md border border-blue-100 bg-blue-50 px-2.5 py-2 dark:border-blue-900/40 dark:bg-blue-950/20">
+                <div className="min-w-0">
+                  <div className="text-[10px] font-medium text-blue-800 dark:text-blue-200">Using the local Superpower proxy?</div>
+                  <div className="mt-0.5 truncate text-[10px] text-blue-700/80 dark:text-blue-300/80">
+                    Streamable HTTP · localhost:3006/mcp
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={useLocalDefault}
+                  disabled={busy}
+                  className="shrink-0 rounded-md border border-blue-200 bg-white px-2 py-1 text-[10px] font-medium text-blue-700 hover:bg-blue-100 disabled:opacity-50 dark:border-blue-800 dark:bg-slate-900 dark:text-blue-300 dark:hover:bg-blue-950/40">
+                  Use local default
+                </button>
+              </div>
+            )}
 
             {(recognizedLabel || jsonPreview) && !authNotImported && (
               <div className="mt-2 flex items-center gap-1.5 rounded-md bg-emerald-50 px-2 py-1.5 text-[10px] text-emerald-700 dark:bg-emerald-900/20 dark:text-emerald-300">
