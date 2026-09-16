@@ -6,8 +6,9 @@ set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 set(CMAKE_AUTOMOC ON)
+set(CMAKE_AUTORCC ON)
 
-find_package(Qt6 6.4 REQUIRED COMPONENTS Widgets)
+find_package(Qt6 6.4 REQUIRED COMPONENTS Widgets Network)
 
 qt_add_executable(superpower-desktop
   src/main.cpp
@@ -26,9 +27,12 @@ qt_add_executable(superpower-desktop
   src/workspacedashboard.h
   src/workflowreviewdialog.cpp
   src/workflowreviewdialog.h
+  src/updatemanager.cpp
+  src/updatemanager.h
+  resources.qrc
 )
 
-target_link_libraries(superpower-desktop PRIVATE Qt6::Widgets)
+target_link_libraries(superpower-desktop PRIVATE Qt6::Widgets Qt6::Network)
 
 target_compile_definitions(superpower-desktop PRIVATE
   SUPERPOWER_DESKTOP_VERSION="${PROJECT_VERSION}"
