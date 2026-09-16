@@ -26,6 +26,7 @@
     <a href="#supported-platforms">Platforms</a> ·
     <a href="#how-it-works">Architecture</a> ·
     <a href="#quick-start">Quick start</a> ·
+    <a href="docs/usage/browser-extension.md">Operation guide</a> ·
     <a href="#repository-layout">Repository</a>
   </p>
 </div>
@@ -182,6 +183,8 @@ The browser extension currently supports ChatGPT, Google Gemini, Perplexity, Goo
 
 > **Connection compatibility:** new local setups default to Streamable HTTP. Explicit legacy SSE endpoints such as `http://localhost:3006/sse` and WebSocket endpoints remain supported. Existing saved connection settings are not overwritten.
 
+**New to Superpower?** Follow the [Browser Extension Operation Guide](docs/usage/browser-extension.md) for the full connect → inspect tools → review instructions → run a safe first task workflow. The same guide also explains how to test an unpacked local build without publishing it to the Chrome Web Store.
+
 For manual or development installation, see [`docs/install/windows-extension.md`](docs/install/windows-extension.md).
 
 ### Desktop App
@@ -201,7 +204,7 @@ pnpm install
 pnpm base-build
 ```
 
-Configure an MCP proxy, start it with your preferred transport, then load `dist/` as an unpacked extension.
+Configure an MCP proxy, start it with your preferred transport, then load `dist/` as an unpacked extension. For the exact reload-and-refresh loop used during development, see [Test a local build without publishing](docs/usage/browser-extension.md#test-a-local-build-without-publishing).
 
 ## Development
 
