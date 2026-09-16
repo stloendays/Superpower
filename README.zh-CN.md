@@ -77,6 +77,9 @@
 
 ### 桌面应用
 
+**指南：** [桌面端使用与 Quick Ask](docs/usage/desktop-app.zh-CN.md)
+
+
 在浏览器之外，把 Superpower 作为原生 MCP 工作台使用。
 
 - 原生 **Qt 6** Windows 应用

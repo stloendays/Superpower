@@ -77,6 +77,9 @@ Bring MCP tools directly into supported AI websites without leaving the conversa
 
 ### Desktop App
 
+**Guide:** [Desktop usage and Quick Ask](docs/usage/desktop-app.md)
+
+
 Use Superpower as a native MCP workspace outside the browser.
 
 - Native **Qt 6** Windows application

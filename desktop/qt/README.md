@@ -130,3 +130,13 @@ The packaged app auto-detects those bundled runtimes and prepends the Node runti
 - Local stdio servers inherit the MCP host process environment.
 - Authenticated remote-server configuration should continue to use the host's environment-reference model; a dedicated secret-aware desktop configuration UI is preferable to storing raw tokens.
 - The portable build is not code-signed yet; code signing and an installer are release-engineering follow-ups.
+
+## Desktop Quick Ask and user guide
+
+The Conversation dock now includes a **Quick Ask** bar. With the Superpower browser extension active on ChatGPT, a desktop prompt is routed through the loopback conversation relay (`127.0.0.1:32148`) into the active ChatGPT tab and the resulting conversation is mirrored back into Desktop.
+
+This conversation relay is independent of the MCP endpoint. The standard local MCP proxy remains `http://localhost:3006/mcp`.
+
+- [Desktop guide](../../docs/usage/desktop-app.md)
+- [Chinese desktop guide](../../docs/usage/desktop-app.zh-CN.md)
+

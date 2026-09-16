@@ -9,10 +9,12 @@
 #include <QActionGroup>
 #include <QApplication>
 #include <QCoreApplication>
+#include <QDesktopServices>
 #include <QDir>
 #include <QDockWidget>
 #include <QFileInfo>
 #include <QFont>
+#include <QJsonObject>
 #include <QKeySequence>
 #include <QMenu>
 #include <QMenuBar>
@@ -21,6 +23,7 @@
 #include <QStandardPaths>
 #include <QTimer>
 #include <QToolBar>
+#include <QUrl>
 
 namespace {
 QString findDefaultNodeProgram() {
@@ -210,6 +213,11 @@ int main(int argc, char *argv[]) {
                      showActions();
                      onboarding->showForCurrentState();
                    });
+  QAction *desktopGuideAction = helpMenu->addAction(QStringLiteral("Desktop Guide..."));
+  QObject::connect(desktopGuideAction, &QAction::triggered, &window, []() {
+    QDesktopServices::openUrl(
+        QUrl(QStringLiteral("https://github.com/stloendays/Superpower/blob/main/docs/usage/desktop-app.md")));
+  });
   QObject::connect(dashboard, &WorkspaceDashboard::gettingStartedRequested, &window,
                    [onboarding, showActions]() {
                      showActions();
@@ -217,6 +225,34 @@ int main(int argc, char *argv[]) {
                    });
 
   auto *conversationRelay = new McpBridgeProcess(&window);
+  QObject::connect(conversation, &ConversationWindow::promptSubmitted, &window,
+                   [conversation, conversationDock, conversationRelay](const QString &text) {
+                     conversationDock->show();
+                     conversationDock->raise();
+                     const QString requestId = conversationRelay->sendRequest(
+                         QStringLiteral("submit_prompt"), QJsonObject{{QStringLiteral("text"), text}});
+                     if (requestId.isEmpty()) {
+                       conversation->setPromptStatus(
+                           QStringLiteral("Quick Ask unavailable - the local conversation relay is not running."), false);
+                       return;
+                     }
+                     conversation->setPromptStatus(
+                         QStringLiteral("Waiting for the active ChatGPT tab to accept the prompt..."), false);
+                   });
+  QObject::connect(conversationRelay, &McpBridgeProcess::responseReceived, conversation,
+                   [conversation](const QString &, const QString &method, const QJsonValue &result) {
+                     if (method != QStringLiteral("submit_prompt")) return;
+                     const QString message = result.toObject().value(QStringLiteral("message")).toString();
+                     conversation->setPromptStatus(
+                         message.isEmpty() ? QStringLiteral("Quick Ask sent to ChatGPT.") : message, true);
+                   });
+  QObject::connect(conversationRelay, &McpBridgeProcess::requestFailed, conversation,
+                   [conversation](const QString &, const QString &method, const QString &, const QString &message,
+                                  const QJsonObject &) {
+                     if (method != QStringLiteral("submit_prompt")) return;
+                     conversation->setPromptStatus(
+                         QStringLiteral("Quick Ask failed - %1").arg(message), false);
+                   });
   dashboard->setConversationRelayStatus(QStringLiteral("Starting local conversation relay..."), false);
   QObject::connect(conversationRelay, &McpBridgeProcess::bridgeReady, conversation,
                    [conversation, dashboard](const QString &transport) {
@@ -224,6 +260,8 @@ int main(int argc, char *argv[]) {
                      const QString status =
                          QStringLiteral("Listening locally on 127.0.0.1:32148 · no MCP server connection required.");
                      conversation->setRelayStatus(status, true);
+                     conversation->setPromptStatus(
+                         QStringLiteral("Quick Ask ready - prompts are sent to the active ChatGPT tab."), true);
                      dashboard->setConversationRelayStatus(status, true);
                    });
   QObject::connect(conversationRelay, &McpBridgeProcess::conversationEvent, &window,

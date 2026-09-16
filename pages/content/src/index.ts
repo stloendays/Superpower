@@ -6,6 +6,7 @@
  */
 
 import './tailwind-input.css';
+import './utils/desktop-conversation-sync';
 import { logMessage } from '@src/utils/helpers';
 import { mcpClient } from './core/mcp-client';
 import { eventBus } from './events/event-bus';
@@ -346,7 +347,6 @@ function collectDemographicData(): { [key: string]: any } {
       (window as any).appInitUtils = initializationUtils;
       logMessage('Initialization utilities exposed on window.appInitUtils');
     }
-
   } catch (error) {
     logger.error('Failed to initialize application with Session 10 architecture:', error);
 
@@ -372,9 +372,9 @@ eventBus.on('connection:status-changed', ({ status }: { status: ConnectionStatus
   const currentAdapterReg = adapterStore.getActiveAdapter();
   if (currentAdapterReg && currentAdapterReg.instance) {
     // Emit adapter connection status update event
-    eventBus.emit('adapter:connection-status-changed', { 
-      isConnected, 
-      adapterId: adapterStore.activeAdapterName 
+    eventBus.emit('adapter:connection-status-changed', {
+      isConnected,
+      adapterId: adapterStore.activeAdapterName,
     });
     (window as any).mcpAdapter = currentAdapterReg.instance;
   }
@@ -433,76 +433,76 @@ if (document.readyState === 'loading') {
 // Remote Config message handler
 function handleRemoteConfigMessage(message: any, sendResponse: (response: any) => void): void {
   logger.debug(`Processing Remote Config message: ${message.type}`);
-  
+
   try {
     switch (message.type) {
       case 'remote-config:feature-flags-updated': {
         const { flags, timestamp } = message.data;
         logger.debug(`Received feature flags update: ${Object.keys(flags).length} flags`);
-        
+
         // Update config store
         const configStore = useConfigStore.getState();
         configStore.updateFeatureFlags(flags);
-        
+
         // Emit event
         eventBus.emit('feature-flags:updated', { flags, timestamp });
-        
+
         sendResponse({ success: true, timestamp: Date.now() });
         break;
       }
-      
+
       case 'remote-config:notifications-received': {
         const { notifications, timestamp } = message.data;
         logger.debug(`Received notifications: ${notifications.length} notifications`);
-        
+
         // Process notifications through the UI store
         const uiStore = useUIStore.getState();
         const configStore = useConfigStore.getState();
-        
+
         for (const notification of notifications) {
           if (configStore.canShowNotification(notification)) {
             uiStore.addRemoteNotification(notification);
           }
         }
-        
+
         sendResponse({ success: true, processed: notifications.length, timestamp: Date.now() });
         break;
       }
-      
+
       case 'remote-config:version-config-updated': {
         const { config, timestamp } = message.data;
         logger.debug('[Content] Received version-specific config update');
-        
+
         // Emit event for version config update
-        eventBus.emit('remote-config:updated', { 
-          changes: ['version_config'], 
-          timestamp 
+        eventBus.emit('remote-config:updated', {
+          changes: ['version_config'],
+          timestamp,
         });
-        
+
         sendResponse({ success: true, timestamp: Date.now() });
         break;
       }
-      
+
       case 'remote-config:adapter-configs-updated': {
         const { adapterConfigs, timestamp } = message.data;
         logger.debug(`Received adapter configs update: ${Object.keys(adapterConfigs).length} adapters`);
-        
+
         // Emit event for adapter config updates
-        eventBus.emit('remote-config:adapter-configs-updated', { 
-          adapterConfigs, 
-          timestamp 
+        eventBus.emit('remote-config:adapter-configs-updated', {
+          adapterConfigs,
+          timestamp,
         });
-        
+
         // Also emit general remote config updated event for backward compatibility
-        eventBus.emit('remote-config:updated', { 
-          changes: Object.keys(adapterConfigs).map(name => `${name}_adapter_config`), 
-          timestamp 
+        eventBus.emit('remote-config:updated', {
+          changes: Object.keys(adapterConfigs).map(name => `${name}_adapter_config`),
+          timestamp,
         });
-        
+
         sendResponse({ success: true, timestamp: Date.now() });
         break;
       }
-      
+
       default:
         logger.warn(`Unknown remote config message type: ${message.type}`);
         sendResponse({ success: false, error: `Unknown message type: ${message.type}` });
@@ -519,17 +519,17 @@ function handleVersionUpdate(message: any, sendResponse: (response: any) => void
   try {
     const { oldVersion, newVersion, timestamp } = message.data;
     logger.debug(`Extension updated from ${oldVersion} to ${newVersion}`);
-    
+
     // Update config store with new version
     const configStore = useConfigStore.getState();
-    configStore.setUserProperties({ 
+    configStore.setUserProperties({
       extensionVersion: newVersion,
-      lastActiveDate: new Date().toISOString()
+      lastActiveDate: new Date().toISOString(),
     });
-    
+
     // Emit version update event
     eventBus.emit('app:version-updated', { oldVersion, newVersion, timestamp });
-    
+
     sendResponse({ success: true, timestamp: Date.now() });
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : String(error);
@@ -541,7 +541,7 @@ function handleVersionUpdate(message: any, sendResponse: (response: any) => void
 // Listen for messages from the background script
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   logMessage(`Message received in content script: ${JSON.stringify(message)}`); // Log all incoming messages
-  
+
   // Use the new plugin system to get current adapter
   const adapterStore = useAdapterStore.getState();
   const currentAdapterReg = adapterStore.getActiveAdapter();
@@ -624,7 +624,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       logMessage('Cannot configure renderer: Not initialized.');
       sendResponse({ success: false, error: 'Renderer not initialized' });
     }
-  } 
+  }
   // Remote Config message handling
   else if (message.type && message.type.startsWith('remote-config:')) {
     handleRemoteConfigMessage(message, sendResponse);
@@ -643,17 +643,17 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 // Handle page unload to clean up resources (Session 10)
 window.addEventListener('beforeunload', async () => {
   logMessage('Page unloading - starting comprehensive cleanup...');
-  
+
   try {
     // Cleanup all services first
     await cleanupAllServices();
-    
+
     // Use the comprehensive cleanup from Session 10
     await applicationCleanup();
-    
+
     // Legacy adapter cleanup is now handled by the plugin system cleanup
     // The applicationCleanup() already handles all plugin cleanup
-    
+
     logMessage('Comprehensive cleanup completed');
   } catch (error) {
     logger.error('Error during comprehensive cleanup:', error);

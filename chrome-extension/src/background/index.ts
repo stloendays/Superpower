@@ -1,4 +1,5 @@
 import 'webextension-polyfill';
+import './desktop-conversation-forwarder';
 import { exampleThemeStorage } from '@extension/storage';
 import { RemoteConfigManager } from './remote-config-manager';
 import {
@@ -13,7 +14,7 @@ import {
   normalizeToolsFromPrimitives as normalizeTools,
   createMcpClient,
   type TransportType,
-  type ConnectionRequest
+  type ConnectionRequest,
 } from '../mcpclient/index';
 import { sendAnalyticsEvent, trackError, collectDemographicData } from '../../utils/analytics';
 import { analyticsService } from '../../utils/analytics-service';
@@ -34,7 +35,7 @@ import type {
   ConnectionStatusChangedBroadcast,
   ToolUpdateBroadcast,
   ServerConfigUpdatedBroadcast,
-  HeartbeatResponseBroadcast
+  HeartbeatResponseBroadcast,
 } from '../../../pages/content/src/types/messages';
 import { createLogger } from '@extension/shared/lib/logger';
 
@@ -67,26 +68,27 @@ let isInitialized: boolean = false;
 async function initializeServerConfig(): Promise<void> {
   try {
     const result = await chrome.storage.local.get(['mcpServerUrl', 'mcpConnectionType']);
-    
+
     // Load connection type first to determine default URL
     connectionType = (result.mcpConnectionType as ConnectionType) || DEFAULT_CONNECTION_TYPE;
-    const defaultUrl = connectionType === 'websocket' 
-      ? DEFAULT_WEBSOCKET_URL 
-      : connectionType === 'streamable-http'
-        ? DEFAULT_STREAMABLE_HTTP_URL
-        : DEFAULT_SSE_URL;
-    
+    const defaultUrl =
+      connectionType === 'websocket'
+        ? DEFAULT_WEBSOCKET_URL
+        : connectionType === 'streamable-http'
+          ? DEFAULT_STREAMABLE_HTTP_URL
+          : DEFAULT_SSE_URL;
+
     serverUrl = result.mcpServerUrl || defaultUrl;
     isInitialized = true;
-    
+
     logger.debug('[Background] Server config loaded from storage:', {
       url: serverUrl,
-      type: connectionType
+      type: connectionType,
     });
   } catch (error) {
     logger.warn('[Background] Failed to load server config from storage, using defaults:', error);
     connectionType = DEFAULT_CONNECTION_TYPE;
-    serverUrl = DEFAULT_SSE_URL;
+    serverUrl = DEFAULT_STREAMABLE_HTTP_URL;
     isInitialized = true;
   }
 }
@@ -167,11 +169,11 @@ const MAX_CONNECTION_ATTEMPTS = 3;
 
 /**
  * Enhanced error categorization for better tool vs connection error distinction
- * 
+ *
  * This function analyzes error messages to determine whether an error indicates
  * a connection problem (server unavailable) or a tool-specific issue (tool not found, invalid args, etc.)
  * This helps prevent unnecessary disconnection states when only tool execution fails.
- * 
+ *
  * @param error - The error to categorize
  * @returns Object containing categorization flags and category string
  */
@@ -223,14 +225,14 @@ function categorizeToolError(error: Error): { isConnectionError: boolean; isTool
 
 /**
  * Initialize the extension
- * 
+ *
  * This function is called once when the extension starts and handles:
  * - Theme initialization
  * - Server URL loading from storage
  * - Initial connection status check and broadcast
  * - Asynchronous server connection attempt if needed
  * - Initial tools fetching and broadcast if connected
- * 
+ *
  * The initialization is designed to be non-blocking and resilient to failures.
  */
 async function initializeExtension() {
@@ -266,9 +268,9 @@ async function initializeExtension() {
   // After initialization is complete, attempt connection and broadcast initial status immediately
   const checkInitialConnectionStatus = async () => {
     const serverUrl = getServerUrl();
-    
+
     logger.debug(`Attempting initial connection to ${serverUrl} with transport: ${connectionType}`);
-    
+
     // Try to connect to the server immediately
     let isConnected = false;
     try {
@@ -280,40 +282,40 @@ async function initializeExtension() {
       logger.debug(`Initial connection attempt failed: ${error instanceof Error ? error.message : String(error)}`);
       isConnected = false;
     }
-    
+
     // Update and broadcast the actual connection status
     updateConnectionStatus(isConnected);
     broadcastConnectionStatusToContentScripts(isConnected);
-    
+
     logger.debug(`Initial connection status broadcast: ${isConnected ? 'connected' : 'disconnected'}`);
-    
+
     // If connected, also broadcast tools
     if (isConnected) {
       try {
         logger.debug('[Background] Server connected, fetching and broadcasting initial tools...');
         const primitives = await getPrimitivesWithBackwardsCompatibility(serverUrl, false, connectionType);
         logger.debug(`Retrieved ${primitives.length} primitives for initial broadcast`);
-        
+
         const tools = normalizeTools(primitives);
         logger.debug(`Broadcasting ${tools.length} normalized initial tools`);
-        
+
         broadcastToolsUpdateToContentScripts(tools);
       } catch (error) {
         logger.warn('[Background] Error broadcasting initial tools:', error);
       }
     }
   };
-  
+
   // Run the initial connection attempt immediately
   checkInitialConnectionStatus();
 }
 
 /**
  * Try to connect to the MCP server with retry logic
- * 
+ *
  * This function is separated from extension initialization to prevent blocking
  * and includes comprehensive error handling and retry logic with exponential backoff.
- * 
+ *
  * @param uri - The MCP server URI to connect to
  * @returns Promise that resolves when connection attempt is complete (success or failure)
  */
@@ -336,21 +338,21 @@ async function tryConnectToServer(uri: string, type: ConnectionType = connection
     logger.debug('MCP client connected successfully');
     updateConnectionStatus(true);
     broadcastConnectionStatusToContentScripts(true);
-    
+
     // Also broadcast available tools after successful connection
     try {
       logger.debug('[Background] Connection successful, fetching and broadcasting tools...');
       const primitives = await getPrimitivesWithBackwardsCompatibility(uri, true, type);
       logger.debug(`Retrieved ${primitives.length} primitives after connection`);
-      
+
       const tools = normalizeTools(primitives);
       logger.debug(`Broadcasting ${tools.length} normalized tools after successful connection`);
-      
+
       broadcastToolsUpdateToContentScripts(tools);
     } catch (toolsError) {
       logger.warn('[Background] Error broadcasting tools after connection:', toolsError);
     }
-    
+
     connectionAttemptCount = 0; // Reset counter on success
   } catch (error: any) {
     const errorCategory = categorizeToolError(error instanceof Error ? error : new Error(String(error)));
@@ -403,17 +405,17 @@ setInterval(async () => {
   if (wasConnected !== isConnected) {
     logger.debug(`Connection status changed: ${wasConnected} -> ${isConnected}`);
     broadcastConnectionStatusToContentScripts(isConnected);
-    
+
     // If connected, also broadcast available tools
     if (isConnected) {
       try {
         logger.debug('[Background] Periodic check: Connection established, fetching and broadcasting tools...');
         const primitives = await getPrimitivesWithBackwardsCompatibility(getServerUrl(), true, connectionType);
         logger.debug(`Periodic check: Retrieved ${primitives.length} primitives`);
-        
+
         const tools = normalizeTools(primitives);
         logger.debug(`Periodic check: Broadcasting ${tools.length} normalized tools`);
-        
+
         broadcastToolsUpdateToContentScripts(tools);
       } catch (error) {
         logger.warn('[Background] Error broadcasting tools after status change:', error);
@@ -430,7 +432,7 @@ setInterval(async () => {
     connectionAttemptCount = 0; // Reset counter for periodic checks
     logger.debug('Periodic check: MCP server not connected, attempting to connect');
     const serverUrl = getServerUrl();
-    
+
     // Reset the client's failure state periodically to prevent permanent disconnection
     // This is critical to fix the issue where only browser restart would work
     try {
@@ -439,7 +441,7 @@ setInterval(async () => {
     } catch (error) {
       logger.warn('[Background] Error resetting MCP connection state:', error);
     }
-    
+
     tryConnectToServer(serverUrl, connectionType).catch(() => {});
   }
 }, PERIODIC_CHECK_INTERVAL);
@@ -503,7 +505,7 @@ chrome.runtime.onInstalled.addListener(async details => {
         extension_version: currentVersion,
         install_date: installDate,
         ...demographicData,
-      }
+      },
     });
 
     // Initialize analytics user properties
@@ -524,7 +526,6 @@ chrome.runtime.onInstalled.addListener(async details => {
     if (remoteConfigManager && remoteConfigManager.initialized) {
       await remoteConfigManager.fetchConfig(true);
     }
-    
   } else if (details.reason === 'update') {
     const previousVersion = details.previousVersion || 'unknown';
     logger.debug(`Extension updated from ${previousVersion} to ${currentVersion}`);
@@ -535,7 +536,7 @@ chrome.runtime.onInstalled.addListener(async details => {
     await chrome.storage.local.set({
       version: currentVersion,
       previousVersion: previousVersion,
-      lastUpdateDate: new Date().toISOString()
+      lastUpdateDate: new Date().toISOString(),
     });
 
     // Update analytics user properties
@@ -557,22 +558,24 @@ chrome.runtime.onInstalled.addListener(async details => {
     if (remoteConfigManager && remoteConfigManager.initialized) {
       await remoteConfigManager.fetchConfig(true);
     }
-    
+
     // Broadcast version update to content scripts
     setTimeout(() => {
-      chrome.tabs.query({}, (tabs) => {
+      chrome.tabs.query({}, tabs => {
         tabs.forEach(tab => {
           if (tab.id) {
-            chrome.tabs.sendMessage(tab.id, {
-              type: 'app:version-updated',
-              data: {
-                oldVersion: previousVersion,
-                newVersion: currentVersion,
-                timestamp: Date.now()
-              }
-            }).catch(() => {
-              // Ignore errors for tabs that can't receive messages
-            });
+            chrome.tabs
+              .sendMessage(tab.id, {
+                type: 'app:version-updated',
+                data: {
+                  oldVersion: previousVersion,
+                  newVersion: currentVersion,
+                  timestamp: Date.now(),
+                },
+              })
+              .catch(() => {
+                // Ignore errors for tabs that can't receive messages
+              });
           }
         });
       });
@@ -612,20 +615,20 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     origin: message.origin || 'unknown',
     id: message.id,
     hasPayload: !!message.payload,
-    from: sender.tab ? `tab-${sender.tab.id}` : 'extension'
+    from: sender.tab ? `tab-${sender.tab.id}` : 'extension',
   });
 
   // Handle MCP client connection status changes
   if (message.type === 'mcp:connection-status-changed' && message.origin === 'mcpclient') {
     logger.debug('[Background] Received connection status change from MCP client:', message.payload);
-    
+
     // Update internal connection status
     const { isConnected, error } = message.payload;
     updateConnectionStatus(isConnected);
-    
+
     // Broadcast the status change to all content scripts
     broadcastConnectionStatusToContentScripts(isConnected, error);
-    
+
     // No response needed
     return false;
   }
@@ -673,19 +676,19 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 
 /**
  * Enhanced MCP message handler with proper error handling, type safety, and response formatting
- * 
+ *
  * @param message - The message received from the content script
  * @param sender - Chrome runtime message sender information
  * @param sendResponse - Callback function to send response back to sender
  */
 async function handleMcpMessage(
-  message: RequestMessage, 
-  sender: chrome.runtime.MessageSender, 
-  sendResponse: (response: ResponseMessage) => void
+  message: RequestMessage,
+  sender: chrome.runtime.MessageSender,
+  sendResponse: (response: ResponseMessage) => void,
 ) {
   const startTime = Date.now();
   const messageType = message.type as McpMessageType;
-  
+
   try {
     let result: any = null;
     const payload = message.payload || {};
@@ -707,24 +710,24 @@ async function handleMcpMessage(
 
       case 'mcp:get-connection-status': {
         logger.debug('[Background] Getting current connection status');
-        
+
         // Double-check the connection status to ensure accuracy
         const storedStatus = getConnectionStatus();
         const actualStatus = await checkMcpServerConnection();
-        
+
         logger.debug(`Stored status: ${storedStatus}, Actual status: ${actualStatus}`);
-        
+
         // Update stored status if they don't match
         if (storedStatus !== actualStatus) {
           logger.debug('[Background] Status mismatch detected, updating and broadcasting...');
           updateConnectionStatus(actualStatus);
           broadcastConnectionStatusToContentScripts(actualStatus);
         }
-        
-        result = { 
+
+        result = {
           status: actualStatus ? 'connected' : 'disconnected',
           isConnected: actualStatus,
-          timestamp: Date.now()
+          timestamp: Date.now(),
         };
         break;
       }
@@ -732,15 +735,19 @@ async function handleMcpMessage(
       case 'mcp:get-tools': {
         const { forceRefresh = false } = payload as GetToolsRequest;
         logger.debug(`Getting tools (forceRefresh: ${forceRefresh})`);
-        
+
         try {
-          const primitives = await getPrimitivesWithBackwardsCompatibility(getServerUrl(), forceRefresh, connectionType);
+          const primitives = await getPrimitivesWithBackwardsCompatibility(
+            getServerUrl(),
+            forceRefresh,
+            connectionType,
+          );
           logger.debug(`Retrieved ${primitives.length} primitives from server`);
-          
+
           // Use the helper function to normalize tools with proper schema handling
           const tools = normalizeTools(primitives);
           logger.debug(`Returning ${tools.length} normalized tools to content script`);
-          
+
           result = tools;
         } catch (error) {
           logger.error('[Background] Error getting tools:', error);
@@ -752,61 +759,61 @@ async function handleMcpMessage(
 
       case 'mcp:force-reconnect': {
         logger.debug('[Background] Force reconnect requested via context bridge');
-        
+
         try {
           // Broadcast reconnection started status
           broadcastConnectionStatusToContentScripts(false, 'Reconnecting...');
-          
+
           logger.debug('[Background] Starting force reconnection process...');
-          
+
           // ENHANCED: Reset connection state before attempting reconnection
           // This ensures we don't get blocked by consecutive failure limits
           resetMcpConnectionState();
-          
+
           // Set a reasonable timeout for the reconnection process
           const reconnectionPromise = forceReconnectToMcpServer(getServerUrl(), connectionType);
-          const timeoutPromise = new Promise<void>((_, reject) => 
-            setTimeout(() => reject(new Error('Reconnection timeout after 20 seconds')), 20000)
+          const timeoutPromise = new Promise<void>((_, reject) =>
+            setTimeout(() => reject(new Error('Reconnection timeout after 20 seconds')), 20000),
           );
-          
+
           await Promise.race([reconnectionPromise, timeoutPromise]);
           logger.debug('[Background] Force reconnect completed successfully');
-          
+
           // Update connection status
           const isConnected = await checkMcpServerConnection();
           updateConnectionStatus(isConnected);
-          
+
           // Broadcast the new status to all content scripts
           broadcastConnectionStatusToContentScripts(isConnected);
-          
+
           // If connected, also refresh and broadcast tools
           if (isConnected) {
             try {
               logger.debug('[Background] Fetching tools after successful reconnection...');
               const primitives = await getPrimitivesWithBackwardsCompatibility(getServerUrl(), true, connectionType);
               logger.debug(`Retrieved ${primitives.length} primitives after reconnection`);
-              
+
               const tools = normalizeTools(primitives);
               logger.debug(`Broadcasting ${tools.length} normalized tools after reconnection`);
-              
+
               broadcastToolsUpdateToContentScripts(tools);
             } catch (toolsError) {
               logger.error('[Background] Error fetching tools after reconnect:', toolsError);
             }
           }
-          
+
           result = { isConnected, message: 'Reconnection completed' };
         } catch (error) {
           logger.error('[Background] Force reconnect failed:', error);
-          
+
           // Update connection status
           const isConnected = await checkMcpServerConnection();
           updateConnectionStatus(isConnected);
-          
+
           // Broadcast the failure status
           const errorMessage = error instanceof Error ? error.message : String(error);
           broadcastConnectionStatusToContentScripts(isConnected, errorMessage);
-          
+
           result = { isConnected, error: errorMessage };
         }
         break;
@@ -820,9 +827,9 @@ async function handleMcpMessage(
             : connectionType === 'sse'
               ? DEFAULT_SSE_URL
               : DEFAULT_STREAMABLE_HTTP_URL;
-        result = { 
+        result = {
           uri: stored.mcpServerUrl || defaultUrl,
-          connectionType: stored.mcpConnectionType || connectionType
+          connectionType: stored.mcpConnectionType || connectionType,
         };
         break;
       }
@@ -839,23 +846,29 @@ async function handleMcpMessage(
         if (!newType) {
           try {
             const url = new URL(config.uri);
-            newType = (url.protocol === 'ws:' || url.protocol === 'wss:') ? 'websocket' : 'sse';
+            if (url.protocol === 'ws:' || url.protocol === 'wss:') {
+              newType = 'websocket';
+            } else if (/\/sse\/?$/i.test(url.pathname)) {
+              newType = 'sse';
+            } else {
+              newType = 'streamable-http';
+            }
           } catch {
             newType = connectionType; // fallback to current type
           }
         }
         logger.debug(`Updating server config to: ${config.uri} (${newType})`);
-        
+
         // Update storage and background script state
-        await chrome.storage.local.set({ 
+        await chrome.storage.local.set({
           mcpServerUrl: config.uri,
-          mcpConnectionType: newType
+          mcpConnectionType: newType,
         });
         updateServerConfig(config.uri, newType);
-        
+
         // Broadcast config update immediately
         broadcastConfigUpdateToContentScripts({ uri: config.uri, connectionType: newType });
-        
+
         // Start async reconnection but don't block the response
         const reconnectPromise = (async () => {
           try {
@@ -865,7 +878,7 @@ async function handleMcpMessage(
             updateConnectionStatus(isConnected);
             broadcastConnectionStatusToContentScripts(isConnected);
             logger.debug(`Async reconnection completed, connected: ${isConnected}`);
-            
+
             // If connected, fetch and broadcast tools
             if (isConnected) {
               try {
@@ -885,12 +898,12 @@ async function handleMcpMessage(
             broadcastConnectionStatusToContentScripts(isConnected, errorMessage);
           }
         })();
-        
+
         // Don't await the reconnection, just start it
         reconnectPromise.catch(error => {
           logger.error('[Background] Unhandled error in async reconnection:', error);
         });
-        
+
         result = { success: true };
         break;
       }
@@ -899,28 +912,30 @@ async function handleMcpMessage(
         // Handle heartbeat from content script
         const { timestamp } = payload;
         const isConnected = isMcpServerConnected();
-        
+
         result = {
           timestamp: Date.now(),
           isConnected,
-          receivedTimestamp: timestamp
+          receivedTimestamp: timestamp,
         };
 
         // Also broadcast heartbeat response via context bridge
         if (message.id) {
           // Send heartbeat response event to all tabs
           setTimeout(() => {
-            chrome.tabs.query({}, (tabs) => {
+            chrome.tabs.query({}, tabs => {
               tabs.forEach(tab => {
                 if (tab.id) {
-                  chrome.tabs.sendMessage(tab.id, {
-                    type: 'mcp:heartbeat-response',
-                    payload: { timestamp: Date.now(), isConnected },
-                    origin: 'background',
-                    timestamp: Date.now()
-                  }).catch(() => {
-                    // Ignore errors for tabs that can't receive messages
-                  });
+                  chrome.tabs
+                    .sendMessage(tab.id, {
+                      type: 'mcp:heartbeat-response',
+                      payload: { timestamp: Date.now(), isConnected },
+                      origin: 'background',
+                      timestamp: Date.now(),
+                    })
+                    .catch(() => {
+                      // Ignore errors for tabs that can't receive messages
+                    });
                 }
               });
             });
@@ -938,59 +953,58 @@ async function handleMcpMessage(
     logger.debug(`MCP message ${messageType} processed in ${processingTime}ms`);
 
     // Send successful response with proper structure
-    sendResponse({ 
+    sendResponse({
       type: `${messageType}:response`,
       payload: result,
       success: true,
       timestamp: Date.now(),
       processingTime,
       origin: 'background',
-      id: message.id
+      id: message.id,
     });
-    
   } catch (error) {
     const processingTime = Date.now() - startTime;
     const errorMessage = error instanceof Error ? error.message : String(error);
-    
+
     logger.error(`MCP message handling error (${processingTime}ms):`, error);
-    
+
     // Send error response with proper structure
-    sendResponse({ 
+    sendResponse({
       type: `${messageType}:response`,
       error: errorMessage,
       success: false,
       timestamp: Date.now(),
       processingTime,
       origin: 'background',
-      id: message.id
+      id: message.id,
     });
   }
 }
 
 /**
  * Broadcast connection status to all content scripts via context bridge
- * 
+ *
  * @param isConnected - Whether the MCP server is connected
  * @param error - Optional error message if connection failed
  */
 function broadcastConnectionStatusToContentScripts(isConnected: boolean, error?: string) {
-  const status = error ? 'error' : (isConnected ? 'connected' : 'disconnected');
-  
+  const status = error ? 'error' : isConnected ? 'connected' : 'disconnected';
+
   logger.debug(`Broadcasting connection status: ${status} (connected: ${isConnected})`);
-  
+
   const broadcastMessage: BaseMessage & { payload: ConnectionStatusChangedBroadcast } = {
     type: 'connection:status-changed',
     payload: {
       status: status as any, // Type assertion needed due to status calculation
       error: error || undefined,
       isConnected,
-      timestamp: Date.now()
+      timestamp: Date.now(),
     },
     origin: 'background',
-    timestamp: Date.now()
+    timestamp: Date.now(),
   };
-  
-  chrome.tabs.query({}, (tabs) => {
+
+  chrome.tabs.query({}, tabs => {
     tabs.forEach(tab => {
       if (tab.id) {
         chrome.tabs.sendMessage(tab.id, broadcastMessage).catch(() => {
@@ -1003,22 +1017,22 @@ function broadcastConnectionStatusToContentScripts(isConnected: boolean, error?:
 
 /**
  * Broadcast tools update to all content scripts via context bridge
- * 
+ *
  * @param tools - Array of available MCP tools
  */
 function broadcastToolsUpdateToContentScripts(tools: any[]) {
   logger.debug(`Broadcasting tools update to content scripts: ${tools.length} tools`);
-  
+
   const broadcastMessage: BaseMessage & { payload: ToolUpdateBroadcast } = {
     type: 'mcp:tool-update',
     payload: {
-      tools
+      tools,
     },
     origin: 'background',
-    timestamp: Date.now()
+    timestamp: Date.now(),
   };
-  
-  chrome.tabs.query({}, (tabs) => {
+
+  chrome.tabs.query({}, tabs => {
     tabs.forEach(tab => {
       if (tab.id) {
         chrome.tabs.sendMessage(tab.id, broadcastMessage).catch(() => {
@@ -1031,22 +1045,22 @@ function broadcastToolsUpdateToContentScripts(tools: any[]) {
 
 /**
  * Broadcast server config update to all content scripts via context bridge
- * 
+ *
  * @param config - The updated server configuration
  */
 function broadcastConfigUpdateToContentScripts(config: { uri: string; connectionType?: string }) {
   logger.debug(`Broadcasting config update to content scripts: ${config.uri}`);
-  
+
   const broadcastMessage: BaseMessage & { payload: ServerConfigUpdatedBroadcast } = {
     type: 'mcp:server-config-updated',
     payload: {
-      config: config as any // Type assertion due to partial config structure
+      config: config as any, // Type assertion due to partial config structure
     },
     origin: 'background',
-    timestamp: Date.now()
+    timestamp: Date.now(),
   };
-  
-  chrome.tabs.query({}, (tabs) => {
+
+  chrome.tabs.query({}, tabs => {
     tabs.forEach(tab => {
       if (tab.id) {
         chrome.tabs.sendMessage(tab.id, broadcastMessage).catch(() => {
@@ -1059,25 +1073,25 @@ function broadcastConfigUpdateToContentScripts(config: { uri: string; connection
 
 /**
  * Enhanced Remote Config message handler
- * 
+ *
  * @param message - The message received from the content script
  * @param sender - Chrome runtime message sender information
  * @param sendResponse - Callback function to send response back to sender
  */
 async function handleRemoteConfigMessage(
-  message: any, 
-  sender: chrome.runtime.MessageSender, 
-  sendResponse: (response: any) => void
+  message: any,
+  sender: chrome.runtime.MessageSender,
+  sendResponse: (response: any) => void,
 ) {
   const startTime = Date.now();
-  
+
   try {
     logger.debug(`Processing Remote Config message: ${message.type}`);
-    
+
     if (!remoteConfigManager || !remoteConfigManager.initialized) {
       throw new Error('Remote Config Manager not initialized');
     }
-    
+
     let result: any = null;
 
     switch (message.type) {
@@ -1094,7 +1108,7 @@ async function handleRemoteConfigMessage(
         if (!flagName) {
           throw new Error('Feature flag name is required');
         }
-        
+
         logger.debug(`Getting feature flag: ${flagName}`);
         result = await remoteConfigManager.getFeatureFlag(flagName);
         break;
@@ -1119,7 +1133,7 @@ async function handleRemoteConfigMessage(
         result = {
           initialized: remoteConfigManager.initialized,
           lastFetchTime: await remoteConfigManager.getLastFetchTimePublic(),
-          timestamp: Date.now()
+          timestamp: Date.now(),
         };
         break;
       }
@@ -1129,7 +1143,7 @@ async function handleRemoteConfigMessage(
         const success = await remoteConfigManager.clearCacheAndRefresh();
         result = {
           success,
-          timestamp: Date.now()
+          timestamp: Date.now(),
         };
         break;
       }
@@ -1143,24 +1157,23 @@ async function handleRemoteConfigMessage(
       success: true,
       data: result,
       processingTime: Date.now() - startTime,
-      timestamp: Date.now()
+      timestamp: Date.now(),
     };
-    
+
     logger.debug(`Remote Config message processed successfully: ${message.type} (${response.processingTime}ms)`);
     sendResponse(response);
-    
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : String(error);
     logger.error(`Error processing Remote Config message ${message.type}:`, error);
-    
+
     // Send error response
     const response = {
       success: false,
       error: errorMessage,
       processingTime: Date.now() - startTime,
-      timestamp: Date.now()
+      timestamp: Date.now(),
     };
-    
+
     sendResponse(response);
   }
 }
@@ -1173,7 +1186,7 @@ async function initializeRemoteConfig(): Promise<void> {
     remoteConfigManager = new RemoteConfigManager();
     await remoteConfigManager.initialize();
     logger.debug('[Background] Remote Config Manager initialized successfully');
-    
+
     // Make RemoteConfigManager globally accessible for testing
     if (typeof globalThis !== 'undefined') {
       (globalThis as any).remoteConfigManager = remoteConfigManager;
@@ -1184,4 +1197,3 @@ async function initializeRemoteConfig(): Promise<void> {
     // Don't throw - let the extension continue without remote config
   }
 }
-
