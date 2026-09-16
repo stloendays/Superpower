@@ -17,6 +17,14 @@ QFrame *dashboardCard(QWidget *parent) {
   frame->setProperty("dashboardCard", true);
   return frame;
 }
+
+QString providerDisplayName(const QString &provider) {
+  if (provider == QStringLiteral("chatgpt")) return QStringLiteral("ChatGPT");
+  if (provider == QStringLiteral("gemini")) return QStringLiteral("Gemini");
+  if (provider == QStringLiteral("grok")) return QStringLiteral("Grok");
+  if (provider == QStringLiteral("perplexity")) return QStringLiteral("Perplexity");
+  return provider;
+}
 }
 
 WorkspaceDashboard::WorkspaceDashboard(MainWindow *workspace, QWidget *parent)
@@ -182,7 +190,10 @@ void WorkspaceDashboard::buildUi() {
 
   auto *healthRow = new QHBoxLayout();
   healthRow->setSpacing(12);
-  healthRow->addWidget(createStatusCard(QStringLiteral("Browser Conversation"), &conversationValueLabel_,
+  healthRow->addWidget(createStatusCard(QStringLiteral("Browser AI"), &providerValueLabel_,
+                                        &providerDetailLabel_),
+                       1);
+  healthRow->addWidget(createStatusCard(QStringLiteral("Conversation Relay"), &conversationValueLabel_,
                                         &conversationDetailLabel_),
                        1);
   healthRow->addWidget(createStatusCard(QStringLiteral("MCP Server"), &mcpValueLabel_, &mcpDetailLabel_), 1);
@@ -347,6 +358,11 @@ void WorkspaceDashboard::setConversationRelayStatus(const QString &text, bool on
   refreshFromWorkspace();
 }
 
+void WorkspaceDashboard::setActiveProvider(const QString &provider) {
+  activeProvider_ = provider.trimmed().toLower();
+  refreshFromWorkspace();
+}
+
 void WorkspaceDashboard::setActionRouterStatus(const QString &text, bool busy) {
   if (actionRouterStatusLabel_) actionRouterStatusLabel_->setText(text);
   if (actionRouteButton_) actionRouteButton_->setEnabled(!busy);
@@ -360,6 +376,16 @@ void WorkspaceDashboard::noteConversationActivity() {
 }
 
 void WorkspaceDashboard::refreshFromWorkspace() {
+  if (activeProvider_.isEmpty()) {
+    providerValueLabel_->setText(QStringLiteral("Waiting"));
+    providerDetailLabel_->setText(
+        QStringLiteral("Open ChatGPT, Gemini, Grok, or Perplexity and keep the target browser tab active."));
+  } else {
+    providerValueLabel_->setText(providerDisplayName(activeProvider_));
+    providerDetailLabel_->setText(
+        QStringLiteral("Active supported browser provider detected through the local Quick Ask relay."));
+  }
+
   conversationValueLabel_->setText(conversationRelayOnline_ ? QStringLiteral("Ready")
                                                             : QStringLiteral("Needs attention"));
   conversationDetailLabel_->setText(conversationRelayText_);
