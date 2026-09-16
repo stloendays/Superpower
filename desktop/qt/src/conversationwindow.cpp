@@ -2,6 +2,7 @@
 
 #include <QHBoxLayout>
 #include <QLabel>
+#include <QLineEdit>
 #include <QPlainTextEdit>
 #include <QPushButton>
 #include <QScrollBar>
@@ -42,6 +43,42 @@ ConversationWindow::ConversationWindow(QWidget *parent) : QWidget(parent) {
   conversationView_->setStyleSheet(
       QStringLiteral("QPlainTextEdit{background:#ffffff;border:1px solid #dddddd;border-radius:10px;padding:12px;font-family:'Segoe UI',sans-serif;font-size:13px;}"));
   layout->addWidget(conversationView_, 1);
+
+  auto *askLabel = new QLabel(QStringLiteral("Quick Ask"), this);
+  askLabel->setStyleSheet(QStringLiteral("font-size:12px;font-weight:700;color:#333333;"));
+  layout->addWidget(askLabel);
+
+  auto *promptBar = new QHBoxLayout();
+  promptBar->setSpacing(8);
+  promptInput_ = new QLineEdit(this);
+  promptInput_->setPlaceholderText(QStringLiteral("Ask in the active ChatGPT conversation..."));
+  promptInput_->setClearButtonEnabled(true);
+  promptInput_->setEnabled(false);
+  promptInput_->setStyleSheet(
+      QStringLiteral("QLineEdit{min-height:34px;background:#ffffff;border:1px solid #cfcfcf;border-radius:9px;padding:0 10px;font-size:13px;}"
+                     "QLineEdit:focus{border:1px solid #111111;}"
+                     "QLineEdit:disabled{background:#f6f6f6;color:#888888;}"));
+  promptBar->addWidget(promptInput_, 1);
+
+  sendButton_ = new QPushButton(QStringLiteral("Send"), this);
+  sendButton_->setEnabled(false);
+  sendButton_->setMinimumHeight(34);
+  sendButton_->setStyleSheet(
+      QStringLiteral("QPushButton{background:#111111;color:#ffffff;border:1px solid #111111;border-radius:9px;padding:0 14px;font-weight:650;}"
+                     "QPushButton:hover{background:#292929;}"
+                     "QPushButton:disabled{background:#d7d7d7;border-color:#d7d7d7;color:#777777;}"));
+  promptBar->addWidget(sendButton_);
+  layout->addLayout(promptBar);
+
+  promptStatusLabel_ = new QLabel(
+      QStringLiteral("Open ChatGPT in the browser with the Superpower extension enabled. Enter sends from Desktop to that active conversation."),
+      this);
+  promptStatusLabel_->setWordWrap(true);
+  promptStatusLabel_->setStyleSheet(QStringLiteral("color:#737373;font-size:11px;"));
+  layout->addWidget(promptStatusLabel_);
+
+  connect(promptInput_, &QLineEdit::returnPressed, this, &ConversationWindow::submitPrompt);
+  connect(sendButton_, &QPushButton::clicked, this, &ConversationWindow::submitPrompt);
 }
 
 void ConversationWindow::ingestEvent(const QJsonObject &event) {
@@ -95,6 +132,25 @@ void ConversationWindow::setRelayStatus(const QString &text, bool online) {
       online
           ? QStringLiteral("background:#111111;border:1px solid #111111;border-radius:8px;padding:8px 10px;color:#ffffff;font-weight:650;")
           : QStringLiteral("background:#f3f3f3;border:1px solid #dfdfdf;border-radius:8px;padding:8px 10px;color:#444444;font-weight:650;"));
+  if (promptInput_) promptInput_->setEnabled(online);
+  if (sendButton_) sendButton_->setEnabled(online);
+}
+
+void ConversationWindow::setPromptStatus(const QString &text, bool success) {
+  promptStatusLabel_->setText(text);
+  promptStatusLabel_->setStyleSheet(
+      success ? QStringLiteral("color:#166534;font-size:11px;font-weight:600;")
+              : QStringLiteral("color:#737373;font-size:11px;"));
+}
+
+void ConversationWindow::submitPrompt() {
+  if (!promptInput_ || !promptInput_->isEnabled()) return;
+  const QString text = promptInput_->text().trimmed();
+  if (text.isEmpty()) return;
+
+  promptInput_->clear();
+  setPromptStatus(QStringLiteral("Sending to the active ChatGPT tab through the local conversation relay..."), false);
+  emit promptSubmitted(text);
 }
 
 void ConversationWindow::renderConversation() {

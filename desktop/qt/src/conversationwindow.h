@@ -7,7 +7,9 @@
 #include <QWidget>
 
 class QLabel;
+class QLineEdit;
 class QPlainTextEdit;
+class QPushButton;
 
 class ConversationWindow final : public QWidget {
   Q_OBJECT
@@ -18,7 +20,14 @@ class ConversationWindow final : public QWidget {
  public slots:
   void ingestEvent(const QJsonObject &event);
   void setRelayStatus(const QString &text, bool online);
+  void setPromptStatus(const QString &text, bool success);
   void clearConversation();
+
+ signals:
+  void promptSubmitted(const QString &text);
+
+ private slots:
+  void submitPrompt();
 
  private:
   struct ConversationRecord {
@@ -33,6 +42,9 @@ class ConversationWindow final : public QWidget {
   void renderConversation();
 
   QLabel *statusLabel_ = nullptr;
+  QLabel *promptStatusLabel_ = nullptr;
   QPlainTextEdit *conversationView_ = nullptr;
+  QLineEdit *promptInput_ = nullptr;
+  QPushButton *sendButton_ = nullptr;
   QList<ConversationRecord> records_;
 };

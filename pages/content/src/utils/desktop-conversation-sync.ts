@@ -1,10 +1,13 @@
 import { createLogger } from '@extension/shared/lib/logger';
+import { insertTextToChatInput, submitChatInput } from '../components/websites/chatgpt/chatInputHandler';
 
 const logger = createLogger('DesktopConversationSync');
 
 const MESSAGE_SELECTOR = '[data-message-author-role="user"], [data-message-author-role="assistant"]';
 const MAX_MESSAGE_LENGTH = 64 * 1024;
+const MAX_DESKTOP_PROMPT_LENGTH = 32 * 1024;
 const SCAN_DELAY_MS = 120;
+const PROMPT_POLL_INTERVAL_MS = 900;
 
 interface ConversationSnapshot {
   eventId: string;
@@ -18,10 +21,18 @@ interface ConversationSnapshot {
   timestamp: number;
 }
 
+interface DesktopPrompt {
+  promptId: string;
+  text: string;
+  timestamp: number;
+}
+
 class DesktopConversationSync {
   private observer: MutationObserver | null = null;
   private scanTimer: ReturnType<typeof setTimeout> | null = null;
   private routeTimer: ReturnType<typeof setInterval> | null = null;
+  private promptTimer: ReturnType<typeof setInterval> | null = null;
+  private promptPolling = false;
   private lastRoute = '';
   private lastSnapshots = new Map<string, string>();
 
@@ -45,7 +56,12 @@ class DesktopConversationSync {
       }
     }, 750);
 
+    this.promptTimer = setInterval(() => {
+      void this.pollDesktopPrompt();
+    }, PROMPT_POLL_INTERVAL_MS);
+
     this.scheduleScan();
+    void this.pollDesktopPrompt();
     window.addEventListener('beforeunload', this.stop, { once: true });
     logger.debug('ChatGPT conversation observer started');
   }
@@ -57,6 +73,9 @@ class DesktopConversationSync {
     this.scanTimer = null;
     if (this.routeTimer) clearInterval(this.routeTimer);
     this.routeTimer = null;
+    if (this.promptTimer) clearInterval(this.promptTimer);
+    this.promptTimer = null;
+    this.promptPolling = false;
     this.lastSnapshots.clear();
   };
 
@@ -67,6 +86,14 @@ class DesktopConversationSync {
 
   private sessionId(): string {
     return `${window.location.hostname}${window.location.pathname}`;
+  }
+
+  private isGenerating(): boolean {
+    return Boolean(
+      document.querySelector(
+        'button[data-testid="stop-button"], button[aria-label*="Stop generating"], button[aria-label*="Stop streaming"]',
+      ),
+    );
   }
 
   private scheduleScan(): void {
@@ -81,11 +108,7 @@ class DesktopConversationSync {
     const elements = Array.from(document.querySelectorAll<HTMLElement>(MESSAGE_SELECTOR));
     if (elements.length === 0) return;
 
-    const generating = Boolean(
-      document.querySelector(
-        'button[data-testid="stop-button"], button[aria-label*="Stop generating"], button[aria-label*="Stop streaming"]',
-      ),
-    );
+    const generating = this.isGenerating();
     const lastAssistantIndex = elements.reduce(
       (last, element, index) => (element.getAttribute('data-message-author-role') === 'assistant' ? index : last),
       -1,
@@ -139,6 +162,60 @@ class DesktopConversationSync {
           error instanceof Error ? error.message : String(error),
         );
       });
+  }
+
+  private async pollDesktopPrompt(): Promise<void> {
+    if (this.promptPolling || this.isGenerating()) return;
+    if (typeof chrome === 'undefined' || !chrome.runtime?.sendMessage) return;
+
+    this.promptPolling = true;
+    try {
+      const response = (await chrome.runtime.sendMessage({ type: 'desktop:prompt-poll' })) as
+        | { success?: boolean; prompt?: DesktopPrompt | null }
+        | undefined;
+      const prompt = response?.prompt;
+      if (!response?.success || !prompt) return;
+      if (typeof prompt.promptId !== 'string' || typeof prompt.text !== 'string') return;
+
+      const text = prompt.text.trim().slice(0, MAX_DESKTOP_PROMPT_LENGTH);
+      if (!text) {
+        await this.acknowledgePrompt(prompt.promptId, false, 'Desktop prompt was empty.');
+        return;
+      }
+
+      const inserted = insertTextToChatInput(text);
+      if (!inserted) {
+        await this.acknowledgePrompt(prompt.promptId, false, 'ChatGPT input was not available.');
+        return;
+      }
+
+      const submitted = await submitChatInput(5000);
+      await this.acknowledgePrompt(
+        prompt.promptId,
+        submitted,
+        submitted
+          ? 'Prompt submitted to the active ChatGPT conversation.'
+          : 'Prompt was inserted, but automatic submission failed. Check the browser composer.',
+      );
+    } catch (error) {
+      logger.debug('Desktop prompt polling unavailable:', error instanceof Error ? error.message : String(error));
+    } finally {
+      this.promptPolling = false;
+    }
+  }
+
+  private async acknowledgePrompt(promptId: string, success: boolean, message: string): Promise<void> {
+    try {
+      await chrome.runtime.sendMessage({
+        type: 'desktop:prompt-ack',
+        payload: { promptId, success, message },
+      });
+    } catch (error) {
+      logger.debug(
+        'Desktop prompt acknowledgement unavailable:',
+        error instanceof Error ? error.message : String(error),
+      );
+    }
   }
 }
 
