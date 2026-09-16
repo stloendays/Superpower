@@ -30,9 +30,10 @@ jobs:
                   raise SystemExit(f'{path}: expected exactly one match, found {count}')
               p.write_text(text.replace(old, new), encoding='utf-8')
 
-          replace_exact('chrome-extension/src/mcpclient/config/defaults.ts', "    defaultTransport: 'sse',\n    defaultUri: 'http://localhost:3006/sse',", "    defaultTransport: 'streamable-http',\n    defaultUri: 'http://localhost:3006/mcp',")
+          replace_exact('chrome-extension/src/mcpclient/config/defaults.ts', "export const DEFAULT_STREAMABLE_HTTP_URI = 'http://localhost:3006';", "export const DEFAULT_STREAMABLE_HTTP_URI = 'http://localhost:3006/mcp';")
           replace_exact('chrome-extension/src/mcpclient/types/config.ts', "  defaultTransport: 'sse',\n  defaultUri: 'http://localhost:3006/sse',", "  defaultTransport: 'streamable-http',\n  defaultUri: 'http://localhost:3006/mcp',")
-          replace_exact('pages/content/src/stores/connection.store.ts', "    uri: 'http://localhost:3006/sse',\n    connectionType: 'sse',", "    uri: 'http://localhost:3006/mcp',\n    connectionType: 'streamable-http',")
+          replace_exact('pages/content/src/stores/connection.store.ts', "  uri: 'http://localhost:3006/sse', // Default from migration guide, should be configurable", "  uri: 'http://localhost:3006/mcp', // Default local Streamable HTTP endpoint")
+          replace_exact('pages/content/src/stores/connection.store.ts', "  connectionType: 'sse',", "  connectionType: 'streamable-http',")
           replace_exact('chrome-extension/src/mcpclient/index.ts', "    // For HTTP/HTTPS, default to SSE (traditional behavior)\n    // Users can manually select streamable-http if desired\n    return 'sse';\n  } catch {\n    return 'sse';", "    if (url.protocol === 'http:' || url.protocol === 'https:') {\n      return url.pathname.replace(/\\/+$/, '').endsWith('/sse') ? 'sse' : 'streamable-http';\n    }\n    return 'streamable-http';\n  } catch {\n    return 'streamable-http';")
           replace_exact('chrome-extension/src/background/index.ts', "const DEFAULT_STREAMABLE_HTTP_URL = 'http://localhost:3006';", "const DEFAULT_STREAMABLE_HTTP_URL = 'http://localhost:3006/mcp';")
           replace_exact('chrome-extension/src/background/index.ts', "const DEFAULT_CONNECTION_TYPE: ConnectionType = 'sse';", "const DEFAULT_CONNECTION_TYPE: ConnectionType = 'streamable-http';")
