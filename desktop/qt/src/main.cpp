@@ -226,25 +226,37 @@ int main(int argc, char *argv[]) {
 
   auto *conversationRelay = new McpBridgeProcess(&window);
   QObject::connect(conversation, &ConversationWindow::promptSubmitted, &window,
-                   [conversation, conversationDock, conversationRelay](const QString &text) {
+                   [conversation, conversationDock, conversationRelay](const QString &text,
+                                                                        const QString &provider) {
                      conversationDock->show();
                      conversationDock->raise();
                      const QString requestId = conversationRelay->sendRequest(
-                         QStringLiteral("submit_prompt"), QJsonObject{{QStringLiteral("text"), text}});
+                         QStringLiteral("submit_prompt"),
+                         QJsonObject{{QStringLiteral("text"), text},
+                                     {QStringLiteral("provider"), provider}});
                      if (requestId.isEmpty()) {
                        conversation->setPromptStatus(
                            QStringLiteral("Quick Ask unavailable - the local conversation relay is not running."), false);
                        return;
                      }
                      conversation->setPromptStatus(
-                         QStringLiteral("Waiting for the active ChatGPT tab to accept the prompt..."), false);
+                         provider == QStringLiteral("auto")
+                             ? QStringLiteral("Waiting for the active supported AI tab to accept the prompt...")
+                             : QStringLiteral("Waiting for the active %1 tab to accept the prompt...")
+                                   .arg(provider),
+                         false);
                    });
   QObject::connect(conversationRelay, &McpBridgeProcess::responseReceived, conversation,
                    [conversation](const QString &, const QString &method, const QJsonValue &result) {
                      if (method != QStringLiteral("submit_prompt")) return;
-                     const QString message = result.toObject().value(QStringLiteral("message")).toString();
+                     const QJsonObject payload = result.toObject();
+                     const QString message = payload.value(QStringLiteral("message")).toString();
+                     const QString provider = payload.value(QStringLiteral("provider")).toString();
+                     if (!provider.isEmpty()) conversation->setProviderStatus(provider, true);
                      conversation->setPromptStatus(
-                         message.isEmpty() ? QStringLiteral("Quick Ask sent to ChatGPT.") : message, true);
+                         message.isEmpty() ? QStringLiteral("Quick Ask submitted to the active browser AI conversation.")
+                                           : message,
+                         true);
                    });
   QObject::connect(conversationRelay, &McpBridgeProcess::requestFailed, conversation,
                    [conversation](const QString &, const QString &method, const QString &, const QString &message,
@@ -261,8 +273,13 @@ int main(int argc, char *argv[]) {
                          QStringLiteral("Listening locally on 127.0.0.1:32148 · no MCP server connection required.");
                      conversation->setRelayStatus(status, true);
                      conversation->setPromptStatus(
-                         QStringLiteral("Quick Ask ready - prompts are sent to the active ChatGPT tab."), true);
+                         QStringLiteral("Quick Ask ready - Auto targets the active ChatGPT, Gemini, Grok, or Perplexity tab."),
+                         true);
                      dashboard->setConversationRelayStatus(status, true);
+                   });
+  QObject::connect(conversationRelay, &McpBridgeProcess::providerStatus, conversation,
+                   [conversation](const QString &provider) {
+                     conversation->setProviderStatus(provider, true);
                    });
   QObject::connect(conversationRelay, &McpBridgeProcess::conversationEvent, &window,
                    [conversation, conversationDock, dashboard](const QJsonObject &event) {
@@ -274,6 +291,7 @@ int main(int argc, char *argv[]) {
                    [conversation, dashboard](const QString &message) {
                      const QString status = QStringLiteral("Conversation relay unavailable · %1").arg(message);
                      conversation->setRelayStatus(status, false);
+                     conversation->setProviderStatus(QString(), false);
                      dashboard->setConversationRelayStatus(status, false);
                    });
   QObject::connect(conversationRelay, &McpBridgeProcess::processExited, conversation,
@@ -282,6 +300,7 @@ int main(int argc, char *argv[]) {
                          QStringLiteral("Conversation relay stopped (exit %1). Restart Superpower Desktop to resume sync.")
                              .arg(exitCode);
                      conversation->setRelayStatus(status, false);
+                     conversation->setProviderStatus(QString(), false);
                      dashboard->setConversationRelayStatus(status, false);
                    });
   QObject::connect(conversationRelay, &McpBridgeProcess::logLine, conversation,
