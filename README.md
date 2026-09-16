@@ -19,6 +19,7 @@
   </p>
 
   <p>
+    <a href="#what-problem-does-superpower-solve">Problem</a> ·
     <a href="#products">Products</a> ·
     <a href="#why-superpower">Why Superpower</a> ·
     <a href="#features">Features</a> ·
@@ -41,6 +42,14 @@
 <br/>
 
 > **Release status:** v1.4.1 is the current public stable release. V1.5 is the active development line and adds review-first routing and workflow execution capabilities.
+
+## What problem does Superpower solve?
+
+Web AI chats are good reasoning surfaces, but they normally cannot directly use your local files, command-line tools, private MCP servers, or desktop workflows. Superpower connects those two worlds: the web model can decide what tool work is needed, while MCP executes the requested action through a local or remote tool server and returns the result to the same conversation.
+
+That makes Superpower useful when you want to keep working in **ChatGPT, Gemini, Perplexity, Grok, Copilot, Qwen or another supported web chat** while still using real MCP tools. It is not a replacement for coding agents such as Codex; instead, it provides a browser-first execution layer for users who prefer the web chat as the planning interface, want their own MCP stack, need a review step before execution, or want lightweight tool use without consuming a separate local-agent model quota.
+
+**In one line:** use the AI chat you already have as the reasoning surface, and use MCP as the execution layer.
 
 ## Products
 
@@ -218,28 +227,33 @@ Superpower/
 │   ├── install/               # Windows source/release installer helpers
 │   └── shell/                 # Build, environment and version shell utilities
 ├── README.md                  # Project homepage
-├── README.zh-CN.md            # Simplified Chinese project homepage
-├── SECURITY.md                # Security model and reporting guidance
-├── CHANGELOG.md               # Release history
-└── package.json               # Monorepo entry point
+├── README.zh-CN.md            # Simplified Chinese homepage
+├── CHANGELOG.md
+├── SECURITY.md
+└── LICENSE
 ```
-
-Toolchain files such as `pnpm-workspace.yaml`, `tsconfig.json`, `turbo.json`, `.nvmrc`, and `eslint.config.ts` remain at the root because the build system expects them there. Generated files and implementation-specific helpers should not be added to the root unless they are genuine project entry points.
-
-## Project
-
-Superpower is an **Oxford × NUS collaborative project led by Tony**, focused on practical human–AI workflows and MCP-based tool use across browser and desktop environments.
-
-Superpower V1 is a modified derivative of **MCP SuperAssistant**. The original MIT license and upstream attribution are preserved in [`LICENSE`](LICENSE) and [`NOTICE.md`](NOTICE.md).
 
 ## Security
 
-MCP servers may expose filesystem, database, developer-tool, or third-party API access. Only connect endpoints you trust and keep credentials outside the repository. See [`SECURITY.md`](SECURITY.md).
+Superpower executes user-configured MCP tools. Treat connected MCP servers and tool outputs as trusted only to the extent you trust their source and configuration.
+
+- Review the MCP server configuration before connecting.
+- Keep credentials out of public configuration files and issue reports.
+- Prefer loopback-only local endpoints when remote access is unnecessary.
+- Review guarded or state-changing actions before execution.
+
+See [`SECURITY.md`](SECURITY.md) for the current security guidance.
 
 ## Contributing
 
-Issues and pull requests are welcome. For bug reports, include the affected surface (browser or desktop), platform/browser version, and reproduction steps.
+Issues and pull requests are welcome. Please keep changes scoped, document behavior changes, and include validation where practical.
+
+## Project discovery
+
+Superpower is relevant to developers and researchers working with **Model Context Protocol (MCP)**, **AI agents**, **browser automation**, **Chrome extensions**, **agentic workflows**, **tool-using LLMs**, **local MCP servers**, **desktop AI workflows**, **Qt 6**, and **human-in-the-loop execution**.
+
+Useful search terms: `MCP browser extension`, `Model Context Protocol Chrome extension`, `ChatGPT MCP tools`, `Gemini MCP`, `browser AI agent`, `agentic workflow`, `tool calling`, `MCP desktop client`, `MCP Streamable HTTP`, `human in the loop MCP`.
 
 ## License
 
-Released under the [MIT License](LICENSE), with upstream attribution described in [NOTICE.md](NOTICE.md).
+Superpower is released under the [MIT License](LICENSE).
