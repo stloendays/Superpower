@@ -19,4 +19,6 @@ Thumbs.db
 *.pre-v1.bak
 superpower-icon-master.png
 
+# Generated from eslint.config.ts by `pnpm build:eslint`.
+eslint.config.js
 *.tsbuildinfo
