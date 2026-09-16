@@ -15,11 +15,16 @@ const MAX_TEXT_LENGTH = 64 * 1024;
 const MAX_PROMPT_LENGTH = 32 * 1024;
 const MAX_PROMPT_QUEUE = 20;
 const PROMPT_TIMEOUT_MS = 30_000;
+const PROVIDER_STATUS_INTERVAL_MS = 5_000;
+
+const PROVIDERS = ['chatgpt', 'gemini', 'grok', 'perplexity'] as const;
+type ProviderId = (typeof PROVIDERS)[number];
+type PromptTarget = ProviderId | 'auto';
 
 type ConversationEvent = {
   eventId: string;
   sessionId: string;
-  source: 'chatgpt';
+  source: ProviderId;
   role: 'user' | 'assistant';
   text: string;
   phase: 'streaming' | 'completed';
@@ -38,13 +43,17 @@ type PendingPrompt = {
   requestId: string | number;
   promptId: string;
   text: string;
+  provider: PromptTarget;
   timestamp: number;
   claimedAt?: number;
+  claimedBy?: ProviderId;
 };
 
 const pendingPrompts: PendingPrompt[] = [];
 const claimedPrompts = new Map<string, PendingPrompt>();
 let nextPromptId = 1;
+let lastReportedProvider: ProviderId | null = null;
+let lastProviderReportAt = 0;
 
 const writeMessage = (message: unknown): void => {
   stdout.write(`${JSON.stringify(message)}\n`);
@@ -53,6 +62,19 @@ const writeMessage = (message: unknown): void => {
 const asRecord = (value: unknown): Record<string, unknown> | null => {
   if (!value || typeof value !== 'object' || Array.isArray(value)) return null;
   return value as Record<string, unknown>;
+};
+
+const isProvider = (value: unknown): value is ProviderId =>
+  typeof value === 'string' && (PROVIDERS as readonly string[]).includes(value);
+
+const isPromptTarget = (value: unknown): value is PromptTarget => value === 'auto' || isProvider(value);
+
+const providerDisplayName = (provider: PromptTarget): string => {
+  if (provider === 'chatgpt') return 'ChatGPT';
+  if (provider === 'gemini') return 'Gemini';
+  if (provider === 'grok') return 'Grok';
+  if (provider === 'perplexity') return 'Perplexity';
+  return 'supported AI';
 };
 
 const isExtensionOrigin = (origin: string | undefined): boolean =>
@@ -119,7 +141,7 @@ const sanitizeEvent = (value: unknown): ConversationEvent | null => {
   if (
     !eventId ||
     !sessionId ||
-    source !== 'chatgpt' ||
+    !isProvider(source) ||
     (role !== 'user' && role !== 'assistant') ||
     !text.trim() ||
     (phase !== 'streaming' && phase !== 'completed')
@@ -141,12 +163,21 @@ const sanitizeEvent = (value: unknown): ConversationEvent | null => {
   };
 };
 
+const noteProviderSeen = (provider: ProviderId): void => {
+  const now = Date.now();
+  if (provider === lastReportedProvider && now - lastProviderReportAt < PROVIDER_STATUS_INTERVAL_MS) return;
+  lastReportedProvider = provider;
+  lastProviderReportAt = now;
+  writeMessage({ type: 'provider', provider, timestamp: now });
+};
+
 const rejectExpiredPrompt = (prompt: PendingPrompt): void => {
+  const target = providerDisplayName(prompt.provider);
   sendRequestError(
     prompt.requestId,
     'prompt_timeout',
-    'No active ChatGPT tab accepted the desktop prompt within 30 seconds.',
-    { promptId: prompt.promptId },
+    `No active ${target} tab accepted the desktop prompt within 30 seconds.`,
+    { promptId: prompt.promptId, provider: prompt.provider },
   );
 };
 
@@ -175,6 +206,7 @@ const handleConversationRequest = async (request: IncomingMessage, response: Ser
       return;
     }
 
+    noteProviderSeen(event.source);
     writeMessage({ type: 'conversation', event });
     sendJson(response, 200, { ok: true });
   } catch (error) {
@@ -186,21 +218,37 @@ const handleConversationRequest = async (request: IncomingMessage, response: Ser
   }
 };
 
-const handlePromptNextRequest = (response: ServerResponse): void => {
+const handlePromptNextRequest = (request: IncomingMessage, response: ServerResponse): void => {
   expirePrompts();
-  const prompt = pendingPrompts.shift();
-  if (!prompt) {
+
+  const requestUrl = new URL(request.url ?? PROMPT_NEXT_PATH, `http://${RELAY_HOST}:${RELAY_PORT}`);
+  const providerValue = requestUrl.searchParams.get('provider');
+  if (!isProvider(providerValue)) {
+    sendJson(response, 400, { ok: false, error: 'invalid_provider' });
+    return;
+  }
+  const provider = providerValue;
+  noteProviderSeen(provider);
+
+  const promptIndex = pendingPrompts.findIndex(
+    prompt => prompt.provider === 'auto' || prompt.provider === provider,
+  );
+  if (promptIndex < 0) {
     sendJson(response, 200, { ok: true, prompt: null });
     return;
   }
 
+  const [prompt] = pendingPrompts.splice(promptIndex, 1);
   prompt.claimedAt = Date.now();
+  prompt.claimedBy = provider;
   claimedPrompts.set(prompt.promptId, prompt);
   sendJson(response, 200, {
     ok: true,
     prompt: {
       promptId: prompt.promptId,
       text: prompt.text,
+      provider: prompt.provider,
+      claimedBy: provider,
       timestamp: prompt.timestamp,
     },
   });
@@ -230,14 +278,19 @@ const handlePromptAckRequest = async (request: IncomingMessage, response: Server
       writeMessage({
         id: prompt.requestId,
         ok: true,
-        result: { promptId, submitted: true, message },
+        result: {
+          promptId,
+          submitted: true,
+          provider: prompt.claimedBy ?? prompt.provider,
+          message,
+        },
       });
     } else {
       sendRequestError(
         prompt.requestId,
         'prompt_delivery_failed',
-        message || 'The active ChatGPT tab could not submit the desktop prompt.',
-        { promptId },
+        message || `The active ${providerDisplayName(prompt.claimedBy ?? prompt.provider)} tab could not submit the desktop prompt.`,
+        { promptId, provider: prompt.claimedBy ?? prompt.provider },
       );
     }
 
@@ -275,8 +328,8 @@ const server = createServer((request, response) => {
     void handleConversationRequest(request, response);
     return;
   }
-  if (request.method === 'GET' && request.url === PROMPT_NEXT_PATH) {
-    handlePromptNextRequest(response);
+  if (request.method === 'GET' && request.url?.startsWith(PROMPT_NEXT_PATH)) {
+    handlePromptNextRequest(request, response);
     return;
   }
   if (request.method === 'POST' && request.url === PROMPT_ACK_PATH) {
@@ -296,11 +349,17 @@ server.listen(RELAY_PORT, RELAY_HOST, () => {
   writeMessage({
     type: 'ready',
     protocol: 'superpower-conversation-relay',
-    version: 2,
+    version: 3,
     transport: 'conversation',
     host: RELAY_HOST,
     port: RELAY_PORT,
-    capabilities: ['browser-conversation-sync', 'desktop-prompt-submit'],
+    capabilities: [
+      'browser-conversation-sync',
+      'desktop-prompt-submit',
+      'provider-routing',
+      'provider-presence',
+    ],
+    providers: PROVIDERS,
   });
 });
 
@@ -332,8 +391,16 @@ void (async () => {
       if (method === 'submit_prompt') {
         const params = asRecord(request.params);
         const text = typeof params?.text === 'string' ? params.text.trim() : '';
+        const rawProvider = params?.provider;
+        const provider: PromptTarget | null = rawProvider === undefined ? 'auto' : isPromptTarget(rawProvider) ? rawProvider : null;
         if (!text) {
           sendRequestError(id, 'invalid_prompt', 'Desktop prompt text is required.');
+          continue;
+        }
+        if (!provider) {
+          sendRequestError(id, 'unsupported_provider', 'Desktop Quick Ask provider is not supported.', {
+            supportedProviders: ['auto', ...PROVIDERS],
+          });
           continue;
         }
         if (text.length > MAX_PROMPT_LENGTH) {
@@ -350,6 +417,7 @@ void (async () => {
           requestId: id,
           promptId,
           text,
+          provider,
           timestamp: Date.now(),
         });
         continue;
