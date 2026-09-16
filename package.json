@@ -28,9 +28,9 @@
     "lint:fix": "turbo lint:fix --continue -- --fix --cache --cache-location node_modules/.cache/.eslintcache",
     "prettier": "turbo prettier --continue -- --cache --cache-location node_modules/.cache/.prettiercache",
     "prepare": "husky",
-    "update-version": "bash bash-scripts/update_version.sh",
+    "update-version": "bash scripts/shell/update_version.sh",
     "copy_env": "node scripts/copy-env.mjs",
-    "set-global-env": "bash bash-scripts/set_global_env.sh",
+    "set-global-env": "bash scripts/shell/set_global_env.sh",
     "postinstall": "pnpm build:eslint && pnpm copy_env",
     "module-manager": "pnpm -F module-manager start"
   },
