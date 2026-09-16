@@ -1,6 +1,16 @@
 name: Desktop Qt Build
 
 on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'desktop/qt/**'
+      - 'packages/mcp-host/**'
+      - 'packages/mcp-core/**'
+      - 'pnpm-lock.yaml'
+      - '.nvmrc'
+      - '.github/workflows/desktop-qt.yml'
   pull_request:
     paths:
       - 'desktop/qt/**'
