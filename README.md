@@ -7,7 +7,8 @@
 
   <p>
     <a href="https://github.com/stloendays/Superpower-V1/stargazers"><img src="https://img.shields.io/github/stars/stloendays/Superpower-V1?style=flat-square&logo=github&label=Stars" alt="GitHub stars" /></a>
-    <img src="https://img.shields.io/badge/version-1.5-111827?style=flat-square" alt="Version 1.5" />
+    <a href="https://github.com/stloendays/Superpower-V1/releases/tag/v1.4.0"><img src="https://img.shields.io/badge/stable-v1.4.0-111827?style=flat-square" alt="Stable release v1.4.0" /></a>
+    <img src="https://img.shields.io/badge/development-V1.5-6B7280?style=flat-square" alt="V1.5 development" />
     <img src="https://img.shields.io/badge/Protocol-MCP-4F46E5?style=flat-square" alt="Model Context Protocol" />
     <a href="LICENSE"><img src="https://img.shields.io/badge/License-MIT-16A34A?style=flat-square" alt="MIT License" /></a>
   </p>
@@ -18,7 +19,8 @@
     <a href="#features">Features</a> ·
     <a href="#supported-platforms">Platforms</a> ·
     <a href="#how-it-works">Architecture</a> ·
-    <a href="#quick-start">Quick start</a>
+    <a href="#quick-start">Quick start</a> ·
+    <a href="#repository-layout">Repository</a>
   </p>
 </div>
 
@@ -32,6 +34,8 @@
 </div>
 
 <br/>
+
+> **Release status:** v1.4.0 is the current public stable release. V1.5 is the active development line and adds review-first routing and workflow execution capabilities.
 
 ## Products
 
@@ -59,7 +63,7 @@ Use Superpower as a native MCP workspace outside the browser.
 
 - Native **Qt 6** Windows application
 - Organizes **Connections → Apps → Actions → Runs**
-- Provides a standalone MCP client and review surface
+- Provides a standalone MCP client, workflow review and guarded execution surface
 - Distributed as a portable Windows package in GitHub Releases
 
 **Best for:** managing MCP connections and actions from one desktop workspace.
@@ -104,9 +108,10 @@ Choose exposed tools and review guarded actions before execution.
 - Shared MCP execution model across browser and desktop surfaces
 - Browser-side tool discovery, structured call detection and result injection
 - Native desktop workspace for connections, apps, actions and runs
-- Manual and automated execution flows
 - Local and remote MCP endpoints
-- Multi-tool and dependency-aware workflows
+- Review-first natural-language Action Router
+- Dependency-aware Workflow Planner with explicit cross-step bindings
+- Session-only Workflow Runner with one-step-at-a-time guarded execution
 - Persistent controls and generated MCP instructions
 
 <table>
@@ -122,9 +127,9 @@ Choose exposed tools and review guarded actions before execution.
 </tr>
 </table>
 
-### Natural-language Action Router
+### V1.5: review-first routing and workflows
 
-The V1.5 development line adds a review-first Action Router that maps natural-language intent to MCP capabilities, drafts schema-backed parameters, surfaces risk, and sends the action through an explicit review step before execution.
+The V1.5 development line maps natural-language intent to MCP capabilities, drafts schema-backed parameters, plans multi-step workflows, makes cross-step data bindings explicit, and keeps guarded execution reviewable. Workflow runs advance at most one MCP Action at a time; reviewed bindings and policy checks remain authoritative.
 
 <p align="center">
   <img src="docs/readme/action-router.svg" alt="Superpower natural-language Action Router" width="100%" />
@@ -158,7 +163,7 @@ The browser extension currently supports ChatGPT, Google Gemini, Perplexity, Goo
 3. Open `chrome://extensions/` and enable **Developer mode**.
 4. Select **Load unpacked** and choose the generated `dist/` folder.
 
-See [`RELEASE_INSTALL.md`](RELEASE_INSTALL.md) for the full extension installation guide.
+See [`docs/install/windows-extension.md`](docs/install/windows-extension.md) for the full extension installation guide.
 
 ### Desktop App
 
@@ -187,6 +192,28 @@ pnpm base-build   # Production build
 pnpm type-check   # Type checking
 pnpm lint         # Lint
 ```
+
+## Repository layout
+
+The repository root is intentionally kept as an entry surface: standard project documents, workspace/build configuration, and the main product directories stay visible; implementation helpers and optional examples live under dedicated folders.
+
+```text
+Superpower-V1/
+├── chrome-extension/          # Browser extension shell and background integration
+├── desktop/                   # Native Qt desktop application and desktop examples
+├── docs/                      # Documentation, install guides and README/site assets
+├── packages/                  # Reusable TypeScript packages, including MCP Core/Host
+├── pages/                     # Browser extension pages and content scripts
+├── scripts/
+│   ├── install/               # Windows source/release installer helpers
+│   └── shell/                 # Build, environment and version shell utilities
+├── README.md                  # Project homepage
+├── SECURITY.md                # Security model and reporting guidance
+├── CHANGELOG.md               # Release history
+└── package.json               # Monorepo entry point
+```
+
+Toolchain files such as `pnpm-workspace.yaml`, `tsconfig.json`, `turbo.json`, `.nvmrc`, and `eslint.config.ts` remain at the root because the build system expects them there. Generated files and implementation-specific helpers should not be added to the root unless they are genuine project entry points.
 
 ## Project
 
