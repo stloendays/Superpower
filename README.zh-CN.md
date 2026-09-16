@@ -35,7 +35,7 @@
 </p>
 
 <div align="center">
-  <strong>牛津大学 × 新加坡国立大学合作项目 · Tony 主导</strong><br/>
+  <strong>牛津大学 × 新加坡国立大学合作项目</strong><br/>
   <sub>面向浏览器与桌面环境的实用 MCP 工作流。</sub>
 </div>
 
