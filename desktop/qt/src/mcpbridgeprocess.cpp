@@ -182,7 +182,7 @@ void McpBridgeProcess::handleProtocolLine(const QByteArray &line) {
   }
   if (type == QStringLiteral("provider")) {
     const QString provider = object.value(QStringLiteral("provider")).toString().trimmed();
-    if (!provider.isEmpty()) emit providerStatus(provider);
+    emit providerStatus(provider);
     return;
   }
 
