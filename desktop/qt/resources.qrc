@@ -1,0 +1,5 @@
+<RCC>
+  <qresource prefix="/icons">
+    <file alias="superpower.png">../../chrome-extension/public/icon-128.png</file>
+  </qresource>
+</RCC>
