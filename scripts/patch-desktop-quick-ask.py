@@ -22,8 +22,8 @@ replace_once(
 )
 replace_once(
     background,
-    "        const url = new URL(config.uri);\n        newType = (url.protocol === 'ws:' || url.protocol === 'wss:') ? 'websocket' : 'sse';\n",
-    "        const url = new URL(config.uri);\n        if (url.protocol === 'ws:' || url.protocol === 'wss:') {\n          newType = 'websocket';\n        } else if (/\\/sse\\/?$/i.test(url.pathname)) {\n          newType = 'sse';\n        } else {\n          newType = 'streamable-http';\n        }\n",
+    "            const url = new URL(config.uri);\n            newType = (url.protocol === 'ws:' || url.protocol === 'wss:') ? 'websocket' : 'sse';\n",
+    "            const url = new URL(config.uri);\n            if (url.protocol === 'ws:' || url.protocol === 'wss:') {\n              newType = 'websocket';\n            } else if (/\\/sse\\/?$/i.test(url.pathname)) {\n              newType = 'sse';\n            } else {\n              newType = 'streamable-http';\n            }\n",
 )
 
 content_index = "pages/content/src/index.ts"
