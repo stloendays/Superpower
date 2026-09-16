@@ -9,7 +9,7 @@ param(
 Set-StrictMode -Version Latest
 $ErrorActionPreference = "Stop"
 
-$Repository = "stloendays/Superpower-V1"
+$Repository = "stloendays/Superpower"
 $RequiredNodeVersion = [version]"22.12.0"
 $RequiredPnpmVersion = "9.15.1"
 
@@ -47,12 +47,25 @@ if ([string]::IsNullOrWhiteSpace($InstallDir)) {
 }
 
 $ScriptRoot = Split-Path -Parent $MyInvocation.MyCommand.Path
-$HasSource = Test-Path (Join-Path $ScriptRoot "package.json")
-$HasPrebuiltExtension = Test-Path (Join-Path $ScriptRoot "dist\manifest.json")
+$ProjectRoot = $ScriptRoot
+$SourceRootCandidate = [System.IO.Path]::GetFullPath((Join-Path $ScriptRoot "..\.."))
+
+if (-not (Test-Path (Join-Path $ProjectRoot "package.json")) -and
+    (Test-Path (Join-Path $SourceRootCandidate "package.json"))) {
+    $ProjectRoot = $SourceRootCandidate
+}
+
+$HasSource = Test-Path (Join-Path $ProjectRoot "package.json")
+$PrebuiltRoot = $ScriptRoot
+if (-not (Test-Path (Join-Path $PrebuiltRoot "dist\manifest.json")) -and
+    (Test-Path (Join-Path $ProjectRoot "dist\manifest.json"))) {
+    $PrebuiltRoot = $ProjectRoot
+}
+$HasPrebuiltExtension = Test-Path (Join-Path $PrebuiltRoot "dist\manifest.json")
 
 # Bootstrap mode: this script was downloaded by itself. Fetch the repository,
 # place it under the user's local application data directory, then continue
-# from the copy that lives inside the downloaded package.
+# from the installer stored inside scripts/install in the downloaded source.
 if (-not $HasSource -and -not $HasPrebuiltExtension) {
     Write-Step "Downloading Superpower DIY package"
 
@@ -82,7 +95,7 @@ if (-not $HasSource -and -not $HasPrebuiltExtension) {
         }
 
         Move-Item -Path $ExtractedDir.FullName -Destination $AppDir
-        $InnerInstaller = Join-Path $AppDir "DIY-Install-Superpower.ps1"
+        $InnerInstaller = Join-Path $AppDir "scripts\install\DIY-Install-Superpower.ps1"
         if (-not (Test-Path $InnerInstaller)) {
             throw "DIY installer was not found in the downloaded package."
         }
@@ -120,7 +133,12 @@ if (-not $HasSource -and -not $HasPrebuiltExtension) {
     exit 0
 }
 
-Set-Location $ScriptRoot
+if ($HasSource) {
+    Set-Location $ProjectRoot
+}
+else {
+    Set-Location $PrebuiltRoot
+}
 
 # A release/Actions package can already contain dist/. In that case, no Node
 # toolchain is required. Source downloads are built automatically.
@@ -167,7 +185,8 @@ if ($ForceBuild -or -not $HasPrebuiltExtension) {
     Invoke-Checked "pnpm" @("build")
 }
 
-$DistDir = Join-Path $ScriptRoot "dist"
+$DistRoot = if ($HasSource) { $ProjectRoot } else { $PrebuiltRoot }
+$DistDir = Join-Path $DistRoot "dist"
 $ManifestPath = Join-Path $DistDir "manifest.json"
 if (-not (Test-Path $ManifestPath)) {
     throw "Build completed, but dist\manifest.json was not found."
@@ -176,7 +195,7 @@ if (-not (Test-Path $ManifestPath)) {
 Write-Step "Superpower is ready"
 Write-Host "Extension directory: $DistDir" -ForegroundColor Green
 Write-Host ""
-Write-Host "Chrome installation:" 
+Write-Host "Chrome installation:"
 Write-Host "  1. Open chrome://extensions/"
 Write-Host "  2. Enable Developer mode"
 Write-Host "  3. Click Load unpacked and choose the dist folder above"

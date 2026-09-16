@@ -62,9 +62,9 @@ validate_env_keys() {
     if [[ -z "$line" || "$line" =~ ^[[:space:]]*# ]]; then
       continue
     fi
-    
+
     key="${line%%=*}"
-    
+
     # Only validate CLI_CEB_ and CEB_ keys, allow other keys to exist
     if [[ "$key" =~ ^CLI_CEB_ ]]; then
       validate_key "$key" false
@@ -98,23 +98,23 @@ create_new_file() {
           skip_cli_section=true
           continue
         fi
-        
+
         # Check if we're exiting the CLI section
         if [[ "$line" == "# THOSE VALUES ARE EDITABLE" ]]; then
           skip_cli_section=false
           continue
         fi
-        
+
         # Skip lines in the CLI section
         if [[ "$skip_cli_section" == true ]]; then
           continue
         fi
-        
+
         # Skip CLI_CEB_ variables (in case they appear outside the CLI section)
         if [[ "$line" =~ ^CLI_CEB_ ]]; then
           continue
         fi
-        
+
         # Preserve all other lines (including FIREBASE_, CEB_, comments, empty lines)
         echo "$line"
       done < .env
