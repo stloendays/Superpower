@@ -1,0 +1,134 @@
+name: Apply Streamable HTTP defaults
+
+on:
+  push:
+    paths:
+      - .github/workflows/apply-streamable-defaults.yml
+
+permissions:
+  contents: write
+
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Apply focused default-transport fixes
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          def replace_exact(path: str, old: str, new: str) -> None:
+              p = Path(path)
+              text = p.read_text(encoding='utf-8')
+              count = text.count(old)
+              if count != 1:
+                  raise SystemExit(f'{path}: expected exactly one match, found {count}')
+              p.write_text(text.replace(old, new), encoding='utf-8')
+
+          replace_exact(
+              'chrome-extension/src/mcpclient/config/defaults.ts',
+              "    defaultTransport: 'sse',\n    defaultUri: 'http://localhost:3006/sse',",
+              "    defaultTransport: 'streamable-http',\n    defaultUri: 'http://localhost:3006/mcp',",
+          )
+
+          replace_exact(
+              'chrome-extension/src/mcpclient/types/config.ts',
+              "  defaultTransport: 'sse',\n  defaultUri: 'http://localhost:3006/sse',",
+              "  defaultTransport: 'streamable-http',\n  defaultUri: 'http://localhost:3006/mcp',",
+          )
+
+          replace_exact(
+              'pages/content/src/stores/connection.store.ts',
+              "    uri: 'http://localhost:3006/sse',\n    connectionType: 'sse',",
+              "    uri: 'http://localhost:3006/mcp',\n    connectionType: 'streamable-http',",
+          )
+
+          replace_exact(
+              'chrome-extension/src/mcpclient/index.ts',
+              """function detectTransportType(uri: string): import('./types/plugin.js').TransportType {
+  try {
+    const url = new URL(uri);
+    if (url.protocol === 'ws:' || url.protocol === 'wss:') {
+      return 'websocket';
+    }
+    // For HTTP/HTTPS, default to SSE (traditional behavior)
+    // Users can manually select streamable-http if desired
+    return 'sse';
+  } catch {
+    return 'sse';
+  }
+}""",
+              """function detectTransportType(uri: string): import('./types/plugin.js').TransportType {
+  try {
+    const url = new URL(uri);
+    if (url.protocol === 'ws:' || url.protocol === 'wss:') {
+      return 'websocket';
+    }
+    if (url.protocol === 'http:' || url.protocol === 'https:') {
+      return url.pathname.replace(/\\/+$/, '').endsWith('/sse') ? 'sse' : 'streamable-http';
+    }
+    return 'streamable-http';
+  } catch {
+    return 'streamable-http';
+  }
+}""",
+          )
+
+          replace_exact(
+              'chrome-extension/src/background/index.ts',
+              "const DEFAULT_STREAMABLE_HTTP_URL = 'http://localhost:3006';",
+              "const DEFAULT_STREAMABLE_HTTP_URL = 'http://localhost:3006/mcp';",
+          )
+          replace_exact(
+              'chrome-extension/src/background/index.ts',
+              "const DEFAULT_CONNECTION_TYPE: ConnectionType = 'sse';",
+              "const DEFAULT_CONNECTION_TYPE: ConnectionType = 'streamable-http';",
+          )
+          replace_exact(
+              'chrome-extension/src/background/index.ts',
+              'let serverUrl: string = DEFAULT_SSE_URL;',
+              'let serverUrl: string = DEFAULT_STREAMABLE_HTTP_URL;',
+          )
+          replace_exact(
+              'chrome-extension/src/background/index.ts',
+              "const defaultUrl = connectionType === 'websocket' ? DEFAULT_WEBSOCKET_URL : DEFAULT_SSE_URL;",
+              """const defaultUrl =
+          connectionType === 'websocket'
+            ? DEFAULT_WEBSOCKET_URL
+            : connectionType === 'sse'
+              ? DEFAULT_SSE_URL
+              : DEFAULT_STREAMABLE_HTTP_URL;""",
+          )
+
+          replace_exact(
+              'docs/install/windows-extension.md',
+              """Default local endpoint:
+
+```text
+http://localhost:3006/sse
+```""",
+              """Recommended local connection:
+
+- Transport: **Streamable HTTP**
+- Endpoint: `http://localhost:3006/mcp`
+
+SSE remains supported for legacy MCP endpoints such as `http://localhost:3006/sse`, and WebSocket remains available when the server requires it.""",
+          )
+          PY
+
+          rm .github/workflows/apply-streamable-defaults.yml
+
+      - name: Commit focused fixes
+        shell: bash
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git diff --cached --check
+          git commit -m "fix: prefer Streamable HTTP for local MCP"
+          git push
