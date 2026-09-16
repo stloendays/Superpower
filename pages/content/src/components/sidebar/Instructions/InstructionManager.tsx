@@ -11,26 +11,65 @@ import { createLogger } from '@extension/shared/lib/logger';
 const logger = createLogger('InstructionManager');
 const AUTO_ROUTE_DEBOUNCE_MS = 350;
 const MAX_ROUTING_QUERY_CHARS = 2_000;
+const INSTRUCTIONS_STATE_KEY = '__SUPERPOWER_INSTRUCTIONS_STATE_V1__' as const;
 
 const normalizeRoutingQuery = (value: string | null | undefined): string =>
   (value || '').replace(/\s+/g, ' ').trim().slice(0, MAX_ROUTING_QUERY_CHARS);
 
+type InstructionListener = (instructions: string) => void;
+
+interface SharedInstructionsState {
+  instructions: string;
+  updating: boolean;
+  listeners: Set<InstructionListener>;
+}
+
+type GlobalWithInstructionsState = typeof globalThis & {
+  [INSTRUCTIONS_STATE_KEY]?: SharedInstructionsState;
+};
+
 /**
- * Small external store used by the popover/capture layer. Instruction generation
- * itself remains React-driven; there is intentionally no polling loop.
+ * The sidebar and MCP popover can be emitted into separate content-script bundles.
+ * A module-local singleton therefore is not guaranteed to be the same instance in
+ * both bundles, which can leave the popover stuck on "Loading instructions..."
+ * even though the sidebar has already generated them.
+ *
+ * Chrome gives content scripts from this extension a shared isolated-world global
+ * for the current frame. Store the tiny instruction bridge there so every bundle in
+ * that frame observes the same value without persisting prompt/tool data to disk or
+ * exposing it to the host page.
  */
+const globalWithInstructionsState = globalThis as GlobalWithInstructionsState;
+const sharedInstructionsState =
+  globalWithInstructionsState[INSTRUCTIONS_STATE_KEY] ??
+  (globalWithInstructionsState[INSTRUCTIONS_STATE_KEY] = {
+    instructions: '',
+    updating: false,
+    listeners: new Set<InstructionListener>(),
+  });
+
 export const instructionsState = {
-  instructions: '',
-  updating: false,
-  listeners: [] as ((instructions: string) => void)[],
+  get instructions() {
+    return sharedInstructionsState.instructions;
+  },
+
+  get updating() {
+    return sharedInstructionsState.updating;
+  },
 
   setInstructions(newInstructions: string) {
-    if (!newInstructions || instructionsState.instructions === newInstructions || instructionsState.updating) return;
+    if (
+      !newInstructions ||
+      sharedInstructionsState.instructions === newInstructions ||
+      sharedInstructionsState.updating
+    ) {
+      return;
+    }
 
-    instructionsState.updating = true;
-    instructionsState.instructions = newInstructions;
+    sharedInstructionsState.updating = true;
+    sharedInstructionsState.instructions = newInstructions;
     try {
-      instructionsState.listeners.slice().forEach(listener => {
+      Array.from(sharedInstructionsState.listeners).forEach(listener => {
         try {
           listener(newInstructions);
         } catch (error) {
@@ -38,15 +77,25 @@ export const instructionsState = {
         }
       });
     } finally {
-      instructionsState.updating = false;
+      sharedInstructionsState.updating = false;
     }
   },
 
-  subscribe(listener: (instructions: string) => void) {
-    instructionsState.listeners.push(listener);
+  subscribe(listener: InstructionListener) {
+    sharedInstructionsState.listeners.add(listener);
+
+    // Hydrate late subscribers immediately. This closes the race where the
+    // InstructionManager generates content before MCPPopover mounts/subscribes.
+    if (sharedInstructionsState.instructions) {
+      try {
+        listener(sharedInstructionsState.instructions);
+      } catch (error) {
+        logger.error('[InstructionsState] Initial listener sync failed:', error);
+      }
+    }
+
     return () => {
-      const index = instructionsState.listeners.indexOf(listener);
-      if (index >= 0) instructionsState.listeners.splice(index, 1);
+      sharedInstructionsState.listeners.delete(listener);
     };
   },
 };
@@ -67,7 +116,7 @@ const ActionButton: React.FC<ActionButtonProps> = ({ onClick, disabled, color, l
   const colorClasses = {
     blue: 'text-blue-700 dark:text-blue-500 bg-blue-100 dark:bg-blue-900/30 hover:bg-blue-200 dark:hover:bg-blue-800/40',
     green:
-      'text-green-700 dark:text-green-500 bg-green-100 dark:bg-green-900/30 hover:bg-green-200 dark:hover:bg-green-800/40',
+      'text-green-700 dark:text-green-500 bg-green-100 dark:bg-green-900/30 hover:bg-green-200 dark:hover:bg-blue-800/40',
     red: 'text-red-700 dark:text-red-500 bg-red-100 dark:bg-red-900/30 hover:bg-red-200 dark:hover:bg-red-800/40',
     slate: 'bg-slate-200 dark:bg-slate-700 text-slate-500 dark:text-slate-400',
   };
