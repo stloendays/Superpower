@@ -53,9 +53,6 @@ jobs:
           pnpm --filter @extension/content-script type-check
           pnpm --filter @superpower/mcp-host type-check
 
-      - name: Build browser extension
-        run: pnpm base-build
-
       - name: Commit integration patch
         shell: bash
         run: |
