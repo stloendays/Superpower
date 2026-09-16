@@ -247,12 +247,15 @@ int main(int argc, char *argv[]) {
                          false);
                    });
   QObject::connect(conversationRelay, &McpBridgeProcess::responseReceived, conversation,
-                   [conversation](const QString &, const QString &method, const QJsonValue &result) {
+                   [conversation, dashboard](const QString &, const QString &method, const QJsonValue &result) {
                      if (method != QStringLiteral("submit_prompt")) return;
                      const QJsonObject payload = result.toObject();
                      const QString message = payload.value(QStringLiteral("message")).toString();
                      const QString provider = payload.value(QStringLiteral("provider")).toString();
-                     if (!provider.isEmpty()) conversation->setProviderStatus(provider, true);
+                     if (!provider.isEmpty()) {
+                       conversation->setProviderStatus(provider, true);
+                       dashboard->setActiveProvider(provider);
+                     }
                      conversation->setPromptStatus(
                          message.isEmpty() ? QStringLiteral("Quick Ask submitted to the active browser AI conversation.")
                                            : message,
@@ -278,13 +281,16 @@ int main(int argc, char *argv[]) {
                      dashboard->setConversationRelayStatus(status, true);
                    });
   QObject::connect(conversationRelay, &McpBridgeProcess::providerStatus, conversation,
-                   [conversation](const QString &provider) {
+                   [conversation, dashboard](const QString &provider) {
                      conversation->setProviderStatus(provider, true);
+                     dashboard->setActiveProvider(provider);
                    });
   QObject::connect(conversationRelay, &McpBridgeProcess::conversationEvent, &window,
                    [conversation, conversationDock, dashboard](const QJsonObject &event) {
                      conversation->ingestEvent(event);
                      dashboard->noteConversationActivity();
+                     const QString source = event.value(QStringLiteral("source")).toString();
+                     if (!source.isEmpty()) dashboard->setActiveProvider(source);
                      if (!conversationDock->isVisible()) conversationDock->show();
                    });
   QObject::connect(conversationRelay, &McpBridgeProcess::processError, conversation,
@@ -293,6 +299,7 @@ int main(int argc, char *argv[]) {
                      conversation->setRelayStatus(status, false);
                      conversation->setProviderStatus(QString(), false);
                      dashboard->setConversationRelayStatus(status, false);
+                     dashboard->setActiveProvider(QString());
                    });
   QObject::connect(conversationRelay, &McpBridgeProcess::processExited, conversation,
                    [conversation, dashboard](int exitCode, QProcess::ExitStatus) {
@@ -302,6 +309,7 @@ int main(int argc, char *argv[]) {
                      conversation->setRelayStatus(status, false);
                      conversation->setProviderStatus(QString(), false);
                      dashboard->setConversationRelayStatus(status, false);
+                     dashboard->setActiveProvider(QString());
                    });
   QObject::connect(conversationRelay, &McpBridgeProcess::logLine, conversation,
                    [conversation](const QString &line) {
