@@ -35,7 +35,7 @@
 </p>
 
 <div align="center">
-  <strong>Oxford × NUS collaboration · led by Tony</strong><br/>
+  <strong>Oxford × NUS collaboration</strong><br/>
   <sub>Practical MCP workflows across browser and desktop surfaces.</sub>
 </div>
 
