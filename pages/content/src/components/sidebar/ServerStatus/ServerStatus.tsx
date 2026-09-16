@@ -480,7 +480,9 @@ const ServerStatus: React.FC<ServerStatusProps> = ({ status: initialStatus }) =>
             {serverUri.trim() !== LOCAL_DEFAULT_URI && (
               <div className="mt-2 flex items-center justify-between gap-2 rounded-md border border-blue-100 bg-blue-50 px-2.5 py-2 dark:border-blue-900/40 dark:bg-blue-950/20">
                 <div className="min-w-0">
-                  <div className="text-[10px] font-medium text-blue-800 dark:text-blue-200">Using the local Superpower proxy?</div>
+                  <div className="text-[10px] font-medium text-blue-800 dark:text-blue-200">
+                    Using the local Superpower proxy?
+                  </div>
                   <div className="mt-0.5 truncate text-[10px] text-blue-700/80 dark:text-blue-300/80">
                     Streamable HTTP · localhost:3006/mcp
                   </div>
