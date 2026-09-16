@@ -178,9 +178,9 @@ jobs:
 
           mkdir -p "${PACKAGE_DIR}"
           cp -r dist "${PACKAGE_DIR}/dist"
-          cp Install-Superpower.cmd "${PACKAGE_DIR}/"
-          cp DIY-Install-Superpower.ps1 "${PACKAGE_DIR}/"
-          cp RELEASE_INSTALL.md "${PACKAGE_DIR}/README_INSTALL.md"
+          cp scripts/install/Install-Superpower.cmd "${PACKAGE_DIR}/"
+          cp scripts/install/DIY-Install-Superpower.ps1 "${PACKAGE_DIR}/"
+          cp docs/install/windows-extension.md "${PACKAGE_DIR}/README_INSTALL.md"
           cp LICENSE "${PACKAGE_DIR}/LICENSE"
 
           cd release
@@ -212,5 +212,5 @@ jobs:
             release/Superpower-${{ steps.version.outputs.version }}-Windows.zip
             release/Superpower-Desktop-${{ steps.version.outputs.version }}-Windows-x64.zip
             release/SHA256SUMS
-            Install-Superpower.cmd
-            DIY-Install-Superpower.ps1
+            scripts/install/Install-Superpower.cmd
+            scripts/install/DIY-Install-Superpower.ps1
