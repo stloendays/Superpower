@@ -9,6 +9,7 @@
     <a href="https://github.com/stloendays/Superpower/stargazers"><img src="https://img.shields.io/github/stars/stloendays/Superpower?style=flat-square&logo=github&label=Stars" alt="GitHub stars" /></a>
     <a href="https://github.com/stloendays/Superpower/releases/tag/v1.4.0"><img src="https://img.shields.io/badge/stable-v1.4.0-111827?style=flat-square" alt="Stable release v1.4.0" /></a>
     <img src="https://img.shields.io/badge/development-V1.5-6B7280?style=flat-square" alt="V1.5 development" />
+    <a href="https://chromewebstore.google.com/detail/eioecjdcckpdakngpgikbinalieickob?utm_source=item-share-cb"><img src="https://img.shields.io/badge/Chrome_Web_Store-Install-4285F4?style=flat-square&logo=googlechrome&logoColor=white" alt="Install Superpower from Chrome Web Store" /></a>
     <img src="https://img.shields.io/badge/Protocol-MCP-4F46E5?style=flat-square" alt="Model Context Protocol" />
     <a href="LICENSE"><img src="https://img.shields.io/badge/License-MIT-16A34A?style=flat-square" alt="MIT License" /></a>
   </p>
@@ -51,6 +52,8 @@ Bring MCP tools directly into supported AI websites without leaving the conversa
 - Detects structured tool calls and returns results to the active chat
 - Supports SSE, Streamable HTTP and WebSocket MCP connections
 - Includes tool visibility, automation and review controls
+
+**Install:** [Chrome Web Store](https://chromewebstore.google.com/detail/eioecjdcckpdakngpgikbinalieickob?utm_source=item-share-cb)
 
 **Best for:** browser-native AI workflows.
 
@@ -158,12 +161,11 @@ The browser extension currently supports ChatGPT, Google Gemini, Perplexity, Goo
 
 ### Browser Extension
 
-1. Download the [latest release](https://github.com/stloendays/Superpower/releases/latest).
-2. Extract it and run `Install-Superpower.cmd`.
-3. Open `chrome://extensions/` and enable **Developer mode**.
-4. Select **Load unpacked** and choose the generated `dist/` folder.
+1. Install [Superpower from the Chrome Web Store](https://chromewebstore.google.com/detail/eioecjdcckpdakngpgikbinalieickob?utm_source=item-share-cb).
+2. Open the extension in Chrome and configure your MCP connection.
+3. Open a supported AI website and use Superpower from the browser workflow.
 
-See [`docs/install/windows-extension.md`](docs/install/windows-extension.md) for the full extension installation guide.
+For manual or development installation, see [`docs/install/windows-extension.md`](docs/install/windows-extension.md).
 
 ### Desktop App
 
