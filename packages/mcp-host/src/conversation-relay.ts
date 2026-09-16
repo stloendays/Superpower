@@ -16,6 +16,7 @@ const MAX_PROMPT_LENGTH = 32 * 1024;
 const MAX_PROMPT_QUEUE = 20;
 const PROMPT_TIMEOUT_MS = 30_000;
 const PROVIDER_STATUS_INTERVAL_MS = 5_000;
+const PROVIDER_STALE_MS = 3_500;
 
 const PROVIDERS = ['chatgpt', 'gemini', 'grok', 'perplexity'] as const;
 type ProviderId = (typeof PROVIDERS)[number];
@@ -54,6 +55,7 @@ const claimedPrompts = new Map<string, PendingPrompt>();
 let nextPromptId = 1;
 let lastReportedProvider: ProviderId | null = null;
 let lastProviderReportAt = 0;
+let lastProviderSeenAt = 0;
 
 const writeMessage = (message: unknown): void => {
   stdout.write(`${JSON.stringify(message)}\n`);
@@ -165,10 +167,19 @@ const sanitizeEvent = (value: unknown): ConversationEvent | null => {
 
 const noteProviderSeen = (provider: ProviderId): void => {
   const now = Date.now();
+  lastProviderSeenAt = now;
   if (provider === lastReportedProvider && now - lastProviderReportAt < PROVIDER_STATUS_INTERVAL_MS) return;
   lastReportedProvider = provider;
   lastProviderReportAt = now;
-  writeMessage({ type: 'provider', provider, timestamp: now });
+  writeMessage({ type: 'provider', provider, online: true, timestamp: now });
+};
+
+const expireProviderPresence = (now: number): void => {
+  if (!lastReportedProvider || now - lastProviderSeenAt < PROVIDER_STALE_MS) return;
+  lastReportedProvider = null;
+  lastProviderReportAt = 0;
+  lastProviderSeenAt = 0;
+  writeMessage({ type: 'provider', provider: '', online: false, timestamp: now });
 };
 
 const rejectExpiredPrompt = (prompt: PendingPrompt): void => {
@@ -195,6 +206,8 @@ const expirePrompts = (): void => {
     claimedPrompts.delete(promptId);
     rejectExpiredPrompt(prompt);
   }
+
+  expireProviderPresence(now);
 };
 
 const handleConversationRequest = async (request: IncomingMessage, response: ServerResponse): Promise<void> => {
@@ -392,7 +405,8 @@ void (async () => {
         const params = asRecord(request.params);
         const text = typeof params?.text === 'string' ? params.text.trim() : '';
         const rawProvider = params?.provider;
-        const provider: PromptTarget | null = rawProvider === undefined ? 'auto' : isPromptTarget(rawProvider) ? rawProvider : null;
+        const provider: PromptTarget | null =
+          rawProvider === undefined ? 'auto' : isPromptTarget(rawProvider) ? rawProvider : null;
         if (!text) {
           sendRequestError(id, 'invalid_prompt', 'Desktop prompt text is required.');
           continue;
