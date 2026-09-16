@@ -7,6 +7,10 @@ const DESKTOP_PROMPT_ACK_ENDPOINT = 'http://127.0.0.1:32148/v1/prompt/ack';
 const BRIDGE_HEADER = 'x-superpower-conversation-bridge';
 const FORWARD_TIMEOUT_MS = 1800;
 
+const PROVIDERS = ['chatgpt', 'gemini', 'grok', 'perplexity'] as const;
+type ProviderId = (typeof PROVIDERS)[number];
+type PromptTarget = ProviderId | 'auto';
+
 interface ConversationPayload {
   eventId?: unknown;
   sessionId?: unknown;
@@ -22,6 +26,8 @@ interface ConversationPayload {
 interface DesktopPrompt {
   promptId: string;
   text: string;
+  provider: PromptTarget;
+  claimedBy: ProviderId;
   timestamp: number;
 }
 
@@ -31,20 +37,30 @@ interface PromptAckPayload {
   message?: unknown;
 }
 
-const isChatGptSender = (sender: chrome.runtime.MessageSender): boolean => {
+const providerFromSender = (sender: chrome.runtime.MessageSender): ProviderId | null => {
   const rawUrl = sender.url || sender.tab?.url || '';
   try {
     const host = new URL(rawUrl).hostname.toLowerCase();
-    return host === 'chatgpt.com' || host.endsWith('.chatgpt.com') || host === 'chat.openai.com';
+    if (host === 'chatgpt.com' || host.endsWith('.chatgpt.com') || host === 'chat.openai.com') return 'chatgpt';
+    if (host === 'gemini.google.com' || host.endsWith('.gemini.google.com')) return 'gemini';
+    if (host === 'grok.com' || host.endsWith('.grok.com')) return 'grok';
+    if (host === 'perplexity.ai' || host.endsWith('.perplexity.ai')) return 'perplexity';
+    return null;
   } catch {
-    return false;
+    return null;
   }
 };
 
-const isConversationPayload = (payload: ConversationPayload): boolean =>
+const isPromptTarget = (value: unknown): value is PromptTarget =>
+  value === 'auto' || (typeof value === 'string' && (PROVIDERS as readonly string[]).includes(value));
+
+const isProvider = (value: unknown): value is ProviderId =>
+  typeof value === 'string' && (PROVIDERS as readonly string[]).includes(value);
+
+const isConversationPayload = (payload: ConversationPayload, provider: ProviderId): boolean =>
   typeof payload.eventId === 'string' &&
   typeof payload.sessionId === 'string' &&
-  payload.source === 'chatgpt' &&
+  payload.source === provider &&
   (payload.role === 'user' || payload.role === 'assistant') &&
   typeof payload.text === 'string' &&
   (payload.phase === 'streaming' || payload.phase === 'completed');
@@ -59,8 +75,8 @@ const fetchWithTimeout = async (url: string, init: RequestInit): Promise<Respons
   }
 };
 
-const forwardConversationEvent = async (payload: ConversationPayload): Promise<boolean> => {
-  if (!isConversationPayload(payload)) return false;
+const forwardConversationEvent = async (payload: ConversationPayload, provider: ProviderId): Promise<boolean> => {
+  if (!isConversationPayload(payload, provider)) return false;
 
   try {
     const response = await fetchWithTimeout(DESKTOP_ENDPOINT, {
@@ -80,15 +96,18 @@ const forwardConversationEvent = async (payload: ConversationPayload): Promise<b
   }
 };
 
-const fetchNextDesktopPrompt = async (): Promise<DesktopPrompt | null> => {
+const fetchNextDesktopPrompt = async (provider: ProviderId): Promise<DesktopPrompt | null> => {
   try {
-    const response = await fetchWithTimeout(DESKTOP_PROMPT_NEXT_ENDPOINT, {
-      method: 'GET',
-      cache: 'no-store',
-      headers: {
-        [BRIDGE_HEADER]: '1',
+    const response = await fetchWithTimeout(
+      `${DESKTOP_PROMPT_NEXT_ENDPOINT}?provider=${encodeURIComponent(provider)}`,
+      {
+        method: 'GET',
+        cache: 'no-store',
+        headers: {
+          [BRIDGE_HEADER]: '1',
+        },
       },
-    });
+    );
     if (!response.ok) return null;
 
     const payload = (await response.json()) as { prompt?: unknown };
@@ -99,6 +118,8 @@ const fetchNextDesktopPrompt = async (): Promise<DesktopPrompt | null> => {
     return {
       promptId: prompt.promptId,
       text: prompt.text,
+      provider: isPromptTarget(prompt.provider) ? prompt.provider : 'auto',
+      claimedBy: isProvider(prompt.claimedBy) ? prompt.claimedBy : provider,
       timestamp: typeof prompt.timestamp === 'number' ? prompt.timestamp : Date.now(),
     };
   } catch (error) {
@@ -136,7 +157,8 @@ const isServiceWorkerContext =
 
 if (isServiceWorkerContext) {
   chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
-    if (!isChatGptSender(sender)) {
+    const provider = providerFromSender(sender);
+    if (!provider) {
       if (message?.type?.startsWith?.('desktop:')) {
         sendResponse({ success: false, error: 'unsupported_sender' });
       }
@@ -144,21 +166,25 @@ if (isServiceWorkerContext) {
     }
 
     if (message?.type === 'desktop:conversation-upsert') {
-      void forwardConversationEvent(message.payload || {}).then(success => {
+      void forwardConversationEvent(message.payload || {}, provider).then(success => {
         sendResponse({ success });
       });
       return true;
     }
 
     if (message?.type === 'desktop:prompt-poll') {
-      // Only the active ChatGPT tab may claim a desktop prompt. This avoids sending
-      // the same desktop request into an arbitrary background conversation.
+      // Only the active supported AI tab may claim a desktop prompt. This keeps
+      // Desktop routing aligned with the tab the user is currently viewing.
       if (sender.tab && sender.tab.active === false) {
         sendResponse({ success: true, prompt: null });
         return false;
       }
+      if (message.provider && message.provider !== provider) {
+        sendResponse({ success: false, prompt: null, error: 'provider_mismatch' });
+        return false;
+      }
 
-      void fetchNextDesktopPrompt().then(prompt => {
+      void fetchNextDesktopPrompt(provider).then(prompt => {
         sendResponse({ success: true, prompt });
       });
       return true;
