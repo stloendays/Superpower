@@ -6,6 +6,7 @@
 #include <QString>
 #include <QWidget>
 
+class QComboBox;
 class QLabel;
 class QLineEdit;
 class QPlainTextEdit;
@@ -21,10 +22,11 @@ class ConversationWindow final : public QWidget {
   void ingestEvent(const QJsonObject &event);
   void setRelayStatus(const QString &text, bool online);
   void setPromptStatus(const QString &text, bool success);
+  void setProviderStatus(const QString &provider, bool online);
   void clearConversation();
 
  signals:
-  void promptSubmitted(const QString &text);
+  void promptSubmitted(const QString &text, const QString &provider);
 
  private slots:
   void submitPrompt();
@@ -33,6 +35,7 @@ class ConversationWindow final : public QWidget {
   struct ConversationRecord {
     QString eventId;
     QString sessionId;
+    QString source;
     QString role;
     QString text;
     QString phase;
@@ -42,8 +45,10 @@ class ConversationWindow final : public QWidget {
   void renderConversation();
 
   QLabel *statusLabel_ = nullptr;
+  QLabel *providerStatusLabel_ = nullptr;
   QLabel *promptStatusLabel_ = nullptr;
   QPlainTextEdit *conversationView_ = nullptr;
+  QComboBox *providerCombo_ = nullptr;
   QLineEdit *promptInput_ = nullptr;
   QPushButton *sendButton_ = nullptr;
   QList<ConversationRecord> records_;
