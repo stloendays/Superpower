@@ -1,5 +1,6 @@
 #include "conversationwindow.h"
 
+#include <QComboBox>
 #include <QHBoxLayout>
 #include <QLabel>
 #include <QLineEdit>
@@ -8,8 +9,19 @@
 #include <QScrollBar>
 #include <QVBoxLayout>
 
+namespace {
+QString providerDisplayName(const QString &provider) {
+  if (provider == QStringLiteral("chatgpt")) return QStringLiteral("ChatGPT");
+  if (provider == QStringLiteral("gemini")) return QStringLiteral("Gemini");
+  if (provider == QStringLiteral("grok")) return QStringLiteral("Grok");
+  if (provider == QStringLiteral("perplexity")) return QStringLiteral("Perplexity");
+  if (provider == QStringLiteral("auto")) return QStringLiteral("Auto");
+  return provider.isEmpty() ? QStringLiteral("Unknown") : provider;
+}
+}  // namespace
+
 ConversationWindow::ConversationWindow(QWidget *parent) : QWidget(parent) {
-  setMinimumWidth(360);
+  setMinimumWidth(380);
 
   auto *layout = new QVBoxLayout(this);
   layout->setContentsMargins(18, 18, 18, 18);
@@ -26,7 +38,7 @@ ConversationWindow::ConversationWindow(QWidget *parent) : QWidget(parent) {
   layout->addLayout(header);
 
   auto *note = new QLabel(
-      QStringLiteral("Live ChatGPT browser text · local loopback only · session-only memory · no MCP server connection required."),
+      QStringLiteral("Desktop Quick Ask supports ChatGPT, Gemini, Grok, and Perplexity through the local browser relay. Live transcript mirroring is currently available for ChatGPT."),
       this);
   note->setWordWrap(true);
   note->setStyleSheet(QStringLiteral("color:#737373;"));
@@ -37,9 +49,35 @@ ConversationWindow::ConversationWindow(QWidget *parent) : QWidget(parent) {
   layout->addWidget(statusLabel_);
   setRelayStatus(QStringLiteral("Starting local conversation relay..."), false);
 
+  auto *providerBar = new QHBoxLayout();
+  providerBar->setSpacing(8);
+  auto *providerLabel = new QLabel(QStringLiteral("AI Provider"), this);
+  providerLabel->setStyleSheet(QStringLiteral("font-size:12px;font-weight:700;color:#333333;"));
+  providerBar->addWidget(providerLabel);
+
+  providerCombo_ = new QComboBox(this);
+  providerCombo_->addItem(QStringLiteral("Auto · active supported tab"), QStringLiteral("auto"));
+  providerCombo_->addItem(QStringLiteral("ChatGPT"), QStringLiteral("chatgpt"));
+  providerCombo_->addItem(QStringLiteral("Gemini"), QStringLiteral("gemini"));
+  providerCombo_->addItem(QStringLiteral("Grok"), QStringLiteral("grok"));
+  providerCombo_->addItem(QStringLiteral("Perplexity"), QStringLiteral("perplexity"));
+  providerCombo_->setEnabled(false);
+  providerCombo_->setMinimumHeight(32);
+  providerCombo_->setStyleSheet(
+      QStringLiteral("QComboBox{background:#ffffff;border:1px solid #cfcfcf;border-radius:8px;padding:0 9px;min-width:190px;}"
+                     "QComboBox:disabled{background:#f6f6f6;color:#888888;}"));
+  providerBar->addWidget(providerCombo_, 1);
+  layout->addLayout(providerBar);
+
+  providerStatusLabel_ = new QLabel(QStringLiteral("Active browser provider: waiting for a supported tab..."), this);
+  providerStatusLabel_->setWordWrap(true);
+  providerStatusLabel_->setStyleSheet(QStringLiteral("color:#737373;font-size:11px;"));
+  layout->addWidget(providerStatusLabel_);
+
   conversationView_ = new QPlainTextEdit(this);
   conversationView_->setReadOnly(true);
-  conversationView_->setPlaceholderText(QStringLiteral("ChatGPT messages will appear here as the webpage updates."));
+  conversationView_->setPlaceholderText(
+      QStringLiteral("ChatGPT transcript messages will appear here as the webpage updates."));
   conversationView_->setStyleSheet(
       QStringLiteral("QPlainTextEdit{background:#ffffff;border:1px solid #dddddd;border-radius:10px;padding:12px;font-family:'Segoe UI',sans-serif;font-size:13px;}"));
   layout->addWidget(conversationView_, 1);
@@ -51,7 +89,7 @@ ConversationWindow::ConversationWindow(QWidget *parent) : QWidget(parent) {
   auto *promptBar = new QHBoxLayout();
   promptBar->setSpacing(8);
   promptInput_ = new QLineEdit(this);
-  promptInput_->setPlaceholderText(QStringLiteral("Ask in the active ChatGPT conversation..."));
+  promptInput_->setPlaceholderText(QStringLiteral("Ask in the selected browser AI conversation..."));
   promptInput_->setClearButtonEnabled(true);
   promptInput_->setEnabled(false);
   promptInput_->setStyleSheet(
@@ -71,7 +109,7 @@ ConversationWindow::ConversationWindow(QWidget *parent) : QWidget(parent) {
   layout->addLayout(promptBar);
 
   promptStatusLabel_ = new QLabel(
-      QStringLiteral("Open ChatGPT in the browser with the Superpower extension enabled. Enter sends from Desktop to that active conversation."),
+      QStringLiteral("Open a supported AI site with the Superpower extension enabled. Auto routes only to the active supported browser tab."),
       this);
   promptStatusLabel_->setWordWrap(true);
   promptStatusLabel_->setStyleSheet(QStringLiteral("color:#737373;font-size:11px;"));
@@ -84,6 +122,7 @@ ConversationWindow::ConversationWindow(QWidget *parent) : QWidget(parent) {
 void ConversationWindow::ingestEvent(const QJsonObject &event) {
   const QString eventId = event.value(QStringLiteral("eventId")).toString().trimmed();
   const QString sessionId = event.value(QStringLiteral("sessionId")).toString().trimmed();
+  const QString source = event.value(QStringLiteral("source")).toString(QStringLiteral("chatgpt"));
   const QString role = event.value(QStringLiteral("role")).toString();
   const QString text = event.value(QStringLiteral("text")).toString();
   const QString phase = event.value(QStringLiteral("phase")).toString();
@@ -108,6 +147,7 @@ void ConversationWindow::ingestEvent(const QJsonObject &event) {
     ConversationRecord record;
     record.eventId = eventId;
     record.sessionId = sessionId;
+    record.source = source;
     record.role = role;
     record.text = text;
     record.phase = phase;
@@ -119,9 +159,11 @@ void ConversationWindow::ingestEvent(const QJsonObject &event) {
     while (records_.size() > 200) records_.removeFirst();
   }
 
+  setProviderStatus(source, true);
+  const QString providerName = providerDisplayName(source);
   setRelayStatus(role == QStringLiteral("assistant") && phase == QStringLiteral("streaming")
-                     ? QStringLiteral("Live · ChatGPT is responding")
-                     : QStringLiteral("Live · browser conversation synchronized locally"),
+                     ? QStringLiteral("Live · %1 is responding").arg(providerName)
+                     : QStringLiteral("Live · %1 browser conversation synchronized locally").arg(providerName),
                  true);
   renderConversation();
 }
@@ -132,6 +174,7 @@ void ConversationWindow::setRelayStatus(const QString &text, bool online) {
       online
           ? QStringLiteral("background:#111111;border:1px solid #111111;border-radius:8px;padding:8px 10px;color:#ffffff;font-weight:650;")
           : QStringLiteral("background:#f3f3f3;border:1px solid #dfdfdf;border-radius:8px;padding:8px 10px;color:#444444;font-weight:650;"));
+  if (providerCombo_) providerCombo_->setEnabled(online);
   if (promptInput_) promptInput_->setEnabled(online);
   if (sendButton_) sendButton_->setEnabled(online);
 }
@@ -143,14 +186,33 @@ void ConversationWindow::setPromptStatus(const QString &text, bool success) {
               : QStringLiteral("color:#737373;font-size:11px;"));
 }
 
+void ConversationWindow::setProviderStatus(const QString &provider, bool online) {
+  if (!providerStatusLabel_) return;
+  if (!online || provider.trimmed().isEmpty()) {
+    providerStatusLabel_->setText(QStringLiteral("Active browser provider: no supported active tab detected yet."));
+    providerStatusLabel_->setStyleSheet(QStringLiteral("color:#737373;font-size:11px;"));
+    return;
+  }
+
+  providerStatusLabel_->setText(
+      QStringLiteral("Active browser provider: %1 · local relay detected").arg(providerDisplayName(provider)));
+  providerStatusLabel_->setStyleSheet(QStringLiteral("color:#166534;font-size:11px;font-weight:600;"));
+}
+
 void ConversationWindow::submitPrompt() {
   if (!promptInput_ || !promptInput_->isEnabled()) return;
   const QString text = promptInput_->text().trimmed();
   if (text.isEmpty()) return;
 
+  const QString provider = providerCombo_ ? providerCombo_->currentData().toString() : QStringLiteral("auto");
   promptInput_->clear();
-  setPromptStatus(QStringLiteral("Sending to the active ChatGPT tab through the local conversation relay..."), false);
-  emit promptSubmitted(text);
+  setPromptStatus(
+      provider == QStringLiteral("auto")
+          ? QStringLiteral("Sending to the active supported AI tab through the local conversation relay...")
+          : QStringLiteral("Sending to the active %1 tab through the local conversation relay...")
+                .arg(providerDisplayName(provider)),
+      false);
+  emit promptSubmitted(text, provider);
 }
 
 void ConversationWindow::renderConversation() {
@@ -159,14 +221,19 @@ void ConversationWindow::renderConversation() {
 
   QStringList lines;
   QString previousSession;
+  QString previousSource;
   for (const ConversationRecord &record : records_) {
-    if (record.sessionId != previousSession) {
+    if (record.sessionId != previousSession || record.source != previousSource) {
       if (!lines.isEmpty()) lines << QString();
-      lines << QStringLiteral("──────── Browser conversation ────────") << QString();
+      lines << QStringLiteral("──────── %1 browser conversation ────────")
+                   .arg(providerDisplayName(record.source))
+            << QString();
       previousSession = record.sessionId;
+      previousSource = record.source;
     }
 
-    const QString speaker = record.role == QStringLiteral("user") ? QStringLiteral("You") : QStringLiteral("ChatGPT");
+    const QString speaker = record.role == QStringLiteral("user") ? QStringLiteral("You")
+                                                                    : providerDisplayName(record.source);
     const QString streaming = record.role == QStringLiteral("assistant") && record.phase == QStringLiteral("streaming")
                                   ? QStringLiteral(" · streaming")
                                   : QString();
