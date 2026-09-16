@@ -7,11 +7,15 @@
 
   <p>
     <a href="https://github.com/stloendays/Superpower/stargazers"><img src="https://img.shields.io/github/stars/stloendays/Superpower?style=flat-square&logo=github&label=Stars" alt="GitHub stars" /></a>
-    <a href="https://github.com/stloendays/Superpower/releases/tag/v1.4.0"><img src="https://img.shields.io/badge/stable-v1.4.0-111827?style=flat-square" alt="Stable release v1.4.0" /></a>
+    <a href="https://github.com/stloendays/Superpower/releases/tag/v1.4.1"><img src="https://img.shields.io/badge/stable-v1.4.1-111827?style=flat-square" alt="Stable release v1.4.1" /></a>
     <img src="https://img.shields.io/badge/development-V1.5-6B7280?style=flat-square" alt="V1.5 development" />
     <a href="https://chromewebstore.google.com/detail/eioecjdcckpdakngpgikbinalieickob?utm_source=item-share-cb"><img src="https://img.shields.io/badge/Chrome_Web_Store-Install-4285F4?style=flat-square&logo=googlechrome&logoColor=white" alt="Install Superpower from Chrome Web Store" /></a>
     <img src="https://img.shields.io/badge/Protocol-MCP-4F46E5?style=flat-square" alt="Model Context Protocol" />
     <a href="LICENSE"><img src="https://img.shields.io/badge/License-MIT-16A34A?style=flat-square" alt="MIT License" /></a>
+  </p>
+
+  <p>
+    <strong>English</strong> · <a href="README.zh-CN.md">简体中文</a>
   </p>
 
   <p>
@@ -36,7 +40,7 @@
 
 <br/>
 
-> **Release status:** v1.4.0 is the current public stable release. V1.5 is the active development line and adds review-first routing and workflow execution capabilities.
+> **Release status:** v1.4.1 is the current public stable release. V1.5 is the active development line and adds review-first routing and workflow execution capabilities.
 
 ## Products
 
@@ -50,7 +54,8 @@ Bring MCP tools directly into supported AI websites without leaving the conversa
 
 - Works inside ChatGPT, Gemini, Perplexity, Grok, Qwen and more
 - Detects structured tool calls and returns results to the active chat
-- Supports SSE, Streamable HTTP and WebSocket MCP connections
+- Supports Streamable HTTP, SSE and WebSocket MCP connections
+- Uses **Streamable HTTP** as the recommended local default for new setups
 - Includes tool visibility, automation and review controls
 
 **Install:** [Chrome Web Store](https://chromewebstore.google.com/detail/eioecjdcckpdakngpgikbinalieickob?utm_source=item-share-cb)
@@ -163,7 +168,10 @@ The browser extension currently supports ChatGPT, Google Gemini, Perplexity, Goo
 
 1. Install [Superpower from the Chrome Web Store](https://chromewebstore.google.com/detail/eioecjdcckpdakngpgikbinalieickob?utm_source=item-share-cb).
 2. Open the extension in Chrome and configure your MCP connection.
-3. Open a supported AI website and use Superpower from the browser workflow.
+3. For the standard local proxy, use **Streamable HTTP** with `http://localhost:3006/mcp`.
+4. Open a supported AI website and use Superpower from the browser workflow.
+
+> **Connection compatibility:** new local setups default to Streamable HTTP. Explicit legacy SSE endpoints such as `http://localhost:3006/sse` and WebSocket endpoints remain supported. Existing saved connection settings are not overwritten.
 
 For manual or development installation, see [`docs/install/windows-extension.md`](docs/install/windows-extension.md).
 
@@ -210,6 +218,7 @@ Superpower/
 │   ├── install/               # Windows source/release installer helpers
 │   └── shell/                 # Build, environment and version shell utilities
 ├── README.md                  # Project homepage
+├── README.zh-CN.md            # Simplified Chinese project homepage
 ├── SECURITY.md                # Security model and reporting guidance
 ├── CHANGELOG.md               # Release history
 └── package.json               # Monorepo entry point
