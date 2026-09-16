@@ -1,6 +1,6 @@
 {
   "name": "chrome-extension",
-  "version": "1.4.0",
+  "version": "1.4.1",
   "description": "Superpower Chrome extension core",
   "type": "module",
   "private": true,
