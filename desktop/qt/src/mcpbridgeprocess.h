@@ -28,6 +28,7 @@ class McpBridgeProcess final : public QObject {
  signals:
   void bridgeReady(const QString &transport);
   void conversationEvent(const QJsonObject &event);
+  void providerStatus(const QString &provider);
   void responseReceived(const QString &id, const QString &method, const QJsonValue &result);
   void requestFailed(const QString &id, const QString &method, const QString &code,
                      const QString &message, const QJsonObject &details);
