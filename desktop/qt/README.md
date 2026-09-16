@@ -137,6 +137,7 @@ The Conversation dock now includes a **Quick Ask** bar. With the Superpower brow
 
 This conversation relay is independent of the MCP endpoint. The standard local MCP proxy remains `http://localhost:3006/mcp`.
 
+For a smoke test, start Desktop, load the development extension, open ChatGPT in the active browser tab, open **View → Conversation**, type `Reply with: Superpower desktop bridge OK` into **Quick Ask**, and press Enter. Desktop should report a successful submission and the ChatGPT response should appear back in the Conversation dock.
+
 - [Desktop guide](../../docs/usage/desktop-app.md)
 - [Chinese desktop guide](../../docs/usage/desktop-app.zh-CN.md)
-
