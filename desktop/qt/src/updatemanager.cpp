@@ -125,8 +125,8 @@ void UpdateManager::checkForUpdates(bool userInitiated) {
 
     availableVersion_ = version;
     assetName_ = QStringLiteral("Superpower-Desktop-%1-Windows-x64.zip").arg(version);
-    packageUrl_ = {};
-    checksumsUrl_ = {};
+    packageUrl_.clear();
+    checksumsUrl_.clear();
 
     const QJsonArray assets = release.value(QStringLiteral("assets")).toArray();
     for (const QJsonValue &assetValue : assets) {
