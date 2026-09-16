@@ -18,6 +18,7 @@ class WorkspaceDashboard final : public QWidget {
 
  public slots:
   void setConversationRelayStatus(const QString &text, bool online);
+  void setActiveProvider(const QString &provider);
   void setActionRouterStatus(const QString &text, bool busy);
   void noteConversationActivity();
   void refreshFromWorkspace();
@@ -42,6 +43,8 @@ class WorkspaceDashboard final : public QWidget {
   QPushButton *actionRouteButton_ = nullptr;
   QPushButton *workflowPlanButton_ = nullptr;
   QLabel *actionRouterStatusLabel_ = nullptr;
+  QLabel *providerValueLabel_ = nullptr;
+  QLabel *providerDetailLabel_ = nullptr;
   QLabel *conversationValueLabel_ = nullptr;
   QLabel *conversationDetailLabel_ = nullptr;
   QLabel *mcpValueLabel_ = nullptr;
@@ -53,6 +56,7 @@ class WorkspaceDashboard final : public QWidget {
   QListWidget *recentRunsList_ = nullptr;
   QTimer *refreshTimer_ = nullptr;
 
+  QString activeProvider_;
   QString conversationRelayText_ = QStringLiteral("Starting local relay...");
   bool conversationRelayOnline_ = false;
   int conversationEventCount_ = 0;
