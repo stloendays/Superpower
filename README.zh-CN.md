@@ -26,6 +26,7 @@
     <a href="#支持的平台">平台</a> ·
     <a href="#工作原理">架构</a> ·
     <a href="#快速开始">快速开始</a> ·
+    <a href="docs/usage/browser-extension.zh-CN.md">操作指南</a> ·
     <a href="#仓库结构">仓库结构</a>
   </p>
 </div>
@@ -182,6 +183,8 @@ V1.5 开发线会把自然语言需求映射到 MCP 能力，根据 schema 生�
 
 > **连接兼容性：** 新的本地配置默认使用 Streamable HTTP。显式的旧版 SSE endpoint（例如 `http://localhost:3006/sse`）和 WebSocket endpoint 仍然支持；已有用户保存的连接配置不会被强制覆盖。
 
+**第一次使用？** 按 [浏览器扩展操作指南](docs/usage/browser-extension.zh-CN.md) 完成“连接 MCP → 检查工具 → 检查 Instructions → 先做只读测试”的完整流程。同一份指南也说明如何**不上传 Chrome Web Store，直接测试本地开发版本**。
+
 手动安装或开发环境安装请参阅 [`docs/install/windows-extension.md`](docs/install/windows-extension.md)。
 
 ### 桌面应用
@@ -201,7 +204,7 @@ pnpm install
 pnpm base-build
 ```
 
-配置 MCP Proxy，使用需要的 transport 启动，然后在浏览器中把 `dist/` 作为“已解压扩展”加载。
+配置 MCP Proxy，使用需要的 transport 启动，然后在浏览器中把 `dist/` 作为“已解压扩展”加载。具体的重新构建、重新加载扩展与刷新 AI 网页流程，请看 [不上传商店，直接测试本地版本](docs/usage/browser-extension.zh-CN.md#不上传商店直接测试本地版本)。
 
 ## 开发
 
