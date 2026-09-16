@@ -9,7 +9,7 @@ param(
 Set-StrictMode -Version Latest
 $ErrorActionPreference = "Stop"
 
-$Repository = "stloendays/Superpower-V1"
+$Repository = "stloendays/Superpower"
 $RequiredNodeVersion = [version]"22.12.0"
 $RequiredPnpmVersion = "9.15.1"
 
