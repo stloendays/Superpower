@@ -1,18 +1,37 @@
 import { createLogger } from '@extension/shared/lib/logger';
-import { insertTextToChatInput, submitChatInput } from '../components/websites/chatgpt/chatInputHandler';
+import {
+  insertTextToChatInput as insertChatGptText,
+  submitChatInput as submitChatGptInput,
+} from '../components/websites/chatgpt/chatInputHandler';
+import {
+  insertTextToChatInput as insertGeminiText,
+  submitChatInput as submitGeminiInput,
+} from '../components/websites/gemini/chatInputHandler';
+import {
+  insertTextToChatInput as insertGrokText,
+  submitChatInput as submitGrokInput,
+} from '../components/websites/grok/chatInputHandler';
+import {
+  insertTextToChatInput as insertPerplexityText,
+  submitChatInput as submitPerplexityInput,
+} from '../components/websites/perplexity/chatInputHandler';
 
 const logger = createLogger('DesktopConversationSync');
 
-const MESSAGE_SELECTOR = '[data-message-author-role="user"], [data-message-author-role="assistant"]';
+const CHATGPT_MESSAGE_SELECTOR = '[data-message-author-role="user"], [data-message-author-role="assistant"]';
 const MAX_MESSAGE_LENGTH = 64 * 1024;
 const MAX_DESKTOP_PROMPT_LENGTH = 32 * 1024;
 const SCAN_DELAY_MS = 120;
 const PROMPT_POLL_INTERVAL_MS = 900;
 
+const PROVIDERS = ['chatgpt', 'gemini', 'grok', 'perplexity'] as const;
+type ProviderId = (typeof PROVIDERS)[number];
+type PromptTarget = ProviderId | 'auto';
+
 interface ConversationSnapshot {
   eventId: string;
   sessionId: string;
-  source: 'chatgpt';
+  source: ProviderId;
   role: 'user' | 'assistant';
   text: string;
   phase: 'streaming' | 'completed';
@@ -24,8 +43,28 @@ interface ConversationSnapshot {
 interface DesktopPrompt {
   promptId: string;
   text: string;
+  provider?: PromptTarget;
+  claimedBy?: ProviderId;
   timestamp: number;
 }
+
+const providerForHost = (host: string): ProviderId | null => {
+  const normalized = host.toLowerCase();
+  if (normalized === 'chatgpt.com' || normalized.endsWith('.chatgpt.com') || normalized === 'chat.openai.com') {
+    return 'chatgpt';
+  }
+  if (normalized === 'gemini.google.com' || normalized.endsWith('.gemini.google.com')) return 'gemini';
+  if (normalized === 'grok.com' || normalized.endsWith('.grok.com')) return 'grok';
+  if (normalized === 'perplexity.ai' || normalized.endsWith('.perplexity.ai')) return 'perplexity';
+  return null;
+};
+
+const providerDisplayName = (provider: ProviderId): string => {
+  if (provider === 'chatgpt') return 'ChatGPT';
+  if (provider === 'gemini') return 'Gemini';
+  if (provider === 'grok') return 'Grok';
+  return 'Perplexity';
+};
 
 class DesktopConversationSync {
   private observer: MutationObserver | null = null;
@@ -35,35 +74,44 @@ class DesktopConversationSync {
   private promptPolling = false;
   private lastRoute = '';
   private lastSnapshots = new Map<string, string>();
+  private provider: ProviderId | null = null;
 
   start(): void {
-    if (this.observer || !this.isSupportedHost() || !document.body) return;
+    if (this.promptTimer || !document.body) return;
+
+    this.provider = providerForHost(window.location.hostname);
+    if (!this.provider) return;
 
     this.lastRoute = this.sessionId();
-    this.observer = new MutationObserver(() => this.scheduleScan());
-    this.observer.observe(document.body, {
-      childList: true,
-      characterData: true,
-      subtree: true,
-    });
 
-    this.routeTimer = setInterval(() => {
-      const route = this.sessionId();
-      if (route !== this.lastRoute) {
-        this.lastRoute = route;
-        this.lastSnapshots.clear();
-        this.scheduleScan();
-      }
-    }, 750);
+    // Transcript mirroring remains intentionally conservative. ChatGPT exposes
+    // stable role markers; other providers are Quick Ask send targets for now.
+    if (this.provider === 'chatgpt') {
+      this.observer = new MutationObserver(() => this.scheduleScan());
+      this.observer.observe(document.body, {
+        childList: true,
+        characterData: true,
+        subtree: true,
+      });
+
+      this.routeTimer = setInterval(() => {
+        const route = this.sessionId();
+        if (route !== this.lastRoute) {
+          this.lastRoute = route;
+          this.lastSnapshots.clear();
+          this.scheduleScan();
+        }
+      }, 750);
+      this.scheduleScan();
+    }
 
     this.promptTimer = setInterval(() => {
       void this.pollDesktopPrompt();
     }, PROMPT_POLL_INTERVAL_MS);
 
-    this.scheduleScan();
     void this.pollDesktopPrompt();
     window.addEventListener('beforeunload', this.stop, { once: true });
-    logger.debug('ChatGPT conversation observer started');
+    logger.debug(`Desktop relay started for ${providerDisplayName(this.provider)}`);
   }
 
   stop = (): void => {
@@ -77,35 +125,51 @@ class DesktopConversationSync {
     this.promptTimer = null;
     this.promptPolling = false;
     this.lastSnapshots.clear();
+    this.provider = null;
   };
 
-  private isSupportedHost(): boolean {
-    const host = window.location.hostname.toLowerCase();
-    return host === 'chatgpt.com' || host.endsWith('.chatgpt.com') || host === 'chat.openai.com';
-  }
-
   private sessionId(): string {
-    return `${window.location.hostname}${window.location.pathname}`;
+    return `${this.provider ?? 'unknown'}:${window.location.hostname}${window.location.pathname}`;
   }
 
   private isGenerating(): boolean {
+    if (!this.provider) return false;
+
+    if (this.provider === 'chatgpt') {
+      return Boolean(
+        document.querySelector(
+          'button[data-testid="stop-button"], button[aria-label*="Stop generating"], button[aria-label*="Stop streaming"]',
+        ),
+      );
+    }
+
+    if (this.provider === 'gemini') {
+      return Boolean(
+        document.querySelector(
+          'button[aria-label*="Stop" i], button[mattooltip*="Stop" i], .stop-button, button.stop-response-button',
+        ),
+      );
+    }
+
     return Boolean(
       document.querySelector(
-        'button[data-testid="stop-button"], button[aria-label*="Stop generating"], button[aria-label*="Stop streaming"]',
+        'button[data-testid="stop-button"], button[aria-label*="Stop" i], button[title*="Stop" i]',
       ),
     );
   }
 
   private scheduleScan(): void {
-    if (this.scanTimer) return;
+    if (this.provider !== 'chatgpt' || this.scanTimer) return;
     this.scanTimer = setTimeout(() => {
       this.scanTimer = null;
-      this.scan();
+      this.scanChatGpt();
     }, SCAN_DELAY_MS);
   }
 
-  private scan(): void {
-    const elements = Array.from(document.querySelectorAll<HTMLElement>(MESSAGE_SELECTOR));
+  private scanChatGpt(): void {
+    if (this.provider !== 'chatgpt') return;
+
+    const elements = Array.from(document.querySelectorAll<HTMLElement>(CHATGPT_MESSAGE_SELECTOR));
     if (elements.length === 0) return;
 
     const generating = this.isGenerating();
@@ -164,18 +228,36 @@ class DesktopConversationSync {
       });
   }
 
+  private insertPrompt(text: string): boolean {
+    if (this.provider === 'chatgpt') return insertChatGptText(text);
+    if (this.provider === 'gemini') return insertGeminiText(text);
+    if (this.provider === 'grok') return insertGrokText(text);
+    if (this.provider === 'perplexity') return insertPerplexityText(text);
+    return false;
+  }
+
+  private async submitPrompt(): Promise<boolean> {
+    if (this.provider === 'chatgpt') return await submitChatGptInput(5000);
+    if (this.provider === 'gemini') return submitGeminiInput();
+    if (this.provider === 'grok') return await submitGrokInput(5000);
+    if (this.provider === 'perplexity') return await submitPerplexityInput(5000);
+    return false;
+  }
+
   private async pollDesktopPrompt(): Promise<void> {
-    if (this.promptPolling || this.isGenerating()) return;
+    if (this.promptPolling || this.isGenerating() || !this.provider) return;
     if (typeof chrome === 'undefined' || !chrome.runtime?.sendMessage) return;
 
     this.promptPolling = true;
     try {
-      const response = (await chrome.runtime.sendMessage({ type: 'desktop:prompt-poll' })) as
-        | { success?: boolean; prompt?: DesktopPrompt | null }
-        | undefined;
+      const response = (await chrome.runtime.sendMessage({
+        type: 'desktop:prompt-poll',
+        provider: this.provider,
+      })) as { success?: boolean; prompt?: DesktopPrompt | null } | undefined;
       const prompt = response?.prompt;
       if (!response?.success || !prompt) return;
       if (typeof prompt.promptId !== 'string' || typeof prompt.text !== 'string') return;
+      if (prompt.claimedBy && prompt.claimedBy !== this.provider) return;
 
       const text = prompt.text.trim().slice(0, MAX_DESKTOP_PROMPT_LENGTH);
       if (!text) {
@@ -183,19 +265,23 @@ class DesktopConversationSync {
         return;
       }
 
-      const inserted = insertTextToChatInput(text);
+      const inserted = this.insertPrompt(text);
       if (!inserted) {
-        await this.acknowledgePrompt(prompt.promptId, false, 'ChatGPT input was not available.');
+        await this.acknowledgePrompt(
+          prompt.promptId,
+          false,
+          `${providerDisplayName(this.provider)} input was not available.`,
+        );
         return;
       }
 
-      const submitted = await submitChatInput(5000);
+      const submitted = await this.submitPrompt();
       await this.acknowledgePrompt(
         prompt.promptId,
         submitted,
         submitted
-          ? 'Prompt submitted to the active ChatGPT conversation.'
-          : 'Prompt was inserted, but automatic submission failed. Check the browser composer.',
+          ? `Prompt submitted to the active ${providerDisplayName(this.provider)} conversation.`
+          : `Prompt was inserted into ${providerDisplayName(this.provider)}, but automatic submission failed. Check the browser composer.`,
       );
     } catch (error) {
       logger.debug('Desktop prompt polling unavailable:', error instanceof Error ? error.message : String(error));
