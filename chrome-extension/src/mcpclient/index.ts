@@ -135,11 +135,12 @@ function detectTransportType(uri: string): import('./types/plugin.js').Transport
     if (url.protocol === 'ws:' || url.protocol === 'wss:') {
       return 'websocket';
     }
-    // For HTTP/HTTPS, default to SSE (traditional behavior)
-    // Users can manually select streamable-http if desired
-    return 'sse';
+    if (url.protocol === 'http:' || url.protocol === 'https:') {
+      return url.pathname.replace(/\/+$/, '').endsWith('/sse') ? 'sse' : 'streamable-http';
+    }
+    return 'streamable-http';
   } catch {
-    return 'sse';
+    return 'streamable-http';
   }
 }
 

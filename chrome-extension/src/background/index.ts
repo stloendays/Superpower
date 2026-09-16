@@ -44,17 +44,17 @@ const logger = createLogger('BACKGROUND');
 
 const DEFAULT_SSE_URL = 'http://localhost:3006/sse';
 const DEFAULT_WEBSOCKET_URL = 'ws://localhost:3006/message';
-const DEFAULT_STREAMABLE_HTTP_URL = 'http://localhost:3006';
+const DEFAULT_STREAMABLE_HTTP_URL = 'http://localhost:3006/mcp';
 
 // Connection type management
 type ConnectionType = TransportType;
-const DEFAULT_CONNECTION_TYPE: ConnectionType = 'sse';
+const DEFAULT_CONNECTION_TYPE: ConnectionType = 'streamable-http';
 
 // Remote Config Manager
 let remoteConfigManager: RemoteConfigManager | null = null;
 
 // Background script state management with connection type support
-let serverUrl: string = DEFAULT_SSE_URL;
+let serverUrl: string = DEFAULT_STREAMABLE_HTTP_URL;
 let connectionType: ConnectionType = DEFAULT_CONNECTION_TYPE;
 let isConnected: boolean = false;
 let connectionCount: number = 0;
@@ -814,7 +814,12 @@ async function handleMcpMessage(
 
       case 'mcp:get-server-config': {
         const stored = await chrome.storage.local.get(['mcpServerUrl', 'mcpConnectionType']);
-        const defaultUrl = connectionType === 'websocket' ? DEFAULT_WEBSOCKET_URL : DEFAULT_SSE_URL;
+        const defaultUrl =
+          connectionType === 'websocket'
+            ? DEFAULT_WEBSOCKET_URL
+            : connectionType === 'sse'
+              ? DEFAULT_SSE_URL
+              : DEFAULT_STREAMABLE_HTTP_URL;
         result = { 
           uri: stored.mcpServerUrl || defaultUrl,
           connectionType: stored.mcpConnectionType || connectionType

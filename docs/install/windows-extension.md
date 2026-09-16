@@ -15,11 +15,12 @@
 
 Superpower connects to MCP servers through the configured proxy.
 
-Default local endpoint:
+Recommended local connection:
 
-```text
-http://localhost:3006/sse
-```
+- Transport: **Streamable HTTP**
+- Endpoint: `http://localhost:3006/mcp`
+
+SSE remains supported for legacy MCP endpoints such as `http://localhost:3006/sse`, and WebSocket remains available when the server requires it.
 
 ## Developer installation
 
