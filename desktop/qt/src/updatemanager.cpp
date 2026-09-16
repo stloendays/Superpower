@@ -33,11 +33,11 @@ QNetworkRequest githubRequest(const QUrl &url) {
   return request;
 }
 
-QString safeTempArchivePath(const QString &version) {
+QString safeTempPackagePath(const QString &version, const QString &suffix) {
   QString safeVersion = version;
   safeVersion.replace(QRegularExpression(QStringLiteral("[^A-Za-z0-9._-]")), QStringLiteral("_"));
   return QDir(QStandardPaths::writableLocation(QStandardPaths::TempLocation))
-      .filePath(QStringLiteral("Superpower-Desktop-update-%1.zip").arg(safeVersion));
+      .filePath(QStringLiteral("Superpower-Desktop-update-%1%2").arg(safeVersion, suffix));
 }
 
 QString normalizeAssetName(QString name) {
@@ -61,8 +61,14 @@ bool UpdateManager::isNewerVersion(const QString &candidate) const {
   return QVersionNumber::compare(offered, current) > 0;
 }
 
+bool UpdateManager::isManagedInstall() const {
+  const QString marker = QDir(QCoreApplication::applicationDirPath())
+                             .filePath(QStringLiteral(".superpower-installed"));
+  return QFileInfo::exists(marker);
+}
+
 bool UpdateManager::updateReady() const {
-  return !downloadedArchive_.isEmpty() && QFileInfo::exists(downloadedArchive_);
+  return !downloadedPackage_.isEmpty() && QFileInfo::exists(downloadedPackage_);
 }
 
 QString UpdateManager::availableVersion() const { return availableVersion_; }
@@ -124,22 +130,46 @@ void UpdateManager::checkForUpdates(bool userInitiated) {
     }
 
     availableVersion_ = version;
-    assetName_ = QStringLiteral("Superpower-Desktop-%1-Windows-x64.zip").arg(version);
-    packageUrl_.clear();
+    const QString installerName = QStringLiteral("Superpower-Desktop-%1-Setup.exe").arg(version);
+    const QString archiveName = QStringLiteral("Superpower-Desktop-%1-Windows-x64.zip").arg(version);
+    QUrl installerUrl;
+    QUrl archiveUrl;
     checksumsUrl_.clear();
+    packageUrl_.clear();
+    downloadedPackage_.clear();
+    packageIsInstaller_ = false;
 
     const QJsonArray assets = release.value(QStringLiteral("assets")).toArray();
     for (const QJsonValue &assetValue : assets) {
       const QJsonObject asset = assetValue.toObject();
       const QString name = asset.value(QStringLiteral("name")).toString();
       const QUrl url(asset.value(QStringLiteral("browser_download_url")).toString());
-      if (name == assetName_) packageUrl_ = url;
+      if (name == installerName) installerUrl = url;
+      if (name == archiveName) archiveUrl = url;
       if (name == QStringLiteral("SHA256SUMS")) checksumsUrl_ = url;
     }
 
+#ifdef Q_OS_WIN
+    if (isManagedInstall() && installerUrl.isValid()) {
+      assetName_ = installerName;
+      packageUrl_ = installerUrl;
+      packageIsInstaller_ = true;
+    } else if (archiveUrl.isValid()) {
+      assetName_ = archiveName;
+      packageUrl_ = archiveUrl;
+    } else if (installerUrl.isValid()) {
+      assetName_ = installerName;
+      packageUrl_ = installerUrl;
+      packageIsInstaller_ = true;
+    }
+#else
+    assetName_ = archiveName;
+    packageUrl_ = archiveUrl;
+#endif
+
     if (!packageUrl_.isValid() || !checksumsUrl_.isValid()) {
       reply->deleteLater();
-      fail(QStringLiteral("The latest release is missing the Windows desktop package or SHA256SUMS."));
+      fail(QStringLiteral("The latest release is missing a desktop update package or SHA256SUMS."));
       return;
     }
 
@@ -179,7 +209,7 @@ void UpdateManager::fetchChecksumAndPackage() {
     reply->deleteLater();
     if (expectedSha256_.size() != 64) {
       downloading_ = false;
-      fail(QStringLiteral("SHA256SUMS does not contain the Windows desktop update package."));
+      fail(QStringLiteral("SHA256SUMS does not contain the selected desktop update package."));
       return;
     }
     downloadPackage();
@@ -206,15 +236,16 @@ void UpdateManager::downloadPackage() {
       return;
     }
 
-    const QString archivePath = safeTempArchivePath(availableVersion_);
-    QSaveFile file(archivePath);
+    const QString packagePath = safeTempPackagePath(
+        availableVersion_, packageIsInstaller_ ? QStringLiteral(".exe") : QStringLiteral(".zip"));
+    QSaveFile file(packagePath);
     if (!file.open(QIODevice::WriteOnly) || file.write(payload) != payload.size() || !file.commit()) {
       reply->deleteLater();
       fail(QStringLiteral("Could not save the verified update package."));
       return;
     }
 
-    downloadedArchive_ = archivePath;
+    downloadedPackage_ = packagePath;
     emit statusChanged(QStringLiteral("Superpower Desktop %1 is verified and ready to install.")
                            .arg(availableVersion_));
     emit updateReadyToInstall(availableVersion_);
@@ -229,6 +260,27 @@ void UpdateManager::installDownloadedUpdate() {
   }
 
 #ifdef Q_OS_WIN
+  if (packageIsInstaller_) {
+    const QString logPath = QDir(QStandardPaths::writableLocation(QStandardPaths::TempLocation))
+                                .filePath(QStringLiteral("Superpower-Desktop-setup-update.log"));
+    const QStringList arguments{
+        QStringLiteral("/SP-"),
+        QStringLiteral("/VERYSILENT"),
+        QStringLiteral("/SUPPRESSMSGBOXES"),
+        QStringLiteral("/NORESTART"),
+        QStringLiteral("/CLOSEAPPLICATIONS"),
+        QStringLiteral("/FORCECLOSEAPPLICATIONS"),
+        QStringLiteral("/LOG=%1").arg(logPath)};
+
+    if (!QProcess::startDetached(downloadedPackage_, arguments,
+                                 QCoreApplication::applicationDirPath())) {
+      fail(QStringLiteral("Could not start the verified Windows installer."));
+      return;
+    }
+    QCoreApplication::quit();
+    return;
+  }
+
   const QString temp = QStandardPaths::writableLocation(QStandardPaths::TempLocation);
   const QString scriptPath = QDir(temp).filePath(QStringLiteral("Superpower-Desktop-apply-update.ps1"));
   const QString script = QString::fromUtf8(R"PS1(param(
@@ -272,7 +324,7 @@ try {
       QStringLiteral("-WindowStyle"), QStringLiteral("Hidden"),
       QStringLiteral("-File"), scriptPath,
       QStringLiteral("-ProcessId"), QString::number(QCoreApplication::applicationPid()),
-      QStringLiteral("-Archive"), downloadedArchive_,
+      QStringLiteral("-Archive"), downloadedPackage_,
       QStringLiteral("-Destination"), QCoreApplication::applicationDirPath(),
       QStringLiteral("-Executable"), QFileInfo(QCoreApplication::applicationFilePath()).fileName()};
 
