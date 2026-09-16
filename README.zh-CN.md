@@ -19,6 +19,7 @@
   </p>
 
   <p>
+    <a href="#superpower-解决什么问题">解决什么问题</a> ·
     <a href="#产品形态">产品</a> ·
     <a href="#为什么使用-superpower">为什么使用</a> ·
     <a href="#主要功能">功能</a> ·
@@ -42,6 +43,14 @@
 
 > **版本状态：** v1.4.1 是当前公开稳定版本；V1.5 为主线开发版本，正在加入以审核为核心的自然语言路由、多步骤工作流规划与受控执行能力。
 
+## Superpower 解决什么问题？
+
+网页端 AI 很适合负责理解需求、推理和规划，但它通常不能直接使用你的本地文件、命令行工具、私有 MCP Server 或桌面工作流。Superpower 把这两部分连接起来：网页模型负责判断需要做什么，MCP 负责调用真实工具执行，再把结果返回到同一个对话中。
+
+这意味着你可以继续在 **ChatGPT、Gemini、Perplexity、Grok、Copilot、Qwen 等网页端 AI** 中工作，同时使用自己的 MCP 工具。Superpower 不是为了替代 Codex 这类 Coding Agent，而是提供一个 browser-first 的执行层：适合希望保留网页端对话体验、接入自有 MCP、在执行前保留审核步骤，或者希望轻量工具调用不占用另一套本地 Agent 模型额度的场景。
+
+**一句话：让你已经在使用的网页 AI 负责推理，让 MCP 负责执行。**
+
 ## 产品形态
 
 <table>
@@ -50,31 +59,31 @@
 
 ### 浏览器扩展
 
-把 MCP 工具直接带入支持的 AI 网站，在对话页面内完成工具调用，而不需要频繁切换应用。
+把 MCP 工具直接带进支持的 AI 网站，不需要离开当前对话。
 
-- 可在 ChatGPT、Gemini、Perplexity、Grok、Qwen 等网站中使用
-- 识别结构化工具调用，并把 MCP 执行结果返回当前对话
-- 支持 **Streamable HTTP、SSE 和 WebSocket** MCP 连接
+- 支持 ChatGPT、Gemini、Perplexity、Grok、Qwen 等网页 AI
+- 检测结构化工具调用，并把工具结果返回当前对话
+- 支持 Streamable HTTP、SSE 与 WebSocket MCP 连接
 - 新的本地配置默认推荐使用 **Streamable HTTP**
-- 提供工具可见性、自动化和审核控制
+- 提供工具可见性、自动化与审核控制
 
 **安装：** [Chrome Web Store](https://chromewebstore.google.com/detail/eioecjdcckpdakngpgikbinalieickob?utm_source=item-share-cb)
 
-**适合场景：** 以浏览器 AI 对话为主要工作界面的用户。
+**适合：** 以网页 AI 对话为主要工作界面的场景。
 
 </td>
 <td width="50%" valign="top">
 
 ### 桌面应用
 
-在浏览器之外，把 Superpower 作为独立的原生 MCP 工作空间使用。
+在浏览器之外，把 Superpower 作为原生 MCP 工作台使用。
 
 - 原生 **Qt 6** Windows 应用
-- 使用 **Connections → Apps → Actions → Runs** 组织工作流
-- 提供独立 MCP 客户端、工作流审核与受控执行界面
-- 通过 GitHub Releases 提供便携式 Windows 安装包
+- 以 **Connections → Apps → Actions → Runs** 组织工作流
+- 提供独立 MCP Client、工作流审核与受控执行界面
+- 通过 GitHub Releases 提供 Windows 便携包
 
-**适合场景：** 希望在一个桌面工作区中集中管理 MCP 连接、动作和运行记录的用户。
+**适合：** 希望在独立桌面界面统一管理 MCP 连接与动作的场景。
 
 </td>
 </tr>
@@ -82,26 +91,26 @@
 
 ## 为什么使用 Superpower？
 
-Superpower 的目标是让工具执行尽量靠近实际工作的界面。对话本身就是工作区时，可以使用浏览器扩展；需要独立的 MCP 控制面板时，则可以使用桌面应用。
+Superpower 尽量让工具执行留在工作发生的界面附近。如果对话本身就是工作区，可以使用浏览器扩展；如果需要独立的 MCP 控制界面，可以使用桌面应用。
 
 <table>
 <tr>
 <td width="33%" valign="top">
 
 ### 保持上下文
-无需不断在 AI、终端、控制台和其他工具之间来回切换。
+直接在当前 AI 对话中使用 MCP 能力，减少在不同工具和控制台之间切换。
 
 </td>
 <td width="33%" valign="top">
 
 ### 连接真实工具
-可以把本地或远程 MCP Server 接入浏览器和桌面工作流。
+在浏览器和桌面工作流中连接本地或远程 MCP Server。
 
 </td>
 <td width="33%" valign="top">
 
-### 保留人工控制
-决定哪些工具可以暴露，并在敏感或受保护操作执行前进行审核。
+### 保留控制权
+选择暴露哪些工具，并在高风险或状态变更操作执行前进行审核。
 
 </td>
 </tr>
@@ -113,31 +122,31 @@ Superpower 的目标是让工具执行尽量靠近实际工作的界面。对话
 
 ## 主要功能
 
-- 浏览器与桌面共享一套 MCP 执行模型
-- 浏览器端工具发现、结构化调用识别与结果回填
+- 浏览器与桌面端共享 MCP 执行模型
+- 浏览器侧工具发现、结构化调用检测与结果回填
 - 原生桌面 Connections、Apps、Actions、Runs 工作区
 - 支持本地与远程 MCP endpoint
 - 以审核为核心的自然语言 Action Router
-- 支持显式跨步骤数据绑定的 Workflow Planner
-- 会话级 Workflow Runner，每次最多推进一个受控 MCP Action
-- 持久化控制项与自动生成的 MCP Instructions
+- 带显式跨步骤绑定的 Workflow Planner
+- 一次只推进一个受控动作的 session-only Workflow Runner
+- 持久化控制项与自动生成的 MCP instructions
 
 <table>
 <tr>
 <td width="50%" align="center" valign="top">
-  <img src="docs/readme/sidebar-overview.svg" alt="Superpower 浏览器侧边栏" width="100%" />
+  <img src="docs/readme/sidebar-overview.svg" alt="Superpower 浏览器侧边栏概览" width="100%" />
   <br /><sub>浏览器扩展：连接、工具与自动化控制。</sub>
 </td>
 <td width="50%" align="center" valign="top">
   <img src="docs/readme/tool-flow.svg" alt="Superpower MCP 工具执行流程" width="100%" />
-  <br /><sub>结构化工具调用通过 MCP 路由，并把结果返回当前工作流。</sub>
+  <br /><sub>结构化工具调用通过 MCP 执行，并返回当前工作流。</sub>
 </td>
 </tr>
 </table>
 
-### V1.5：审核优先的路由与工作流
+### V1.5：以审核为核心的路由与工作流
 
-V1.5 开发线会把自然语言意图映射到 MCP 能力，基于工具 schema 起草参数，规划多步骤工作流，并明确展示步骤之间的数据绑定关系。受保护的执行过程仍保持可审核：Workflow Runner 每次最多推进一个 MCP Action，已经审核过的绑定关系和策略检查仍然具有最终约束力。
+V1.5 开发线会把自然语言需求映射到 MCP 能力，根据 schema 生成参数，规划多步骤工作流，并显式记录跨步骤数据绑定，同时让受控执行保持可审核。Workflow Runner 每次最多推进一个 MCP Action，已审核的参数绑定与策略检查保持最高优先级。
 
 <p align="center">
   <img src="docs/readme/action-router.svg" alt="Superpower 自然语言 Action Router" width="100%" />
@@ -145,10 +154,10 @@ V1.5 开发线会把自然语言意图映射到 MCP 能力，基于工具 schema
 
 ## 支持的平台
 
-浏览器扩展当前支持 ChatGPT、Google Gemini、Perplexity、Google AI Studio、Grok、OpenRouter、DeepSeek、T3 Chat、GitHub Copilot、Mistral、Kimi、Qwen Chat 和 Z.ai。
+浏览器扩展目前支持 ChatGPT、Google Gemini、Perplexity、Google AI Studio、Grok、OpenRouter、DeepSeek、T3 Chat、GitHub Copilot、Mistral、Kimi、Qwen Chat 与 Z.ai。
 
 <p align="center">
-  <img src="docs/readme/platform-grid.svg" alt="Superpower 支持的 AI 平台" width="100%" />
+  <img src="docs/readme/platform-grid.svg" alt="支持的 AI 平台" width="100%" />
 </p>
 
 ## 工作原理
@@ -158,9 +167,9 @@ V1.5 开发线会把自然语言意图映射到 MCP 能力，基于工具 schema
 </p>
 
 1. 浏览器或桌面工作流选择一个 MCP 能力。
-2. Superpower 通过当前配置的 MCP 连接发送结构化请求。
-3. MCP Server 执行对应工具。
-4. 执行结果返回当前浏览器对话或桌面工作流。
+2. Superpower 通过已配置的 MCP 连接路由结构化请求。
+3. MCP Server 执行工具。
+4. 结果返回当前浏览器对话或桌面工作流。
 
 ## 快速开始
 
@@ -168,22 +177,22 @@ V1.5 开发线会把自然语言意图映射到 MCP 能力，基于工具 schema
 
 1. 从 [Chrome Web Store 安装 Superpower](https://chromewebstore.google.com/detail/eioecjdcckpdakngpgikbinalieickob?utm_source=item-share-cb)。
 2. 在 Chrome 中打开扩展并配置 MCP 连接。
-3. 使用标准本地代理时，推荐选择 **Streamable HTTP**，地址填写 `http://localhost:3006/mcp`。
-4. 打开受支持的 AI 网站，即可在浏览器工作流中使用 Superpower。
+3. 标准本地 Proxy 推荐使用 **Streamable HTTP**，地址为 `http://localhost:3006/mcp`。
+4. 打开受支持的 AI 网站，在网页工作流中使用 Superpower。
 
-> **连接兼容性：** 新的本地配置默认采用 Streamable HTTP。显式配置的旧版 SSE 地址（例如 `http://localhost:3006/sse`）以及 WebSocket endpoint 仍然支持；升级不会覆盖用户已经保存的连接设置。
+> **连接兼容性：** 新的本地配置默认使用 Streamable HTTP。显式的旧版 SSE endpoint（例如 `http://localhost:3006/sse`）和 WebSocket endpoint 仍然支持；已有用户保存的连接配置不会被强制覆盖。
 
-需要手动安装或开发安装时，请查看 [`docs/install/windows-extension.md`](docs/install/windows-extension.md)。
+手动安装或开发环境安装请参阅 [`docs/install/windows-extension.md`](docs/install/windows-extension.md)。
 
 ### 桌面应用
 
-1. 打开 [最新 GitHub Release](https://github.com/stloendays/Superpower/releases/latest)。
+1. 打开 [最新 Release](https://github.com/stloendays/Superpower/releases/latest)。
 2. 下载 `Superpower-Desktop-*-Windows-x64.zip`。
-3. 完整解压后，启动打包好的桌面应用。
+3. 解压并启动打包后的桌面应用。
 
 ### 从源码构建浏览器扩展
 
-环境要求：**Node.js 22.12+**、**pnpm 9.x** 和 Chromium 系浏览器。
+要求：**Node.js 22.12+**、**pnpm 9.x**，以及 Chromium 系浏览器。
 
 ```bash
 git clone https://github.com/stloendays/Superpower.git
@@ -192,7 +201,7 @@ pnpm install
 pnpm base-build
 ```
 
-配置并启动 MCP proxy，然后在 Chrome 的扩展管理页面中以“加载已解压的扩展程序”方式加载 `dist/`。
+配置 MCP Proxy，使用需要的 transport 启动，然后在浏览器中把 `dist/` 作为“已解压扩展”加载。
 
 ## 开发
 
@@ -200,46 +209,51 @@ pnpm base-build
 pnpm dev          # 开发构建
 pnpm base-build   # 生产构建
 pnpm type-check   # 类型检查
-pnpm lint         # 代码检查
+pnpm lint         # Lint
 ```
 
 ## 仓库结构
 
-仓库根目录只保留真正的项目入口、标准文档和构建配置。具体实现、安装脚本和可选示例分别放入对应目录，避免根目录不断膨胀。
+仓库根目录保留项目入口所需的标准文档、workspace/build 配置和主要产品目录；实现辅助文件与可选示例放在独立目录中。
 
 ```text
 Superpower/
-├── chrome-extension/          # 浏览器扩展外壳与后台集成
-├── desktop/                   # 原生 Qt 桌面应用及桌面示例
-├── docs/                      # 文档、安装指南与 README/网站素材
-├── packages/                  # 可复用 TypeScript 包，包括 MCP Core/Host
-├── pages/                     # 浏览器扩展页面和 content scripts
+├── chrome-extension/          # 浏览器扩展 shell 与 background 集成
+├── desktop/                   # 原生 Qt 桌面应用与桌面示例
+├── docs/                      # 文档、安装指南和 README/site 资源
+├── packages/                  # 可复用 TypeScript package，包括 MCP Core/Host
+├── pages/                     # 浏览器扩展页面与 content scripts
 ├── scripts/
 │   ├── install/               # Windows 源码/Release 安装辅助脚本
-│   └── shell/                 # 构建、环境和版本工具
+│   └── shell/                 # 构建、环境与版本脚本
 ├── README.md                  # 英文项目主页
 ├── README.zh-CN.md            # 简体中文项目主页
-├── SECURITY.md                # 安全模型与漏洞报告说明
-├── CHANGELOG.md               # 版本历史
-└── package.json               # Monorepo 入口
+├── CHANGELOG.md
+├── SECURITY.md
+└── LICENSE
 ```
-
-`pnpm-workspace.yaml`、`tsconfig.json`、`turbo.json`、`.nvmrc` 和 `eslint.config.ts` 等工具链文件继续保留在根目录，因为构建系统依赖这些路径。生成文件或实现细节文件不应随意加入根目录。
-
-## 项目背景
-
-Superpower 是一个**由牛津大学与新加坡国立大学合作、Tony 主导的项目**，重点探索浏览器和桌面环境中更实用的人机协作工作流与 MCP 工具使用方式。
-
-Superpower V1 基于 **MCP SuperAssistant** 修改发展而来。原项目的 MIT License 和上游署名继续保留在 [`LICENSE`](LICENSE) 与 [`NOTICE.md`](NOTICE.md) 中。
 
 ## 安全
 
-MCP Server 可能暴露文件系统、数据库、开发者工具或第三方 API 权限。只连接你信任的 endpoint，并避免把凭证提交到仓库。详细说明见 [`SECURITY.md`](SECURITY.md)。
+Superpower 会执行用户配置的 MCP 工具。只有在你信任 MCP Server 来源与配置的范围内，才应信任相应工具和输出。
+
+- 连接前检查 MCP Server 配置。
+- 不要把凭据放进公开配置文件或 Issue。
+- 不需要远程访问时，优先使用仅 loopback 可访问的本地 endpoint。
+- 状态变更或高风险动作执行前应进行审核。
+
+当前安全说明请参阅 [`SECURITY.md`](SECURITY.md)。
 
 ## 贡献
 
-欢迎提交 Issue 和 Pull Request。报告 Bug 时，建议注明受影响的界面（浏览器或桌面）、平台/浏览器版本以及可复现步骤。
+欢迎提交 Issue 与 Pull Request。建议让改动保持聚焦，记录行为变化，并在可行时附带验证结果。
 
-## 许可证
+## 项目关键词
 
-本项目使用 [MIT License](LICENSE)，上游署名与衍生关系说明见 [NOTICE.md](NOTICE.md)。
+Superpower 面向使用 **Model Context Protocol (MCP)**、**AI Agent**、**浏览器自动化**、**Chrome 扩展**、**Agentic Workflow**、**Tool-using LLM**、**本地 MCP Server**、**桌面 AI 工作流**、**Qt 6** 与 **Human-in-the-loop execution** 的开发者和研究者。
+
+常用检索词：`MCP browser extension`、`Model Context Protocol Chrome extension`、`ChatGPT MCP tools`、`Gemini MCP`、`browser AI agent`、`agentic workflow`、`tool calling`、`MCP desktop client`、`MCP Streamable HTTP`、`human in the loop MCP`。
+
+## License
+
+Superpower 使用 [MIT License](LICENSE) 发布。
