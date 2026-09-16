@@ -95,21 +95,63 @@ jobs:
           New-Item -ItemType Directory -Force $runtime | Out-Null
           Copy-Item (Join-Path $nodeDir '*') $runtime -Recurse -Force
 
+          $png = [System.IO.File]::ReadAllBytes((Resolve-Path 'chrome-extension/public/icon-128.png'))
+          $iconPath = Join-Path $package 'superpower.ico'
+          $stream = [System.IO.File]::Open($iconPath, [System.IO.FileMode]::Create)
+          $writer = New-Object System.IO.BinaryWriter($stream)
+          try {
+            $writer.Write([UInt16]0)
+            $writer.Write([UInt16]1)
+            $writer.Write([UInt16]1)
+            $writer.Write([byte]128)
+            $writer.Write([byte]128)
+            $writer.Write([byte]0)
+            $writer.Write([byte]0)
+            $writer.Write([UInt16]1)
+            $writer.Write([UInt16]32)
+            $writer.Write([UInt32]$png.Length)
+            $writer.Write([UInt32]22)
+            $writer.Write($png)
+          } finally {
+            $writer.Dispose()
+            $stream.Dispose()
+          }
+
           & (Join-Path $runtime 'node.exe') (Join-Path $package 'bridge/superpower-host.mjs') --help | Select-String 'Superpower MCP Host'
           if (!(Test-Path (Join-Path $runtime 'npx.cmd'))) { throw 'Bundled Node runtime is missing npx.cmd.' }
           if (!(Test-Path (Join-Path $package 'Qt6Core.dll'))) { throw 'Qt runtime deployment is incomplete.' }
           if (!(Test-Path (Join-Path $package 'platforms/qwindows.dll'))) { throw 'Qt Windows platform plugin is missing.' }
           if (!(Test-Path (Join-Path $package 'bridge/superpower-host.mjs'))) { throw 'MCP host bridge is missing.' }
           if (!(Test-Path (Join-Path $package 'bridge/superpower-conversation.mjs'))) { throw 'Conversation relay is missing.' }
+          if (!(Test-Path $iconPath)) { throw 'Desktop icon package is missing.' }
 
           $zip = Join-Path $PWD 'desktop/qt/Superpower-Desktop-Windows-x64.zip'
           Compress-Archive -Path "$package/*" -DestinationPath $zip -Force
+
+      - name: Build Windows Setup installer
+        shell: pwsh
+        run: |
+          choco install innosetup --no-progress -y
+          $version = (node -p "require('./package.json').version").Trim()
+          $source = (Resolve-Path 'desktop/qt/package').Path
+          $output = (Resolve-Path 'desktop/qt').Path
+          $icon = (Resolve-Path 'desktop/qt/package/superpower.ico').Path
+          $iscc = Join-Path ${env:ProgramFiles(x86)} 'Inno Setup 6/ISCC.exe'
+          if (!(Test-Path $iscc)) {
+            $iscc = (Get-Command iscc.exe -ErrorAction Stop).Source
+          }
+          & $iscc "/DMyAppVersion=$version" "/DMySourceDir=$source" "/DMyOutputDir=$output" "/DMySetupIcon=$icon" 'desktop/qt/windows/installer.iss'
+          if ($LASTEXITCODE -ne 0) { throw 'Inno Setup compiler failed.' }
+          $setup = Join-Path $output "Superpower-Desktop-$version-Setup.exe"
+          if (!(Test-Path $setup)) { throw 'Windows Setup installer was not created.' }
 
       - name: Upload desktop release artifact
         uses: actions/upload-artifact@v7
         with:
           name: superpower-desktop-release
-          path: desktop/qt/Superpower-Desktop-Windows-x64.zip
+          path: |
+            desktop/qt/Superpower-Desktop-Windows-x64.zip
+            desktop/qt/Superpower-Desktop-*-Setup.exe
           if-no-files-found: error
           retention-days: 7
 
@@ -197,8 +239,17 @@ jobs:
         run: |
           VERSION='${{ steps.version.outputs.version }}'
           mv release/desktop/Superpower-Desktop-Windows-x64.zip "release/Superpower-Desktop-${VERSION}-Windows-x64.zip"
+          SETUP="release/desktop/Superpower-Desktop-${VERSION}-Setup.exe"
+          if [[ ! -f "${SETUP}" ]]; then
+            echo "Windows Setup installer is missing: ${SETUP}"
+            exit 1
+          fi
+          mv "${SETUP}" "release/Superpower-Desktop-${VERSION}-Setup.exe"
           cd release
-          sha256sum "Superpower-${VERSION}-Windows.zip" "Superpower-Desktop-${VERSION}-Windows-x64.zip" > SHA256SUMS
+          sha256sum \
+            "Superpower-${VERSION}-Windows.zip" \
+            "Superpower-Desktop-${VERSION}-Windows-x64.zip" \
+            "Superpower-Desktop-${VERSION}-Setup.exe" > SHA256SUMS
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
@@ -211,6 +262,7 @@ jobs:
           files: |
             release/Superpower-${{ steps.version.outputs.version }}-Windows.zip
             release/Superpower-Desktop-${{ steps.version.outputs.version }}-Windows-x64.zip
+            release/Superpower-Desktop-${{ steps.version.outputs.version }}-Setup.exe
             release/SHA256SUMS
             scripts/install/Install-Superpower.cmd
             scripts/install/DIY-Install-Superpower.ps1
