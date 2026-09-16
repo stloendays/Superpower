@@ -39,6 +39,12 @@ const AvailableTools: React.FC<AvailableToolsProps> = ({ tools, onExecute, onRef
 
   // Use tools from store if available, fallback to props
   const effectiveTools = storeTools.length > 0 ? storeTools : tools;
+  const allToolsCount = effectiveTools.length;
+  const searchTokens = useMemo(
+    () => searchTerm.trim().toLowerCase().split(/\s+/).filter(Boolean),
+    [searchTerm],
+  );
+  const hasSearch = searchTokens.length > 0;
 
   // Memoize effective tools length to prevent excessive logging
   const effectiveToolsCount = useMemo(() => effectiveTools.length, [effectiveTools.length]);
@@ -70,6 +76,17 @@ const AvailableTools: React.FC<AvailableToolsProps> = ({ tools, onExecute, onRef
     setSearchTerm(e.target.value);
   };
 
+  const handleSearchKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Escape' && searchTerm) {
+      e.preventDefault();
+      setSearchTerm('');
+    }
+  };
+
+  const clearSearch = () => {
+    setSearchTerm('');
+  };
+
   const toggleToolExpansion = (toolName: string) => {
     const newExpandedTools = new Set(expandedTools);
     if (newExpandedTools.has(toolName)) {
@@ -87,11 +104,12 @@ const AvailableTools: React.FC<AvailableToolsProps> = ({ tools, onExecute, onRef
 
   // Group tools by server name and filter - memoized to prevent unnecessary recalculations
   const { groupedTools, ungroupedTools } = useMemo(() => {
-    const filtered = (effectiveTools || []).filter(
-      tool =>
-        tool.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        (tool.description && tool.description.toLowerCase().includes(searchTerm.toLowerCase())),
-    );
+    const filtered = (effectiveTools || []).filter(tool => {
+      if (searchTokens.length === 0) return true;
+
+      const searchableText = [tool.name, tool.description || ''].join(' ').toLowerCase();
+      return searchTokens.every(token => searchableText.includes(token));
+    });
 
     const grouped: Record<string, ExtendedTool[]> = {};
     const ungrouped: ExtendedTool[] = [];
@@ -146,7 +164,7 @@ const AvailableTools: React.FC<AvailableToolsProps> = ({ tools, onExecute, onRef
     });
 
     return { groupedTools: grouped, ungroupedTools: ungrouped };
-  }, [effectiveTools, searchTerm, enabledTools, hasUnsavedChanges]);
+  }, [effectiveTools, searchTokens, enabledTools, hasUnsavedChanges]);
 
   const handleExecute = (tool: Tool) => {
     logMessage(`[AvailableTools] Executing tool: ${tool.name}`);
@@ -283,7 +301,9 @@ const AvailableTools: React.FC<AvailableToolsProps> = ({ tools, onExecute, onRef
           <div className="flex items-center justify-between mt-3 pt-3 border-t border-slate-200 dark:border-slate-700">
             <div className="flex items-center gap-2">
               <Typography variant="small" className="text-slate-600 dark:text-slate-400">
-                {enabledTools.size} of {totalToolsCount} tools enabled
+                {hasSearch
+                  ? `${totalToolsCount} of ${allToolsCount} tools match`
+                  : `${enabledTools.size} of ${allToolsCount} tools enabled`}
               </Typography>
             </div>
             <div className="flex items-center gap-2">
@@ -291,7 +311,7 @@ const AvailableTools: React.FC<AvailableToolsProps> = ({ tools, onExecute, onRef
                 onClick={handleEnableAll}
                 size="sm"
                 variant="outline"
-                disabled={isRefreshing || isLoadingEnablement || totalToolsCount === 0}
+                disabled={isRefreshing || isLoadingEnablement || allToolsCount === 0}
                 className="h-8 px-3 text-xs bg-green-50 hover:bg-green-100 dark:bg-green-900/20 dark:hover:bg-green-900/30 text-green-700 dark:text-green-300 border-green-200 dark:border-green-800">
                 Enable All
               </Button>
@@ -299,7 +319,7 @@ const AvailableTools: React.FC<AvailableToolsProps> = ({ tools, onExecute, onRef
                 onClick={handleDisableAll}
                 size="sm"
                 variant="outline"
-                disabled={isRefreshing || isLoadingEnablement || totalToolsCount === 0}
+                disabled={isRefreshing || isLoadingEnablement || allToolsCount === 0}
                 className="h-8 px-3 text-xs bg-red-50 hover:bg-red-100 dark:bg-red-900/20 dark:hover:bg-red-900/30 text-red-700 dark:text-red-300 border-red-200 dark:border-red-800">
                 Disable All
               </Button>
@@ -332,15 +352,31 @@ const AvailableTools: React.FC<AvailableToolsProps> = ({ tools, onExecute, onRef
             <div className="relative">
               <input
                 type="text"
-                placeholder="Search tools..."
+                placeholder="Search tools, servers, descriptions..."
                 value={searchTerm}
                 onChange={handleSearchChange}
-                className="w-full px-3 py-2 pl-10 border border-slate-300 dark:border-slate-600 rounded text-sm bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100"
+                onKeyDown={handleSearchKeyDown}
+                aria-label="Search MCP tools"
+                className="w-full px-3 py-2 pl-10 pr-16 border border-slate-300 dark:border-slate-600 rounded text-sm bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100"
               />
               <div className="absolute left-3 top-2.5">
                 <Icon name="search" size="sm" className="text-slate-400 dark:text-slate-500" />
               </div>
+              {hasSearch && (
+                <button
+                  type="button"
+                  onClick={clearSearch}
+                  className="absolute right-2 top-1/2 -translate-y-1/2 rounded px-2 py-1 text-xs text-slate-500 hover:bg-slate-100 hover:text-slate-800 dark:text-slate-400 dark:hover:bg-slate-700 dark:hover:text-slate-100"
+                  aria-label="Clear tool search">
+                  Clear
+                </button>
+              )}
             </div>
+            {hasSearch && (
+              <Typography variant="small" className="mt-2 text-slate-500 dark:text-slate-400">
+                Showing {totalToolsCount} of {allToolsCount} tools. Multiple words narrow the results; press Esc to clear.
+              </Typography>
+            )}
           </div>
 
           {(isRefreshing || isLoadingEnablement) && (
@@ -354,14 +390,14 @@ const AvailableTools: React.FC<AvailableToolsProps> = ({ tools, onExecute, onRef
 
           {!isRefreshing && !isLoadingEnablement && totalToolsCount === 0 && (
             <div className="text-center py-8 text-slate-500 dark:text-slate-400">
-              {searchTerm ? (
+              {hasSearch ? (
                 <>
                   <Icon name="search" className="w-12 h-12 mx-auto mb-3" />
                   <Typography variant="body" className="text-lg">
                     No tools match your search
                   </Typography>
                   <Typography variant="small" className="mt-1">
-                    Try a different search term
+                    Try a different tool, server, or description keyword
                   </Typography>
                 </>
               ) : (
@@ -407,7 +443,7 @@ const AvailableTools: React.FC<AvailableToolsProps> = ({ tools, onExecute, onRef
               {Object.entries(groupedTools).map(([serverName, tools]) => {
                 const groupEnabled = isGroupEnabled(tools);
                 const groupPartiallyEnabled = isGroupPartiallyEnabled(tools);
-                const groupExpanded = expandedTools.has(serverName);
+                const groupExpanded = hasSearch || expandedTools.has(serverName);
                 
                 return (
                   <div key={serverName} className="border border-slate-200 dark:border-slate-700 rounded-lg overflow-hidden">
