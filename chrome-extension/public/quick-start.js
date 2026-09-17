@@ -45,7 +45,11 @@ const refreshStatus = async () => {
     const connected = await readConnectionStatus();
 
     if (!connected) {
-      setStatus('error', 'MCP not connected', 'Connect the local Superpower host or configure another server in the sidebar.');
+      setStatus(
+        'error',
+        'MCP not connected',
+        'Connect the local Superpower host or configure another server in the sidebar.',
+      );
       connectLocalButton.textContent = 'Connect local MCP';
       return;
     }
