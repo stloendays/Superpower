@@ -25,7 +25,7 @@ const manifest = {
         },
     },
     version: packageJson.version,
-    version_name: 'V1',
+    version_name: `V${packageJson.version}`,
     description: 'Run MCP tools from supported AI web apps.',
     host_permissions: [
         '*://*.perplexity.ai/*',
@@ -37,7 +37,6 @@ const manifest = {
         '*://*.gemini.google.com/*',
         '*://*.aistudio.google.com/*',
         '*://*.openrouter.ai/*',
-        '*://*.google-analytics.com/*',
         '*://*.chat.deepseek.com/*',
         '*://*.t3.chat/*',
         '*://*.chat.mistral.ai/*',
@@ -46,6 +45,8 @@ const manifest = {
         '*://*.kimi.com/*',
         '*://*.chat.z.ai/*',
         '*://*.chat.qwen.ai/*',
+        'http://127.0.0.1/*',
+        'http://localhost/*',
     ],
     permissions: ['storage', 'clipboardWrite'],
     // permissions: ['storage', 'scripting', 'clipboardWrite'],
@@ -54,10 +55,15 @@ const manifest = {
         service_worker: 'background.js',
         type: 'module',
     },
-    // action: {
-    //   default_popup: 'popup/index.html',
-    //   default_icon: 'icon-34.png',
-    // },
+    action: {
+        default_popup: 'quick-start.html',
+        default_title: 'Superpower Quick Start',
+        default_icon: {
+            16: 'icon-16.png',
+            32: 'icon-34.png',
+            128: 'icon-128.png',
+        },
+    },
     // chrome_url_overrides: {
     //   newtab: 'new-tab/index.html',
     // },
