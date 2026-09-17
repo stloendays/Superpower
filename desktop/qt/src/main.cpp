@@ -225,6 +225,26 @@ int main(int argc, char *argv[]) {
                    });
 
   auto *conversationRelay = new McpBridgeProcess(&window);
+  QObject::connect(dashboard, &WorkspaceDashboard::askWebChatGptRequested, &window,
+                   [dashboard, conversation, conversationDock, conversationRelay](const QString &text) {
+                     conversationDock->show();
+                     conversationDock->raise();
+                     const QString requestId = conversationRelay->sendRequest(
+                         QStringLiteral("submit_prompt"),
+                         QJsonObject{{QStringLiteral("text"), text},
+                                     {QStringLiteral("provider"), QStringLiteral("chatgpt")}});
+                     if (requestId.isEmpty()) {
+                       const QString message =
+                           QStringLiteral("Ask Web ChatGPT unavailable - the local conversation relay is not running.");
+                       dashboard->setWebChatGptStatus(message, false);
+                       conversation->setPromptStatus(message, false);
+                       return;
+                     }
+                     const QString message =
+                         QStringLiteral("Waiting for the active ChatGPT browser tab to accept the prompt...");
+                     dashboard->setWebChatGptStatus(message, false);
+                     conversation->setPromptStatus(message, false);
+                   });
   QObject::connect(conversation, &ConversationWindow::promptSubmitted, &window,
                    [conversation, conversationDock, conversationRelay](const QString &text,
                                                                         const QString &provider) {
@@ -256,10 +276,16 @@ int main(int argc, char *argv[]) {
                        conversation->setProviderStatus(provider, true);
                        dashboard->setActiveProvider(provider);
                      }
-                     conversation->setPromptStatus(
+                     const QString status =
                          message.isEmpty() ? QStringLiteral("Quick Ask submitted to the active browser AI conversation.")
-                                           : message,
-                         true);
+                                           : message;
+                     conversation->setPromptStatus(status, true);
+                     if (provider == QStringLiteral("chatgpt")) {
+                       dashboard->setWebChatGptStatus(
+                           message.isEmpty() ? QStringLiteral("Sent to web ChatGPT. The reply will appear in Conversation.")
+                                             : message,
+                           true);
+                     }
                    });
   QObject::connect(conversationRelay, &McpBridgeProcess::requestFailed, conversation,
                    [conversation](const QString &, const QString &method, const QString &, const QString &message,
@@ -300,6 +326,7 @@ int main(int argc, char *argv[]) {
                      conversation->setProviderStatus(QString(), false);
                      dashboard->setConversationRelayStatus(status, false);
                      dashboard->setActiveProvider(QString());
+                     dashboard->setWebChatGptStatus(status, false);
                    });
   QObject::connect(conversationRelay, &McpBridgeProcess::processExited, conversation,
                    [conversation, dashboard](int exitCode, QProcess::ExitStatus) {
@@ -310,6 +337,7 @@ int main(int argc, char *argv[]) {
                      conversation->setProviderStatus(QString(), false);
                      dashboard->setConversationRelayStatus(status, false);
                      dashboard->setActiveProvider(QString());
+                     dashboard->setWebChatGptStatus(status, false);
                    });
   QObject::connect(conversationRelay, &McpBridgeProcess::logLine, conversation,
                    [conversation](const QString &line) {

@@ -106,6 +106,26 @@ void WorkspaceDashboard::submitWorkflowQuery() {
   emit workflowQueryRequested(query);
 }
 
+void WorkspaceDashboard::submitWebChatGptPrompt() {
+  if (!webChatGptInput_) return;
+  const QString prompt = webChatGptInput_->text().trimmed();
+  if (prompt.isEmpty()) {
+    setWebChatGptStatus(QStringLiteral("Type a question for web ChatGPT first."), false);
+    webChatGptInput_->setFocus();
+    return;
+  }
+  if (!conversationRelayOnline_) {
+    setWebChatGptStatus(
+        QStringLiteral("The local browser relay is not ready yet. Open ChatGPT with the Superpower extension enabled."),
+        false);
+    return;
+  }
+
+  webChatGptInput_->clear();
+  setWebChatGptStatus(QStringLiteral("Sending to the active ChatGPT browser tab..."), false);
+  emit askWebChatGptRequested(prompt);
+}
+
 void WorkspaceDashboard::buildUi() {
   auto *root = new QVBoxLayout(this);
   root->setContentsMargins(28, 26, 28, 26);
@@ -122,7 +142,7 @@ void WorkspaceDashboard::buildUi() {
   headerLayout->addWidget(title);
 
   auto *subtitle = new QLabel(
-      QStringLiteral("Route one MCP Action or plan a review-first multi-step workflow from natural language."),
+      QStringLiteral("Ask web ChatGPT directly, route one MCP Action, or plan a review-first workflow."),
       headerBlock);
   subtitle->setProperty("dashboardMuted", true);
   subtitle->setWordWrap(true);
@@ -134,6 +154,52 @@ void WorkspaceDashboard::buildUi() {
   connect(browseButton, &QPushButton::clicked, this, &WorkspaceDashboard::browseActionsRequested);
   headerRow->addWidget(browseButton);
   root->addLayout(headerRow);
+
+  auto *chatGptCard = dashboardCard(this);
+  chatGptCard->setProperty("webChatGptCard", true);
+  auto *chatGptLayout = new QVBoxLayout(chatGptCard);
+  chatGptLayout->setContentsMargins(20, 18, 20, 18);
+  chatGptLayout->setSpacing(9);
+
+  auto *chatGptEyebrow = new QLabel(QStringLiteral("WEB CHATGPT"), chatGptCard);
+  chatGptEyebrow->setProperty("dashboardEyebrow", true);
+  chatGptLayout->addWidget(chatGptEyebrow);
+
+  auto *chatGptTitle = new QLabel(QStringLiteral("Ask the web version of ChatGPT"), chatGptCard);
+  chatGptTitle->setProperty("actionRouterTitle", true);
+  chatGptLayout->addWidget(chatGptTitle);
+
+  auto *chatGptHint = new QLabel(
+      QStringLiteral("Uses your existing signed-in ChatGPT browser session through the Superpower extension. No OpenAI API key is required. Keep a ChatGPT tab open and active."),
+      chatGptCard);
+  chatGptHint->setProperty("dashboardMuted", true);
+  chatGptHint->setWordWrap(true);
+  chatGptLayout->addWidget(chatGptHint);
+
+  auto *chatGptInputRow = new QHBoxLayout();
+  chatGptInputRow->setSpacing(8);
+  webChatGptInput_ = new QLineEdit(chatGptCard);
+  webChatGptInput_->setProperty("actionRouterInput", true);
+  webChatGptInput_->setClearButtonEnabled(true);
+  webChatGptInput_->setPlaceholderText(QStringLiteral("Ask ChatGPT from Superpower Desktop..."));
+  webChatGptInput_->setEnabled(false);
+  connect(webChatGptInput_, &QLineEdit::returnPressed, this, &WorkspaceDashboard::submitWebChatGptPrompt);
+  chatGptInputRow->addWidget(webChatGptInput_, 1);
+
+  webChatGptButton_ = new QPushButton(QStringLiteral("Ask ChatGPT"), chatGptCard);
+  webChatGptButton_->setProperty("dashboardPrimary", true);
+  webChatGptButton_->setEnabled(false);
+  connect(webChatGptButton_, &QPushButton::clicked, this, &WorkspaceDashboard::submitWebChatGptPrompt);
+  chatGptInputRow->addWidget(webChatGptButton_);
+  chatGptLayout->addLayout(chatGptInputRow);
+
+  webChatGptStatusLabel_ = new QLabel(
+      QStringLiteral("Starting the local relay. Open ChatGPT in your browser with the Superpower extension enabled."),
+      chatGptCard);
+  webChatGptStatusLabel_->setProperty("webChatGptStatus", true);
+  webChatGptStatusLabel_->setWordWrap(true);
+  chatGptLayout->addWidget(webChatGptStatusLabel_);
+  root->addWidget(chatGptCard);
 
   auto *routerCard = dashboardCard(this);
   routerCard->setProperty("actionRouterCard", true);
@@ -237,7 +303,7 @@ void WorkspaceDashboard::buildUi() {
   root->addWidget(recentRunsList_, 1);
 
   auto *privacy = new QLabel(
-      QStringLiteral("Home is session-oriented. Action/workflow queries and drafted parameters are not persisted by the dashboard; execution still goes through the existing MCP guarded policy."),
+      QStringLiteral("Home is session-oriented. Web ChatGPT prompts use the local browser relay; Action/workflow queries and drafted parameters are not persisted by the dashboard."),
       this);
   privacy->setProperty("dashboardMuted", true);
   privacy->setWordWrap(true);
@@ -255,6 +321,9 @@ void WorkspaceDashboard::applyStyle() {
       border: 1px solid #dddddd;
       border-radius: 12px;
     }
+    QFrame[webChatGptCard="true"] {
+      border: 1px solid #b8b8b8;
+    }
     QFrame[actionRouterCard="true"] {
       border: 1px solid #c9c9c9;
     }
@@ -268,7 +337,7 @@ void WorkspaceDashboard::applyStyle() {
       font-weight: 750;
       color: #000000;
     }
-    QLabel[actionRouterStatus="true"] {
+    QLabel[actionRouterStatus="true"], QLabel[webChatGptStatus="true"] {
       background: #f7f7f7;
       border: 1px solid #e2e2e2;
       border-radius: 8px;
@@ -355,11 +424,23 @@ void WorkspaceDashboard::applyStyle() {
 void WorkspaceDashboard::setConversationRelayStatus(const QString &text, bool online) {
   conversationRelayText_ = text;
   conversationRelayOnline_ = online;
+  if (webChatGptInput_) webChatGptInput_->setEnabled(online);
+  if (webChatGptButton_) webChatGptButton_->setEnabled(online);
+  if (online && webChatGptStatusLabel_) {
+    setWebChatGptStatus(
+        activeProvider_ == QStringLiteral("chatgpt")
+            ? QStringLiteral("Ready. Questions will be sent to the active web ChatGPT conversation.")
+            : QStringLiteral("Relay ready. Open ChatGPT in your browser and keep that tab active before asking."),
+        activeProvider_ == QStringLiteral("chatgpt"));
+  }
   refreshFromWorkspace();
 }
 
 void WorkspaceDashboard::setActiveProvider(const QString &provider) {
   activeProvider_ = provider.trimmed().toLower();
+  if (webChatGptStatusLabel_ && activeProvider_ == QStringLiteral("chatgpt")) {
+    setWebChatGptStatus(QStringLiteral("ChatGPT detected. Ready to ask the web conversation."), true);
+  }
   refreshFromWorkspace();
 }
 
@@ -370,12 +451,23 @@ void WorkspaceDashboard::setActionRouterStatus(const QString &text, bool busy) {
   if (actionQueryEdit_) actionQueryEdit_->setEnabled(!busy);
 }
 
+void WorkspaceDashboard::setWebChatGptStatus(const QString &text, bool success) {
+  if (!webChatGptStatusLabel_) return;
+  webChatGptStatusLabel_->setText(text);
+  webChatGptStatusLabel_->setStyleSheet(
+      success ? QStringLiteral("background:#f0fdf4;border:1px solid #bbf7d0;border-radius:8px;padding:8px 10px;color:#166534;font-weight:600;")
+              : QStringLiteral("background:#f7f7f7;border:1px solid #e2e2e2;border-radius:8px;padding:8px 10px;color:#4e4e4e;"));
+}
+
 void WorkspaceDashboard::noteConversationActivity() {
   ++conversationEventCount_;
   refreshFromWorkspace();
 }
 
 void WorkspaceDashboard::refreshFromWorkspace() {
+  if (webChatGptInput_) webChatGptInput_->setEnabled(conversationRelayOnline_);
+  if (webChatGptButton_) webChatGptButton_->setEnabled(conversationRelayOnline_);
+
   if (activeProvider_.isEmpty()) {
     providerValueLabel_->setText(QStringLiteral("Waiting"));
     providerDetailLabel_->setText(
