@@ -17,6 +17,8 @@ jobs:
           cache: pnpm
       - run: pnpm install --frozen-lockfile --prefer-offline
       - run: pnpm build
+      - name: Verify release metadata consistency
+        run: pnpm check:release-metadata
       - uses: actions/upload-artifact@v7
         with:
           path: dist/*
