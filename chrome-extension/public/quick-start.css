@@ -1,0 +1,303 @@
+:root {
+  color-scheme: light dark;
+  font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  min-width: 360px;
+  background: #f6f7f9;
+  color: #111827;
+}
+
+button {
+  font: inherit;
+}
+
+.shell {
+  width: 360px;
+  padding: 16px;
+}
+
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 14px;
+}
+
+.brand-icon {
+  width: 34px;
+  height: 34px;
+  border-radius: 9px;
+}
+
+.brand h1,
+.section h2 {
+  margin: 0;
+}
+
+.brand h1 {
+  font-size: 17px;
+  line-height: 1.2;
+}
+
+.brand p,
+.section-heading span,
+.hint,
+.version {
+  color: #6b7280;
+}
+
+.brand p {
+  margin: 2px 0 0;
+  font-size: 11px;
+}
+
+.status-card,
+.section,
+.guide {
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
+  background: #ffffff;
+}
+
+.status-card {
+  padding: 13px;
+}
+
+.status-line {
+  display: flex;
+  align-items: flex-start;
+  gap: 9px;
+}
+
+.status-dot {
+  width: 9px;
+  height: 9px;
+  margin-top: 5px;
+  border-radius: 999px;
+  background: #9ca3af;
+  box-shadow: 0 0 0 3px rgba(156, 163, 175, 0.14);
+}
+
+.status-dot.connected {
+  background: #16a34a;
+  box-shadow: 0 0 0 3px rgba(22, 163, 74, 0.14);
+}
+
+.status-dot.error {
+  background: #d97706;
+  box-shadow: 0 0 0 3px rgba(217, 119, 6, 0.14);
+}
+
+.status-copy {
+  display: flex;
+  min-width: 0;
+  flex: 1;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.status-copy strong {
+  font-size: 13px;
+}
+
+.status-copy span {
+  color: #6b7280;
+  font-size: 11px;
+  line-height: 1.45;
+}
+
+.button,
+.site-button,
+.text-button {
+  cursor: pointer;
+}
+
+.button {
+  width: 100%;
+  margin-top: 12px;
+  border: 0;
+  border-radius: 9px;
+  padding: 9px 12px;
+  font-weight: 700;
+}
+
+.button.primary {
+  background: #111827;
+  color: white;
+}
+
+.button.primary:hover {
+  background: #1f2937;
+}
+
+.button:disabled {
+  cursor: default;
+  opacity: 0.55;
+}
+
+.hint {
+  margin: 8px 0 0;
+  font-size: 10px;
+  line-height: 1.45;
+}
+
+code {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  color: #374151;
+}
+
+.section {
+  margin-top: 12px;
+  padding: 13px;
+}
+
+.section-heading {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 9px;
+}
+
+.section h2 {
+  font-size: 13px;
+}
+
+.section-heading span {
+  font-size: 9px;
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 7px;
+}
+
+.site-button {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  min-height: 38px;
+  border: 1px solid #e5e7eb;
+  border-radius: 9px;
+  background: #f9fafb;
+  padding: 8px 10px;
+  color: #111827;
+  text-align: left;
+}
+
+.site-button:hover {
+  border-color: #cbd5e1;
+  background: #f3f4f6;
+}
+
+.site-button span {
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.site-button small {
+  color: #6b7280;
+  font-size: 9px;
+}
+
+.guide {
+  margin-top: 12px;
+  padding: 12px 13px;
+  color: #374151;
+  font-size: 10px;
+  line-height: 1.5;
+}
+
+.guide strong {
+  color: #111827;
+  font-size: 11px;
+}
+
+.guide ol {
+  margin: 6px 0 0;
+  padding-left: 17px;
+}
+
+footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.text-button {
+  border: 0;
+  background: transparent;
+  padding: 0;
+  color: #4f46e5;
+  font-size: 10px;
+  font-weight: 700;
+}
+
+.text-button:hover {
+  text-decoration: underline;
+}
+
+.version {
+  font-size: 9px;
+}
+
+@media (prefers-color-scheme: dark) {
+  body {
+    background: #0f172a;
+    color: #e5e7eb;
+  }
+
+  .status-card,
+  .section,
+  .guide {
+    border-color: #334155;
+    background: #111827;
+  }
+
+  .brand p,
+  .section-heading span,
+  .hint,
+  .version,
+  .status-copy span {
+    color: #94a3b8;
+  }
+
+  .site-button {
+    border-color: #334155;
+    background: #1f2937;
+    color: #e5e7eb;
+  }
+
+  .site-button:hover {
+    border-color: #475569;
+    background: #273449;
+  }
+
+  .site-button small,
+  code {
+    color: #94a3b8;
+  }
+
+  .guide {
+    color: #cbd5e1;
+  }
+
+  .guide strong {
+    color: #f8fafc;
+  }
+
+  .text-button {
+    color: #a5b4fc;
+  }
+}

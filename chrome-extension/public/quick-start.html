@@ -1,0 +1,68 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Superpower Quick Start</title>
+    <link rel="stylesheet" href="quick-start.css" />
+  </head>
+  <body>
+    <main class="shell">
+      <header class="brand">
+        <img src="icon-34.png" alt="" class="brand-icon" />
+        <div>
+          <h1>Superpower</h1>
+          <p>Browser AI + your MCP tools</p>
+        </div>
+      </header>
+
+      <section class="status-card" aria-live="polite">
+        <div class="status-line">
+          <span id="status-dot" class="status-dot checking"></span>
+          <div class="status-copy">
+            <strong id="status-title">Checking MCP…</strong>
+            <span id="status-detail">Reading the current local connection.</span>
+          </div>
+        </div>
+        <button id="connect-local" class="button primary" type="button">Connect local MCP</button>
+        <p class="hint">Uses <code>http://localhost:3006/mcp</code>. You can connect another server from the in-page sidebar.</p>
+      </section>
+
+      <section class="section">
+        <div class="section-heading">
+          <h2>Open an AI workspace</h2>
+          <span>Superpower loads automatically on supported sites.</span>
+        </div>
+        <div class="grid">
+          <button class="site-button" data-url="https://chatgpt.com/" type="button">
+            <span>ChatGPT</span><small>Open</small>
+          </button>
+          <button class="site-button" data-url="https://gemini.google.com/" type="button">
+            <span>Gemini</span><small>Open</small>
+          </button>
+          <button class="site-button" data-url="https://www.perplexity.ai/" type="button">
+            <span>Perplexity</span><small>Open</small>
+          </button>
+          <button class="site-button" data-url="https://grok.com/" type="button">
+            <span>Grok</span><small>Open</small>
+          </button>
+        </div>
+      </section>
+
+      <section class="guide">
+        <strong>Fast path</strong>
+        <ol>
+          <li>Connect your MCP server.</li>
+          <li>Open a supported AI site.</li>
+          <li>Choose tools in the Superpower sidebar and start chatting.</li>
+        </ol>
+      </section>
+
+      <footer>
+        <button id="open-project" class="text-button" type="button">Project & documentation</button>
+        <span id="version" class="version"></span>
+      </footer>
+    </main>
+    <script src="quick-start.js"></script>
+  </body>
+</html>

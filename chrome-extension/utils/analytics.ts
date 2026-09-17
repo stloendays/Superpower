@@ -11,6 +11,7 @@
 // Ensure .env is in your .gitignore file!
 const MEASUREMENT_ID = import.meta.env.CEB_GA_MEASUREMENT_ID;
 const API_SECRET = import.meta.env.CEB_GA_API_SECRET;
+const ANALYTICS_ENABLED = import.meta.env.CEB_ENABLE_ANALYTICS === 'true';
 
 import { createLogger } from '@extension/shared/lib/logger';
 
@@ -102,8 +103,12 @@ async function getOrCreateSessionId(): Promise<string> {
 export async function sendAnalyticsEvent(
   name: string,
   params: { [key: string]: any },
-  userProperties?: { [key: string]: { value: any } }
+  userProperties?: { [key: string]: { value: any } },
 ): Promise<void> {
+  // Chrome Web Store builds are privacy-first by default. Analytics only runs
+  // when a build explicitly opts in with CEB_ENABLE_ANALYTICS=true.
+  if (!ANALYTICS_ENABLED) return;
+
   // Basic check for essential credentials
   if (
     !MEASUREMENT_ID ||
@@ -194,6 +199,8 @@ export async function sendAnalyticsEvent(
  * @returns An object containing demographic data
  */
 export function collectDemographicData(): { [key: string]: any } {
+  if (!ANALYTICS_ENABLED) return {};
+
   try {
     const userAgent = navigator?.userAgent || 'Unknown';
     const language = navigator?.language || 'en';
