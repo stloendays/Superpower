@@ -19,7 +19,7 @@
     "prettier": "prettier . --write --ignore-path ../../.prettierignore"
   },
   "dependencies": {
-    "@modelcontextprotocol/sdk": "^1.20.2",
+    "@modelcontextprotocol/sdk": "^1.30.0",
     "@superpower/mcp-core": "workspace:*"
   },
   "devDependencies": {
