@@ -1,7 +1,7 @@
 ---
 name: Feature request
 about: Propose a focused improvement to Superpower
- title: '[Feature] '
+title: '[Feature] '
 labels: enhancement
 assignees: stloendays
 ---
