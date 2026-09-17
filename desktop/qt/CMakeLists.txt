@@ -1,6 +1,13 @@
 cmake_minimum_required(VERSION 3.21)
 
-project(SuperpowerDesktop VERSION 1.4.1 LANGUAGES CXX)
+# The repository product version is the single source of truth for both the
+# browser extension and the desktop application. Keeping the Qt version derived
+# from package.json prevents release packages and the in-app updater from
+# disagreeing about the installed version.
+file(READ "${CMAKE_CURRENT_SOURCE_DIR}/../../package.json" SUPERPOWER_PACKAGE_JSON)
+string(JSON SUPERPOWER_DESKTOP_VERSION GET "${SUPERPOWER_PACKAGE_JSON}" version)
+
+project(SuperpowerDesktop VERSION ${SUPERPOWER_DESKTOP_VERSION} LANGUAGES CXX)
 
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
