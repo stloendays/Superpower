@@ -7,6 +7,7 @@ const connectLocalButton = document.getElementById('connect-local');
 const versionLabel = document.getElementById('version');
 
 const requestId = () => `popup-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+const wait = milliseconds => new Promise(resolve => setTimeout(resolve, milliseconds));
 
 const sendMcpMessage = async (type, payload = {}) => {
   return await chrome.runtime.sendMessage({
@@ -24,12 +25,24 @@ const setStatus = (state, title, detail) => {
   statusDetail.textContent = detail;
 };
 
+const readConnectionStatus = async () => {
+  const response = await sendMcpMessage('mcp:get-connection-status');
+  return Boolean(response?.success && response?.payload?.isConnected);
+};
+
+const waitForConnection = async (attempts = 6, delayMs = 450) => {
+  for (let attempt = 0; attempt < attempts; attempt += 1) {
+    if (await readConnectionStatus()) return true;
+    if (attempt < attempts - 1) await wait(delayMs);
+  }
+  return false;
+};
+
 const refreshStatus = async () => {
   setStatus('checking', 'Checking MCP…', 'Reading the current local connection.');
 
   try {
-    const response = await sendMcpMessage('mcp:get-connection-status');
-    const connected = Boolean(response?.success && response?.payload?.isConnected);
+    const connected = await readConnectionStatus();
 
     if (!connected) {
       setStatus('error', 'MCP not connected', 'Connect the local Superpower host or configure another server in the sidebar.');
@@ -50,11 +63,17 @@ const refreshStatus = async () => {
     setStatus(
       'connected',
       'MCP ready',
-      toolCount > 0 ? `${toolCount} tool${toolCount === 1 ? '' : 's'} available.` : 'Connected. Tools can be refreshed from the sidebar.',
+      toolCount > 0
+        ? `${toolCount} tool${toolCount === 1 ? '' : 's'} available.`
+        : 'Connected. Tools can be refreshed from the sidebar.',
     );
     connectLocalButton.textContent = 'Reconnect local MCP';
   } catch (error) {
-    setStatus('error', 'MCP status unavailable', error instanceof Error ? error.message : 'Open a supported AI page and try again.');
+    setStatus(
+      'error',
+      'MCP status unavailable',
+      error instanceof Error ? error.message : 'Open a supported AI page and try again.',
+    );
   }
 };
 
@@ -75,10 +94,15 @@ const connectLocal = async () => {
       throw new Error(configResponse?.error || 'Could not save the local MCP configuration.');
     }
 
-    const reconnectResponse = await sendMcpMessage('mcp:force-reconnect');
-    const connected = Boolean(reconnectResponse?.success && reconnectResponse?.payload?.isConnected);
+    let connected = await waitForConnection();
     if (!connected) {
-      throw new Error(reconnectResponse?.payload?.error || reconnectResponse?.error || 'Local MCP server did not respond.');
+      const reconnectResponse = await sendMcpMessage('mcp:force-reconnect');
+      connected = Boolean(reconnectResponse?.success && reconnectResponse?.payload?.isConnected);
+      if (!connected) {
+        throw new Error(
+          reconnectResponse?.payload?.error || reconnectResponse?.error || 'Local MCP server did not respond.',
+        );
+      }
     }
 
     await refreshStatus();
