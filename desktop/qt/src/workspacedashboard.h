@@ -20,12 +20,14 @@ class WorkspaceDashboard final : public QWidget {
   void setConversationRelayStatus(const QString &text, bool online);
   void setActiveProvider(const QString &provider);
   void setActionRouterStatus(const QString &text, bool busy);
+  void setWebChatGptStatus(const QString &text, bool success);
   void noteConversationActivity();
   void refreshFromWorkspace();
 
  signals:
   void actionQueryRequested(const QString &query);
   void workflowQueryRequested(const QString &query);
+  void askWebChatGptRequested(const QString &prompt);
   void browseActionsRequested();
   void gettingStartedRequested();
   void openConversationRequested();
@@ -35,10 +37,14 @@ class WorkspaceDashboard final : public QWidget {
   QWidget *createMetricCard(const QString &title, QLabel **valueLabel, const QString &detail);
   void submitActionQuery();
   void submitWorkflowQuery();
+  void submitWebChatGptPrompt();
   void buildUi();
   void applyStyle();
 
   MainWindow *workspace_ = nullptr;
+  QLineEdit *webChatGptInput_ = nullptr;
+  QPushButton *webChatGptButton_ = nullptr;
+  QLabel *webChatGptStatusLabel_ = nullptr;
   QLineEdit *actionQueryEdit_ = nullptr;
   QPushButton *actionRouteButton_ = nullptr;
   QPushButton *workflowPlanButton_ = nullptr;
