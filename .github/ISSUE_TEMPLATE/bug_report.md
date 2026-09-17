@@ -1,35 +1,58 @@
 ---
 name: Bug report
-about: Create a report to help us improve
-title: ''
+about: Report a reproducible problem in the browser extension, desktop app, or MCP workflow
+title: '[Bug] '
 labels: bug
 assignees: stloendays
-
 ---
 
-**Describe the bug**
-A clear and concise description of what the bug is.
+## What happened?
 
-**To Reproduce**
-Steps to reproduce the behavior:
-1. Go to '...'
-2. Click on '....'
-3. Scroll down to '....'
-4. See error
+<!-- Describe the problem and the user-visible impact. -->
 
-**Expected behavior**
-A clear and concise description of what you expected to happen.
+## Where does it happen?
 
-**Screenshots**
-If applicable, add screenshots to help explain your problem.
+- [ ] Browser extension
+- [ ] Superpower Desktop
+- [ ] MCP Core / Host
+- [ ] Browser ↔ Desktop conversation relay
+- [ ] Build / installation / update
+- [ ] Other
 
-**Desktop (please complete the following information):**
- - OS: 
- - OS Version: 
- - Browser: 
- - Browser Version: 
- - Node Version: 
- - Other Necessary Packages Version: 
+## Environment
 
-**Additional context**
-Add any other context about the problem here.
+- Superpower version:
+- Operating system and version:
+- Browser and version (if applicable):
+- AI website / page (if applicable):
+- MCP transport: Streamable HTTP / SSE / WebSocket / stdio / not applicable
+- MCP server or tool involved (do not include credentials):
+
+## Steps to reproduce
+
+1.
+2.
+3.
+
+## Expected behavior
+
+<!-- What did you expect Superpower to do? -->
+
+## Actual behavior
+
+<!-- What happened instead? Include exact error messages when useful. -->
+
+## Logs or screenshots
+
+<!-- Attach only information that is safe to publish. Redact tokens, cookies, private prompts, file contents, local paths, and other sensitive data. -->
+
+## Regression information
+
+- Did this work in an earlier Superpower version? Yes / No / Unknown
+- If yes, last known working version:
+
+## Additional context
+
+<!-- Include anything else needed to reproduce the issue. -->
+
+> For security vulnerabilities, credential exposure, unauthorized tool execution, or other sensitive findings, do not post exploit details here. Follow the private reporting guidance in `SECURITY.md`.
