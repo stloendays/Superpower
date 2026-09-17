@@ -29,6 +29,7 @@
     "prettier": "turbo prettier --continue -- --cache --cache-location node_modules/.cache/.prettiercache",
     "prepare": "husky",
     "update-version": "bash scripts/shell/update_version.sh",
+    "check:release-metadata": "node scripts/check-release-metadata.mjs",
     "copy_env": "node scripts/copy-env.mjs",
     "set-global-env": "bash scripts/shell/set_global_env.sh",
     "postinstall": "pnpm build:eslint && pnpm copy_env",
