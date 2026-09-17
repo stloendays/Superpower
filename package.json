@@ -52,7 +52,7 @@
     "@types/react": "^19.0.8",
     "@types/react-dom": "^19.0.3",
     "autoprefixer": "^10.4.20",
-    "cross-env": "^7.0.3",
+    "cross-env": "^10.1.0",
     "deepmerge": "^4.3.1",
     "esbuild": "^0.25.0",
     "eslint": "^9.20.1",
