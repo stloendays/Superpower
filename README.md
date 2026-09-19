@@ -21,6 +21,7 @@
   <p>
     <a href="#what-problem-does-superpower-solve">Problem</a> ·
     <a href="#products">Products</a> ·
+    <a href="#product-tour">Tour</a> ·
     <a href="#why-superpower">Why Superpower</a> ·
     <a href="#features">Features</a> ·
     <a href="#supported-platforms">Platforms</a> ·
@@ -93,6 +94,13 @@ Use Superpower as a native MCP workspace outside the browser.
 </tr>
 </table>
 
+## Product tour
+
+<p align="center">
+  <img src="docs/readme/product-tour.png" alt="Illustrative Superpower product tour showing research, writing, actions and browser workflows" width="92%" />
+  <br /><sub>Illustrative product concept showing how Superpower can bring research, writing and tool-driven actions into one browser-first workflow. For the current compatibility list, see <a href="#supported-platforms">Supported platforms</a>.</sub>
+</p>
+
 ## Why Superpower?
 
 Superpower keeps tool execution close to the interface where the work happens. Use the browser extension when the conversation is the workspace, or use the desktop app when you want a dedicated MCP control surface.
@@ -120,13 +128,6 @@ Choose exposed tools and review guarded actions before execution.
 </tr>
 </table>
 
-### Research and synthesis
-
-<p align="center">
-  <img src="docs/readme/usage-research.png" alt="Example Superpower research workflow for comparing sources, extracting insights and organizing notes" width="100%" />
-  <br /><sub>Example browser workflow: collect sources, compare evidence, extract useful highlights and keep reusable notes in context.</sub>
-</p>
-
 ## Features
 
 - Shared MCP execution model across browser and desktop surfaces
@@ -138,18 +139,9 @@ Choose exposed tools and review guarded actions before execution.
 - Session-only Workflow Runner with one-step-at-a-time guarded execution
 - Persistent controls and generated MCP instructions
 
-### Write and refine in context
-
 <p align="center">
-  <img src="docs/readme/usage-writing.png" alt="Example Superpower writing workflow with rewrite, tone and outline actions" width="100%" />
-  <br /><sub>Example browser workflow: keep the draft visible while MCP-backed actions help rewrite, simplify, improve tone or build an outline.</sub>
-</p>
-
-### Capture insights and turn them into actions
-
-<p align="center">
-  <img src="docs/readme/usage-save-actions.png" alt="Example Superpower workflow for saving highlights, creating tasks and exporting notes" width="100%" />
-  <br /><sub>Example browser workflow: preserve useful highlights, turn them into tasks, organize them and export the result into the rest of your workflow.</sub>
+  <img src="docs/readme/capability-overview.png" alt="Illustrative overview of Superpower summarization, writing and action workflows" width="92%" />
+  <br /><sub>Illustrative capability overview. Superpower keeps reasoning in the AI surface while MCP provides the execution layer.</sub>
 </p>
 
 ### V1.5: review-first routing and workflows
@@ -159,6 +151,35 @@ The V1.5 development line maps natural-language intent to MCP capabilities, draf
 <p align="center">
   <img src="docs/readme/action-router.svg" alt="Superpower natural-language Action Router" width="100%" />
 </p>
+
+## See Superpower in action
+
+<p align="center">
+  <img src="docs/readme/superpower-in-action.png" alt="Illustrative Superpower workflow gallery from research and writing to organized actions" width="100%" />
+  <br /><sub>Illustrative workflow gallery: move from reading and synthesis to structured actions while staying in the same working context.</sub>
+</p>
+
+<details>
+<summary><strong>More workflow examples</strong></summary>
+
+<br />
+
+<p align="center">
+  <img src="docs/readme/usage-research.png" alt="Example Superpower research workflow for comparing sources, extracting insights and organizing notes" width="100%" />
+  <br /><sub><strong>Research and synthesis:</strong> collect sources, compare evidence, extract useful highlights and keep reusable notes in context.</sub>
+</p>
+
+<p align="center">
+  <img src="docs/readme/usage-writing.png" alt="Example Superpower writing workflow with rewrite, tone and outline actions" width="100%" />
+  <br /><sub><strong>Write and refine:</strong> keep the draft visible while MCP-backed actions help rewrite, simplify, improve tone or build an outline.</sub>
+</p>
+
+<p align="center">
+  <img src="docs/readme/usage-save-actions.png" alt="Example Superpower workflow for saving highlights, creating tasks and exporting notes" width="100%" />
+  <br /><sub><strong>Capture and act:</strong> preserve useful highlights, turn them into tasks, organize them and export the result into the rest of your workflow.</sub>
+</p>
+
+</details>
 
 ## Supported platforms
 
