@@ -43,7 +43,7 @@
 
 <br/>
 
-> **Release status:** v1.4.1 is the current public stable release. V1.5 is the active development line and adds review-first routing and workflow execution capabilities.
+> **Release status:** v1.4.1 is the current public stable release. V1.5 is the active development line and adds a browser Copilot workspace, local Knowledge capture, review-first routing and workflow execution capabilities.
 
 ## What problem does Superpower solve?
 
@@ -131,7 +131,12 @@ Choose exposed tools and review guarded actions before execution.
 ## Features
 
 - Shared MCP execution model across browser and desktop surfaces
+- Browser **Copilot** workspace for page/selection-aware prompts inside supported AI sites
+- One-click **Summarize, Explain, Improve writing, Translate, Action items, and Study notes** workflows
+- Local **Knowledge** capture for selected text with page title, source URL, timestamps, copy/remove controls, and Markdown export
+- `Ctrl/⌘ + Shift + K` shortcut to surface the Copilot workspace from a supported AI page
 - Browser-side tool discovery, structured call detection and result injection
+- Dynamic MCP action suggestions that surface connected notes, mail, calendar, search, task, and productivity tools when available
 - Native desktop workspace for connections, apps, actions and runs
 - Local and remote MCP endpoints
 - Review-first natural-language Action Router
@@ -144,9 +149,11 @@ Choose exposed tools and review guarded actions before execution.
   <br /><sub>Illustrative capability overview. Superpower keeps reasoning in the AI surface while MCP provides the execution layer.</sub>
 </p>
 
-### V1.5: review-first routing and workflows
+### V1.5: Copilot, Knowledge, routing and workflows
 
-The V1.5 development line maps natural-language intent to MCP capabilities, drafts schema-backed parameters, plans multi-step workflows, makes cross-step data bindings explicit, and keeps guarded execution reviewable. Workflow runs advance at most one MCP Action at a time; reviewed bindings and policy checks remain authoritative.
+The V1.5 development line now starts from a **Copilot-first browser workspace**. On supported AI sites, Superpower can use the current selection or bounded page context to prepare structured prompts for summarization, explanation, rewriting, translation, action extraction, and study notes, then submit them through the site's existing AI composer. Selected text can also be saved locally into **Knowledge** with source metadata and exported as Markdown.
+
+The existing MCP execution path remains separate and explicit: connected tools are surfaced alongside the Copilot workflow, while the natural-language Action Router maps intent to MCP capabilities, drafts schema-backed parameters, plans multi-step workflows, makes cross-step data bindings explicit, and keeps guarded execution reviewable. Workflow runs advance at most one MCP Action at a time; reviewed bindings and policy checks remain authoritative.
 
 <p align="center">
   <img src="docs/readme/action-router.svg" alt="Superpower natural-language Action Router" width="100%" />
@@ -207,7 +214,8 @@ The browser extension currently supports ChatGPT, Google Gemini, Perplexity, Goo
 1. Install [Superpower from the Chrome Web Store](https://chromewebstore.google.com/detail/eioecjdcckpdakngpgikbinalieickob?utm_source=item-share-cb).
 2. Open the extension in Chrome and configure your MCP connection.
 3. For the standard local proxy, use **Streamable HTTP** with `http://localhost:3006/mcp`.
-4. Open a supported AI website and use Superpower from the browser workflow.
+4. Open a supported AI website. In the V1.5 development line, the sidebar opens to **Copilot** by default; use a quick action or press `Ctrl/⌘ + Shift + K` to return to it.
+5. Select useful text to summarize/rewrite or save it into local **Knowledge**; switch to **Tools** when you want to execute connected MCP actions.
 
 > **Connection compatibility:** new local setups default to Streamable HTTP. Explicit legacy SSE endpoints such as `http://localhost:3006/sse` and WebSocket endpoints remain supported. Existing saved connection settings are not overwritten.
 
