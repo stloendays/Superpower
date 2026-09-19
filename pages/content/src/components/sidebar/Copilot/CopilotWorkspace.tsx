@@ -26,8 +26,7 @@ interface CopilotWorkspaceProps {
 
 type QuickAction = 'summary' | 'explain' | 'rewrite' | 'translate' | 'actions' | 'notes';
 
-const normalizeText = (value: string): string =>
-  value.replace(/\s+/g, ' ').trim();
+const normalizeText = (value: string): string => value.replace(/\s+/g, ' ').trim();
 
 const getSelectionText = (): string => {
   try {
@@ -258,12 +257,7 @@ const CopilotWorkspace: React.FC<CopilotWorkspaceProps> = ({ onRunPrompt, tools,
     }
   };
 
-  const actionButton = (
-    label: string,
-    description: string,
-    action: QuickAction,
-    accent: string,
-  ) => (
+  const actionButton = (label: string, description: string, action: QuickAction, accent: string) => (
     <button
       key={action}
       type="button"
@@ -341,9 +335,24 @@ const CopilotWorkspace: React.FC<CopilotWorkspaceProps> = ({ onRunPrompt, tools,
         <div className="grid grid-cols-2 gap-2">
           {actionButton('Summarize', 'Overview, key points, risks and open questions.', 'summary', 'bg-indigo-500')}
           {actionButton('Explain', 'Explain selected text clearly without losing meaning.', 'explain', 'bg-sky-500')}
-          {actionButton('Improve writing', 'Rewrite selected text to be clearer and more concise.', 'rewrite', 'bg-violet-500')}
-          {actionButton('Translate', 'Translate selection into your conversation language.', 'translate', 'bg-fuchsia-500')}
-          {actionButton('Action items', 'Extract explicit next steps without inventing owners.', 'actions', 'bg-emerald-500')}
+          {actionButton(
+            'Improve writing',
+            'Rewrite selected text to be clearer and more concise.',
+            'rewrite',
+            'bg-violet-500',
+          )}
+          {actionButton(
+            'Translate',
+            'Translate selection into your conversation language.',
+            'translate',
+            'bg-fuchsia-500',
+          )}
+          {actionButton(
+            'Action items',
+            'Extract explicit next steps without inventing owners.',
+            'actions',
+            'bg-emerald-500',
+          )}
           {actionButton('Study notes', 'Turn context into reusable structured notes.', 'notes', 'bg-amber-500')}
         </div>
       </div>
@@ -374,7 +383,9 @@ const CopilotWorkspace: React.FC<CopilotWorkspaceProps> = ({ onRunPrompt, tools,
                 <div className="flex items-start justify-between gap-2">
                   <div className="min-w-0">
                     <p className="text-xs font-semibold text-slate-700 dark:text-slate-200 truncate">{item.title}</p>
-                    <p className="mt-1 text-xs leading-5 text-slate-500 dark:text-slate-400 line-clamp-3">{item.text}</p>
+                    <p className="mt-1 text-xs leading-5 text-slate-500 dark:text-slate-400 line-clamp-3">
+                      {item.text}
+                    </p>
                     <p className="mt-1 text-[10px] text-slate-400">{formatDate(item.createdAt)}</p>
                   </div>
                   <div className="flex flex-col gap-1 shrink-0">
