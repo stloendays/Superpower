@@ -7,6 +7,7 @@ import AvailableTools from './AvailableTools/AvailableTools';
 import InstructionManager from './Instructions/InstructionManager';
 import InputArea from './InputArea/InputArea';
 import Settings from './Settings/Settings';
+import CopilotWorkspace from './Copilot/CopilotWorkspace';
 import { useMcpCommunication } from '@src/hooks/useMcpCommunication';
 import { logMessage } from '@src/utils/helpers';
 import { eventBus } from '@src/events/event-bus';
@@ -271,7 +272,7 @@ const Sidebar: React.FC<SidebarProps> = ({ initialPreferences }) => {
   }, [sidebarVisible, isMinimized, isPushMode, sidebarWidth]);
 
   // Local UI state that doesn't need to be in the store
-  const [activeTab, setActiveTab] = useState<'availableTools' | 'instructions' | 'settings'>('availableTools');
+  const [activeTab, setActiveTab] = useState<'copilot' | 'availableTools' | 'instructions' | 'settings'>('copilot');
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [isTransitioning, setIsTransitioning] = useState(false);
   const [isInputMinimized, setIsInputMinimized] = useState(false);
@@ -281,6 +282,23 @@ const Sidebar: React.FC<SidebarProps> = ({ initialPreferences }) => {
   const isResizingRef = useRef(false);
   const previousWidthRef = useRef(SIDEBAR_DEFAULT_WIDTH);
   const transitionTimerRef = useRef<number | null>(null);
+
+  // Global Copilot shortcut: open the sidebar and focus the Copilot workspace.
+  useEffect(() => {
+    const handleCopilotShortcut = (event: KeyboardEvent) => {
+      if ((event.ctrlKey || event.metaKey) && event.shiftKey && event.key.toLowerCase() === 'k') {
+        event.preventDefault();
+        setActiveTab('copilot');
+        setSidebarVisibility(true, 'copilot-shortcut');
+        if (isMinimized) {
+          toggleMinimize('copilot-shortcut');
+        }
+      }
+    };
+
+    window.addEventListener('keydown', handleCopilotShortcut, true);
+    return () => window.removeEventListener('keydown', handleCopilotShortcut, true);
+  }, [isMinimized, setSidebarVisibility, toggleMinimize]);
 
   // Helper function to wait for SidebarManager to become available with retry mechanism
   const waitForSidebarManager = useCallback(async (maxRetries = 10, baseDelay = 50): Promise<any> => {
@@ -608,6 +626,16 @@ const Sidebar: React.FC<SidebarProps> = ({ initialPreferences }) => {
     logMessage(`[Sidebar] Theme toggled to: ${nextTheme}`);
   };
 
+  const handleCopilotPrompt = useCallback(async (prompt: string) => {
+    if (!adapter.isReady) {
+      throw new Error('The current AI page is not ready yet. Try again after the chat input finishes loading.');
+    }
+
+    await adapter.insertTextIntoInput(prompt);
+    await new Promise(resolve => setTimeout(resolve, 200));
+    await adapter.triggerSubmission();
+  }, [adapter]);
+
   // Transform availableTools to match the expected format for InstructionManager
   const formattedTools = availableTools.map(tool => ({
     name: tool.name,
@@ -840,45 +868,46 @@ const Sidebar: React.FC<SidebarProps> = ({ initialPreferences }) => {
                 </CardContent>
               </Card>
 
-              {/* Tabs for Tools/Instructions */}
+              {/* Primary workspace navigation */}
               <div className="border-b border-slate-200 dark:border-slate-700 mb-2">
-                <div className="flex">
-                  <button
-                    className={cn(
-                      'py-2 px-4 font-medium text-sm transition-all duration-200',
-                      activeTab === 'availableTools'
-                        ? 'border-b-2 border-indigo-600 text-indigo-600 dark:border-indigo-400 dark:text-indigo-400'
-                        : 'text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-t-lg',
-                    )}
-                    onClick={() => setActiveTab('availableTools')}>
-                    Available Tools
-                  </button>
-                  <button
-                    className={cn(
-                      'py-2 px-4 font-medium text-sm transition-all duration-200',
-                      activeTab === 'instructions'
-                        ? 'border-b-2 border-indigo-600 text-indigo-600 dark:border-indigo-400 dark:text-indigo-400'
-                        : 'text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-t-lg',
-                    )}
-                    onClick={() => setActiveTab('instructions')}>
-                    Instructions
-                  </button>
-                  <button
-                    className={cn(
-                      'py-2 px-4 font-medium text-sm transition-all duration-200',
-                      activeTab === 'settings'
-                        ? 'border-b-2 border-indigo-600 text-indigo-600 dark:border-indigo-400 dark:text-indigo-400'
-                        : 'text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-t-lg',
-                    )}
-                    onClick={() => setActiveTab('settings')}>
-                    Settings
-                  </button>
+                <div className="flex items-center gap-1 overflow-x-auto scrollbar-none">
+                  {[
+                    ['copilot', 'Copilot'],
+                    ['availableTools', 'Tools'],
+                    ['instructions', 'Instructions'],
+                    ['settings', 'Settings'],
+                  ].map(([tab, label]) => (
+                    <button
+                      key={tab}
+                      className={cn(
+                        'py-2 px-2.5 font-medium text-xs whitespace-nowrap transition-all duration-200 rounded-t-lg',
+                        activeTab === tab
+                          ? 'border-b-2 border-indigo-600 text-indigo-600 dark:border-indigo-400 dark:text-indigo-400 bg-indigo-50/60 dark:bg-indigo-950/20'
+                          : 'text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800',
+                      )}
+                      onClick={() => setActiveTab(tab as 'copilot' | 'availableTools' | 'instructions' | 'settings')}>
+                      {label}
+                    </button>
+                  ))}
                 </div>
               </div>
             </div>
 
             {/* Tab Content Area - scrollable area with flex-grow to fill available space */}
             <div className="flex-1 min-h-0 px-4 pb-4 overflow-hidden">
+              {/* Copilot */}
+              <div
+                className={cn(
+                  'h-full overflow-y-auto scrollbar-thin scrollbar-thumb-slate-300 dark:scrollbar-thumb-slate-600 scrollbar-track-transparent',
+                  { hidden: activeTab !== 'copilot' },
+                )}>
+                <CopilotWorkspace
+                  onRunPrompt={handleCopilotPrompt}
+                  tools={availableTools}
+                  onOpenTools={() => setActiveTab('availableTools')}
+                />
+              </div>
+
               {/* AvailableTools */}
               <div
                 className={cn(
