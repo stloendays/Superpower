@@ -119,8 +119,11 @@ Superpower 尽量让工具执行留在工作发生的界面附近。如果对话
 </tr>
 </table>
 
+### 研究与信息整合
+
 <p align="center">
-  <img src="docs/readme/product-overview.svg" alt="Superpower 产品概览" width="100%" />
+  <img src="docs/readme/usage-research.png" alt="Superpower 研究工作流示例：对比来源、提取洞察并整理笔记" width="100%" />
+  <br /><sub>示例浏览器工作流：收集资料、比较不同来源、提取关键信息，并把可复用笔记保留在当前上下文中。</sub>
 </p>
 
 ## 主要功能
@@ -134,18 +137,19 @@ Superpower 尽量让工具执行留在工作发生的界面附近。如果对话
 - 一次只推进一个受控动作的 session-only Workflow Runner
 - 持久化控制项与自动生成的 MCP instructions
 
-<table>
-<tr>
-<td width="50%" align="center" valign="top">
-  <img src="docs/readme/sidebar-overview.svg" alt="Superpower 浏览器侧边栏概览" width="100%" />
-  <br /><sub>浏览器扩展：连接、工具与自动化控制。</sub>
-</td>
-<td width="50%" align="center" valign="top">
-  <img src="docs/readme/tool-flow.svg" alt="Superpower MCP 工具执行流程" width="100%" />
-  <br /><sub>结构化工具调用通过 MCP 执行，并返回当前工作流。</sub>
-</td>
-</tr>
-</table>
+### 在当前页面中写作与改写
+
+<p align="center">
+  <img src="docs/readme/usage-writing.png" alt="Superpower 写作工作流示例：改写、语气调整与大纲生成" width="100%" />
+  <br /><sub>示例浏览器工作流：保留原始草稿上下文，同时通过 MCP 动作完成改写、简化、语气调整和大纲整理。</sub>
+</p>
+
+### 收藏洞察并转化为行动
+
+<p align="center">
+  <img src="docs/readme/usage-save-actions.png" alt="Superpower 收藏高亮、生成任务并导出笔记的工作流示例" width="100%" />
+  <br /><sub>示例浏览器工作流：保存有价值的高亮内容，将信息转成任务，完成分类整理后继续导出到后续工作流。</sub>
+</p>
 
 ### V1.5：以审核为核心的路由与工作流
 
