@@ -43,7 +43,7 @@
 
 <br/>
 
-> **版本状态：** v1.4.1 是当前公开稳定版本；V1.5 为主线开发版本，正在加入以审核为核心的自然语言路由、多步骤工作流规划与受控执行能力。
+> **版本状态：** v1.4.1 是当前公开稳定版本；V1.5 为主线开发版本，正在加入浏览器 Copilot 工作台、本地 Knowledge 收藏、以审核为核心的自然语言路由、多步骤工作流规划与受控执行能力。
 
 ## Superpower 解决什么问题？
 
@@ -130,7 +130,12 @@ Superpower 尽量让工具执行留在工作发生的界面附近。如果对话
 ## 主要功能
 
 - 浏览器与桌面端共享 MCP 执行模型
+- 面向受支持 AI 网站的浏览器 **Copilot** 工作台，可结合当前选中文本或页面上下文生成任务
+- 一键 **Summarize、Explain、Improve writing、Translate、Action items、Study notes**
+- 本地 **Knowledge** 收藏：保存选中文本、页面标题、来源 URL 与时间，并支持复制、删除和 Markdown 导出
+- 在受支持 AI 页面使用 `Ctrl/⌘ + Shift + K` 快速回到 Copilot 工作台
 - 浏览器侧工具发现、结构化调用检测与结果回填
+- 根据已连接 MCP 工具动态展示笔记、邮件、日历、搜索、任务等 Action 入口
 - 原生桌面 Connections、Apps、Actions、Runs 工作区
 - 支持本地与远程 MCP endpoint
 - 以审核为核心的自然语言 Action Router
@@ -143,9 +148,11 @@ Superpower 尽量让工具执行留在工作发生的界面附近。如果对话
   <br /><sub>示意性能力概览：AI 界面负责理解和推理，MCP 作为执行层连接真实工具。</sub>
 </p>
 
-### V1.5：以审核为核心的路由与工作流
+### V1.5：Copilot、Knowledge、路由与工作流
 
-V1.5 开发线会把自然语言需求映射到 MCP 能力，根据 schema 生成参数，规划多步骤工作流，并显式记录跨步骤数据绑定，同时让受控执行保持可审核。Workflow Runner 每次最多推进一个 MCP Action，已审核的参数绑定与策略检查保持最高优先级。
+V1.5 开发线现在增加了一个 **Copilot-first 浏览器工作台**。在受支持的 AI 网站中，Superpower 可以读取当前选中文本或有长度边界的页面上下文，为摘要、解释、改写、翻译、行动项提取和学习笔记生成结构化提示，并通过当前网站原有的 AI 输入框提交。选中文本还可以直接保存到本地 **Knowledge**，保留来源信息并导出为 Markdown。
+
+原有 MCP 执行链保持独立且明确：已连接工具会和 Copilot 工作流并列展示；自然语言 Action Router 继续负责把意图映射到 MCP 能力、按 schema 生成参数、规划多步骤流程并显式记录跨步骤绑定。Workflow Runner 每次最多推进一个 MCP Action，已审核的参数绑定与策略检查保持最高优先级。
 
 <p align="center">
   <img src="docs/readme/action-router.svg" alt="Superpower 自然语言 Action Router" width="100%" />
@@ -206,7 +213,8 @@ V1.5 开发线会把自然语言需求映射到 MCP 能力，根据 schema 生�
 1. 从 [Chrome Web Store 安装 Superpower](https://chromewebstore.google.com/detail/eioecjdcckpdakngpgikbinalieickob?utm_source=item-share-cb)。
 2. 在 Chrome 中打开扩展并配置 MCP 连接。
 3. 标准本地 Proxy 推荐使用 **Streamable HTTP**，地址为 `http://localhost:3006/mcp`。
-4. 打开受支持的 AI 网站，在网页工作流中使用 Superpower。
+4. 打开受支持的 AI 网站。V1.5 开发线会默认进入 **Copilot**；也可以按 `Ctrl/⌘ + Shift + K` 快速回到 Copilot。
+5. 选中文本后可直接摘要、改写或保存到本地 **Knowledge**；需要执行真实 MCP 工具时切换到 **Tools**。
 
 > **连接兼容性：** 新的本地配置默认使用 Streamable HTTP。显式的旧版 SSE endpoint（例如 `http://localhost:3006/sse`）和 WebSocket endpoint 仍然支持；已有用户保存的连接配置不会被强制覆盖。
 
