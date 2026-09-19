@@ -120,8 +120,11 @@ Choose exposed tools and review guarded actions before execution.
 </tr>
 </table>
 
+### Research and synthesis
+
 <p align="center">
-  <img src="docs/readme/product-overview.svg" alt="Superpower product overview" width="100%" />
+  <img src="docs/readme/usage-research.png" alt="Example Superpower research workflow for comparing sources, extracting insights and organizing notes" width="100%" />
+  <br /><sub>Example browser workflow: collect sources, compare evidence, extract useful highlights and keep reusable notes in context.</sub>
 </p>
 
 ## Features
@@ -135,18 +138,19 @@ Choose exposed tools and review guarded actions before execution.
 - Session-only Workflow Runner with one-step-at-a-time guarded execution
 - Persistent controls and generated MCP instructions
 
-<table>
-<tr>
-<td width="50%" align="center" valign="top">
-  <img src="docs/readme/sidebar-overview.svg" alt="Superpower browser sidebar overview" width="100%" />
-  <br /><sub>Browser extension: connections, tools and automation controls.</sub>
-</td>
-<td width="50%" align="center" valign="top">
-  <img src="docs/readme/tool-flow.svg" alt="Superpower MCP tool execution flow" width="100%" />
-  <br /><sub>Structured tool calls routed through MCP and returned to the workflow.</sub>
-</td>
-</tr>
-</table>
+### Write and refine in context
+
+<p align="center">
+  <img src="docs/readme/usage-writing.png" alt="Example Superpower writing workflow with rewrite, tone and outline actions" width="100%" />
+  <br /><sub>Example browser workflow: keep the draft visible while MCP-backed actions help rewrite, simplify, improve tone or build an outline.</sub>
+</p>
+
+### Capture insights and turn them into actions
+
+<p align="center">
+  <img src="docs/readme/usage-save-actions.png" alt="Example Superpower workflow for saving highlights, creating tasks and exporting notes" width="100%" />
+  <br /><sub>Example browser workflow: preserve useful highlights, turn them into tasks, organize them and export the result into the rest of your workflow.</sub>
+</p>
 
 ### V1.5: review-first routing and workflows
 
