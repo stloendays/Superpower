@@ -6,6 +6,11 @@ This changelog tracks published Superpower releases and notable work on the acti
 
 ### Added
 
+- Added a browser-first **Copilot** workspace on supported AI sites, with page/selection-aware prompts submitted through the current site's AI composer.
+- Added one-click Summarize, Explain, Improve writing, Translate, Action items, and Study notes workflows.
+- Added local **Knowledge** capture for selected text with source metadata, local persistence, copy/remove controls, and Markdown export.
+- Added a `Ctrl/⌘ + Shift + K` shortcut to surface the Copilot workspace on supported AI pages.
+- Added dynamic MCP action suggestions inside Copilot based on the currently connected tool set.
 - Added a per-user Windows Setup installer for Superpower Desktop.
 - Added installer-based automatic update support for managed Desktop installations.
 - Added a Simplified Chinese README and an English/Chinese language switcher on the repository homepage.
