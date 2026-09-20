@@ -3,7 +3,7 @@ import { devtools } from 'zustand/middleware';
 import { eventBus } from '../events';
 import { evaluateToolExecution } from '../core/execution-policy';
 import { mcpTelemetry } from '../core/mcp-telemetry';
-import { getToolEnablementState, saveToolEnablementState } from '../utils/storage';
+import { getToolEnablementState, saveToolEnablementState, getToolFavorites, saveToolFavorites } from '../utils/storage';
 import type { Tool, DetectedTool, ToolExecution } from '../types/stores';
 import { createLogger } from '@extension/shared/lib/logger';
 
@@ -27,6 +27,8 @@ export interface ToolState {
   lastExecutionId: string | null;
   enabledTools: Set<string>;
   isLoadingEnablement: boolean;
+  favoritedTools: Set<string>;
+  isLoadingFavorites: boolean;
 
   // Actions
   setAvailableTools: (tools: Tool[]) => void;
@@ -42,6 +44,11 @@ export interface ToolState {
   disableAllTools: () => void;
   isToolEnabled: (toolName: string) => boolean;
   loadToolEnablementState: () => Promise<void>;
+  favoriteTool: (toolName: string) => void;
+  unfavoriteTool: (toolName: string) => void;
+  toggleFavoriteTool: (toolName: string) => void;
+  isToolFavorited: (toolName: string) => boolean;
+  loadToolFavoritesState: () => Promise<void>;
 }
 
 const initialState: Omit<
@@ -59,6 +66,11 @@ const initialState: Omit<
   | 'disableAllTools'
   | 'isToolEnabled'
   | 'loadToolEnablementState'
+  | 'favoriteTool'
+  | 'unfavoriteTool'
+  | 'toggleFavoriteTool'
+  | 'isToolFavorited'
+  | 'loadToolFavoritesState'
 > = {
   availableTools: [],
   detectedTools: [],
@@ -67,6 +79,8 @@ const initialState: Omit<
   lastExecutionId: null,
   enabledTools: new Set(),
   isLoadingEnablement: false,
+  favoritedTools: new Set(),
+  isLoadingFavorites: false,
 };
 
 export const useToolStore = create<ToolState>()(
@@ -84,6 +98,8 @@ export const useToolStore = create<ToolState>()(
 
         // Load tool enablement state from storage.
         void get().loadToolEnablementState();
+        // Load tool favorites state from storage.
+        void get().loadToolFavoritesState();
       },
 
       addDetectedTool: (tool: DetectedTool) => {
@@ -274,6 +290,51 @@ export const useToolStore = create<ToolState>()(
         } catch (error) {
           logger.error('[ToolStore] Failed to load tool enablement state:', error);
           set({ isLoadingEnablement: false });
+        }
+      },
+
+      favoriteTool: (toolName: string) => {
+        set(state => {
+          const newFavorites = new Set([...state.favoritedTools, toolName]);
+          saveToolFavorites(newFavorites).catch(error =>
+            logger.error('[ToolStore] Failed to save tool favorites:', error),
+          );
+          return { favoritedTools: newFavorites };
+        });
+        logger.debug(`Tool favorited: ${toolName}`);
+      },
+
+      unfavoriteTool: (toolName: string) => {
+        set(state => {
+          const newFavorites = new Set(state.favoritedTools);
+          newFavorites.delete(toolName);
+          saveToolFavorites(newFavorites).catch(error =>
+            logger.error('[ToolStore] Failed to save tool favorites:', error),
+          );
+          return { favoritedTools: newFavorites };
+        });
+        logger.debug(`Tool unfavorited: ${toolName}`);
+      },
+
+      toggleFavoriteTool: (toolName: string) => {
+        if (get().favoritedTools.has(toolName)) {
+          get().unfavoriteTool(toolName);
+        } else {
+          get().favoriteTool(toolName);
+        }
+      },
+
+      isToolFavorited: (toolName: string): boolean => get().favoritedTools.has(toolName),
+
+      loadToolFavoritesState: async () => {
+        set({ isLoadingFavorites: true });
+        try {
+          const storedFavorites = await getToolFavorites();
+          set({ favoritedTools: storedFavorites, isLoadingFavorites: false });
+          logger.debug(`Tool favorites state loaded: ${storedFavorites.size} tools favorited`);
+        } catch (error) {
+          logger.error('[ToolStore] Failed to load tool favorites state:', error);
+          set({ isLoadingFavorites: false });
         }
       },
     }),

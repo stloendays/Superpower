@@ -20,41 +20,41 @@ export const useStores = () => {
     connection,
     tools,
     ui,
-    adapters
+    adapters,
   };
 };
 
 // Granular hooks for specific store slices with shallow comparison
 // App Store hooks
 export const useAppInitialization = () =>
-  useAppStore(useShallow(
-    (state: AppState) => ({
+  useAppStore(
+    useShallow((state: AppState) => ({
       isInitialized: state.isInitialized,
       initialize: state.initialize,
       initializationError: state.initializationError,
-    })
-  ));
+    })),
+  );
 
 export const useGlobalSettings = () =>
-  useAppStore(useShallow(
-    (state) => ({
+  useAppStore(
+    useShallow(state => ({
       settings: state.globalSettings,
-      updateSettings: state.updateSettings
-    })
-  ));
+      updateSettings: state.updateSettings,
+    })),
+  );
 
 export const useCurrentSite = () =>
-  useAppStore(useShallow(
-    (state) => ({
+  useAppStore(
+    useShallow(state => ({
       site: state.currentSite,
       host: state.currentHost,
-      setSite: state.setCurrentSite
-    })
-  ));
+      setSite: state.setCurrentSite,
+    })),
+  );
 
 export const useConnectionStatus = () =>
-  useConnectionStore(useShallow(
-    (state) => ({
+  useConnectionStore(
+    useShallow(state => ({
       status: state.status,
       isConnected: state.status === 'connected',
       isConnecting: state.status === 'connecting',
@@ -63,51 +63,51 @@ export const useConnectionStatus = () =>
       serverConfig: state.serverConfig,
       lastConnectedAt: state.lastConnectedAt,
       connectionAttempts: state.connectionAttempts,
-      maxRetryAttempts: state.serverConfig.retryAttempts
-    })
-  ));
+      maxRetryAttempts: state.serverConfig.retryAttempts,
+    })),
+  );
 
 export const useServerConfig = () =>
-  useConnectionStore(useShallow(
-    (state) => ({
+  useConnectionStore(
+    useShallow(state => ({
       config: state.serverConfig,
-      setConfig: state.setServerConfig
-    })
-  ));
+      setConfig: state.setServerConfig,
+    })),
+  );
 
 export const useAvailableTools = () =>
-  useToolStore(useShallow(
-    (state) => ({
+  useToolStore(
+    useShallow(state => ({
       tools: state.availableTools,
-      setAvailableTools: state.setAvailableTools
-    })
-  ));
+      setAvailableTools: state.setAvailableTools,
+    })),
+  );
 
 export const useDetectedTools = () =>
-  useToolStore(useShallow(
-    (state) => ({
+  useToolStore(
+    useShallow(state => ({
       tools: state.detectedTools,
       addTool: state.addDetectedTool,
-      clearTools: state.clearDetectedTools
-    })
-  ));
+      clearTools: state.clearDetectedTools,
+    })),
+  );
 
 export const useToolExecution = () =>
-  useToolStore(useShallow(
-    (state) => ({
+  useToolStore(
+    useShallow(state => ({
       executions: state.toolExecutions,
       isExecuting: state.isExecuting,
       lastExecutionId: state.lastExecutionId,
       startExecution: state.startToolExecution,
       updateExecution: state.updateToolExecution,
       completeExecution: state.completeToolExecution,
-      getExecution: state.getToolExecution
-    })
-  ));
+      getExecution: state.getToolExecution,
+    })),
+  );
 
 export const useToolEnablement = () =>
-  useToolStore(useShallow(
-    (state) => ({
+  useToolStore(
+    useShallow(state => ({
       enabledTools: state.enabledTools,
       isLoadingEnablement: state.isLoadingEnablement,
       enableTool: state.enableTool,
@@ -115,22 +115,35 @@ export const useToolEnablement = () =>
       enableAllTools: state.enableAllTools,
       disableAllTools: state.disableAllTools,
       isToolEnabled: state.isToolEnabled,
-      loadToolEnablementState: state.loadToolEnablementState
-    })
-  ));
+      loadToolEnablementState: state.loadToolEnablementState,
+    })),
+  );
+
+export const useToolFavorites = () =>
+  useToolStore(
+    useShallow(state => ({
+      favoritedTools: state.favoritedTools,
+      isLoadingFavorites: state.isLoadingFavorites,
+      favoriteTool: state.favoriteTool,
+      unfavoriteTool: state.unfavoriteTool,
+      toggleFavoriteTool: state.toggleFavoriteTool,
+      isToolFavorited: state.isToolFavorited,
+      loadToolFavoritesState: state.loadToolFavoritesState,
+    })),
+  );
 
 // Additional Tool Store hooks
 export const useToolActions = () =>
-  useToolStore(useShallow(
-    (state) => ({
-      getExecution: state.getToolExecution
-    })
-  ));
+  useToolStore(
+    useShallow(state => ({
+      getExecution: state.getToolExecution,
+    })),
+  );
 
 // UI Store hooks
 export const useSidebar = () =>
-  useUIStore(useShallow(
-    (state) => ({
+  useUIStore(
+    useShallow(state => ({
       isVisible: state.sidebar.isVisible,
       width: state.sidebar.width,
       isMinimized: state.sidebar.isMinimized,
@@ -138,57 +151,57 @@ export const useSidebar = () =>
       toggle: state.toggleSidebar,
       toggleMinimize: state.toggleMinimize,
       resize: state.resizeSidebar,
-      setVisibility: state.setSidebarVisibility
-    })
-  ));
+      setVisibility: state.setSidebarVisibility,
+    })),
+  );
 
 export const useTheme = () =>
-  useUIStore(useShallow(
-    (state) => ({
+  useUIStore(
+    useShallow(state => ({
       theme: state.theme,
-      setTheme: state.setTheme
-    })
-  ));
+      setTheme: state.setTheme,
+    })),
+  );
 
 export const useNotifications = () =>
-  useUIStore(useShallow(
-    (state) => ({
+  useUIStore(
+    useShallow(state => ({
       notifications: state.notifications,
       addNotification: state.addNotification,
       removeNotification: state.removeNotification,
-      clearNotifications: state.clearNotifications
-    })
-  ));
+      clearNotifications: state.clearNotifications,
+    })),
+  );
 
 export const usePreferences = () =>
-  useUIStore(useShallow(
-    (state) => ({
+  useUIStore(
+    useShallow(state => ({
       preferences: state.preferences,
-      updatePreferences: state.updatePreferences
-    })
-  ));
+      updatePreferences: state.updatePreferences,
+    })),
+  );
 
 export const useUILoading = () =>
-  useUIStore(useShallow(
-    (state) => ({
+  useUIStore(
+    useShallow(state => ({
       isLoading: state.isLoading,
-      setLoading: state.setGlobalLoading
-    })
-  ));
+      setLoading: state.setGlobalLoading,
+    })),
+  );
 
 export const useUIError = () =>
-  useUIStore(useShallow(
-    (state) => ({
+  useUIStore(
+    useShallow(state => ({
       activeModal: state.activeModal,
       openModal: state.openModal,
-      closeModal: state.closeModal
-    })
-  ));
+      closeModal: state.closeModal,
+    })),
+  );
 
 // Additional UI Store hooks - using more descriptive names
 export const useSidebarState = () =>
-  useUIStore(useShallow(
-    (state) => ({
+  useUIStore(
+    useShallow(state => ({
       isVisible: state.sidebar.isVisible,
       isMinimized: state.sidebar.isMinimized,
       position: state.sidebar.position,
@@ -196,50 +209,50 @@ export const useSidebarState = () =>
       toggleSidebar: state.toggleSidebar,
       toggleMinimize: state.toggleMinimize,
       resizeSidebar: state.resizeSidebar,
-      setSidebarVisibility: state.setSidebarVisibility
-    })
-  ));
+      setSidebarVisibility: state.setSidebarVisibility,
+    })),
+  );
 
 export const useUserPreferences = () =>
-  useUIStore(useShallow(
-    (state) => ({
+  useUIStore(
+    useShallow(state => ({
       preferences: state.preferences,
-      updatePreferences: state.updatePreferences
-    })
-  ));
+      updatePreferences: state.updatePreferences,
+    })),
+  );
 
 // Hook for MCP toggle state management
 export const useMCPState = () =>
-  useUIStore(useShallow(
-    (state) => ({
+  useUIStore(
+    useShallow(state => ({
       mcpEnabled: state.mcpEnabled,
-      setMCPEnabled: state.setMCPEnabled
-    })
-  ));
+      setMCPEnabled: state.setMCPEnabled,
+    })),
+  );
 
 export const useModal = () =>
-  useUIStore(useShallow(
-    (state) => ({
+  useUIStore(
+    useShallow(state => ({
       activeModal: state.activeModal,
       openModal: state.openModal,
-      closeModal: state.closeModal
-    })
-  ));
+      closeModal: state.closeModal,
+    })),
+  );
 
 // Adapter Store hooks
 export const useAdapterStatus = () =>
-  useAdapterStore(useShallow(
-    (state) => ({
+  useAdapterStore(
+    useShallow(state => ({
       activeAdapterName: state.activeAdapterName,
       currentCapabilities: state.currentCapabilities,
       lastError: state.lastAdapterError,
-      getActiveAdapter: state.getActiveAdapter
-    })
-  ));
+      getActiveAdapter: state.getActiveAdapter,
+    })),
+  );
 
 export const useActiveAdapter = () =>
-  useAdapterStore(useShallow(
-    (state) => {
+  useAdapterStore(
+    useShallow(state => {
       const activeAdapterRegistration = state.getActiveAdapter();
       return {
         activeAdapterName: state.activeAdapterName,
@@ -247,14 +260,14 @@ export const useActiveAdapter = () =>
         plugin: activeAdapterRegistration?.plugin,
         status: activeAdapterRegistration?.status,
         currentCapabilities: state.currentCapabilities,
-        error: state.lastAdapterError
+        error: state.lastAdapterError,
       };
-    }
-  ));
+    }),
+  );
 
 export const useRegisteredAdapters = () =>
-  useAdapterStore(useShallow(
-    (state) => ({
+  useAdapterStore(
+    useShallow(state => ({
       registeredPlugins: state.registeredPlugins,
       adapters: Object.values(state.registeredPlugins).map(reg => ({
         name: reg.plugin.name,
@@ -263,28 +276,28 @@ export const useRegisteredAdapters = () =>
         status: reg.status,
         error: reg.error,
         registeredAt: reg.registeredAt,
-        lastUsedAt: reg.lastUsedAt
+        lastUsedAt: reg.lastUsedAt,
       })),
       registerPlugin: state.registerPlugin,
-      unregisterPlugin: state.unregisterPlugin
-    })
-  ));
+      unregisterPlugin: state.unregisterPlugin,
+    })),
+  );
 
 // Performance-optimized hooks for specific use cases
 export const useConnectionHealth = () =>
-  useConnectionStore(useShallow(
-    (state) => ({
-      lastConnectedAt: state.lastConnectedAt
-    })
-  ));
+  useConnectionStore(
+    useShallow(state => ({
+      lastConnectedAt: state.lastConnectedAt,
+    })),
+  );
 
 export const useAppError = () =>
-  useAppStore(useShallow(
-    (state) => ({
+  useAppStore(
+    useShallow(state => ({
       error: state.initializationError,
-      resetState: state.resetState
-    })
-  ));
+      resetState: state.resetState,
+    })),
+  );
 
 // Combined hooks for common patterns
 export const useAppStatus = () => {
@@ -299,7 +312,7 @@ export const useAppStatus = () => {
     isConnected,
     activeAdapterName,
     currentCapabilities,
-    isFullyReady: isInitialized && isConnected && !!activeAdapterName
+    isFullyReady: isInitialized && isConnected && !!activeAdapterName,
   };
 };
 
@@ -315,7 +328,7 @@ export const useToolManagement = () => {
     addTool,
     clearTools,
     startExecution,
-    totalTools: availableTools.length + detectedTools.length
+    totalTools: availableTools.length + detectedTools.length,
   };
 };
 
@@ -334,7 +347,7 @@ export const useUIState = () => {
     isLoading,
     activeModal,
     hasNotifications: notifications.length > 0,
-    hasActiveModal: !!activeModal
+    hasActiveModal: !!activeModal,
   };
 };
 
@@ -344,7 +357,7 @@ export const useAllStoreStates = () => ({
   connection: useConnectionStore.getState(),
   tools: useToolStore.getState(),
   ui: useUIStore.getState(),
-  adapters: useAdapterStore.getState()
+  adapters: useAdapterStore.getState(),
 });
 
 // Legacy compatibility - these should be deprecated in favor of specific hooks
