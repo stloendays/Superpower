@@ -138,6 +138,7 @@ Choose exposed tools and review guarded actions before execution.
 - One-click **Summarize, Explain, Improve writing, Translate, Action items, and Study notes** workflows
 - Local **Knowledge** capture for selected text with page title, source URL, timestamps, source classification, tags, search/filter controls, and Markdown export
 - Multi-select Knowledge workflows: attach saved notes to Ask, synthesize multiple sources, export selected items, or hand them to a compatible notes/file MCP tool
+- **Knowledge Projects**: organize the same saved source across multiple research Projects without duplicating content; open a Project to filter its sources, attach the whole Project to Ask, synthesize/export it, or send it through a compatible MCP destination
 - `Ctrl/⌘ + Shift + K` shortcut to surface the Copilot workspace from a supported AI page
 - Browser-side tool discovery, structured call detection and result injection
 - **Connected Actions** for detected notes, mail, calendar, task, Slack/messaging, and file-storage MCP tools, while preserving the review-first execution path
@@ -159,7 +160,7 @@ The V1.5 development line now starts from a **Copilot-first browser workspace**.
 
 Outside the supported AI sites, a lightweight **Page Assistant** provides a small floating control without loading the full MCP/adapter stack. Selection and page-level tasks are routed to the most recently used supported AI tab; if none is available, Superpower opens ChatGPT and waits for the adapter before submitting. On YouTube watch pages, the assistant can build a video-summary request from the title, channel, description, and transcript segments when the transcript is available in the loaded page.
 
-Knowledge is no longer only a local clip list. Saved items can be searched across title, text, URL and tags, filtered by source type (**Web / YouTube / AI chat / Other**), tagged, multi-selected and attached directly to the Copilot Ask box. Multiple saved sources can be synthesized with provenance preserved, copied as structured Markdown, or handed to a compatible notes/file MCP tool such as Notion or Drive through the review-first workflow.
+Knowledge is no longer only a local clip list. Saved items can be searched across title, text, URL and tags, filtered by source type (**Web / YouTube / AI chat / Other**), tagged, multi-selected and attached directly to the Copilot Ask box. Multiple saved sources can be synthesized with provenance preserved, copied as structured Markdown, or handed to a compatible notes/file MCP tool such as Notion or Drive through the review-first workflow. **Knowledge Projects** add a non-destructive grouping layer: a source can belong to multiple Projects without duplicating its content, and an entire Project can be attached to Ask, synthesized, exported, or handed to MCP as one research context.
 
 Connected MCP tools are also promoted into a **Connected Actions** panel. When compatible tools are detected, Superpower can surface actions such as Save note, Draft email, Plan event, Create task, Draft Slack, or Search files. These shortcuts still use the existing review-first MCP path rather than bypassing tool schemas or confirmation rules.
 
@@ -226,7 +227,8 @@ The browser extension currently supports ChatGPT, Google Gemini, Perplexity, Goo
 3. For the standard local proxy, use **Streamable HTTP** with `http://localhost:3006/mcp`.
 4. Open a supported AI website. In the V1.5 development line, the sidebar opens to **Copilot** by default; use a quick action or press `Ctrl/⌘ + Shift + K` to return to it.
 5. On ordinary web pages, use the small Superpower Page Assistant to summarize a selection/page, save content to **Knowledge**, or route the task into your active AI workspace. YouTube watch pages add a **Summarize video** action.
-6. Inside Copilot, use **Connected Actions** when Superpower detects compatible MCP tools; switch to **Tools** when you want the full tool interface.
+6. Inside Copilot, create **Knowledge Projects** to group saved sources by research topic or workstream. Add selected Knowledge to a Project, then use the whole Project in Ask, synthesis, Markdown export, or MCP handoff.
+7. Use **Connected Actions** when Superpower detects compatible MCP tools; switch to **Tools** when you want the full tool interface.
 
 > **Connection compatibility:** new local setups default to Streamable HTTP. Explicit legacy SSE endpoints such as `http://localhost:3006/sse` and WebSocket endpoints remain supported. Existing saved connection settings are not overwritten.
 
