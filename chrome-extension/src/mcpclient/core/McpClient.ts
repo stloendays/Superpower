@@ -27,6 +27,13 @@ export class McpClient extends EventEmitter<AllEvents> {
   private isConnectedFlag: boolean = false;
   private connectionPromise: Promise<void> | null = null;
   private healthCheckTimer: NodeJS.Timeout | null = null;
+  private reconnectTimer: ReturnType<typeof setTimeout> | null = null;
+  private reconnectAttempts = 0;
+  private lastConnectionRequest: ConnectionRequest | null = null;
+  private activeUri: string | null = null;
+  private intentionallyDisconnected = false;
+  private recoveryPromise: Promise<void> | null = null;
+  private healthCheckInFlight = false;
   private primitivesCache: PrimitivesResponse | null = null;
   private primitivesCacheTime: number = 0;
   private readonly CACHE_TTL = 300000; // 5 minutes
@@ -92,9 +99,19 @@ export class McpClient extends EventEmitter<AllEvents> {
   }
 
   async connect(request: ConnectionRequest): Promise<void> {
-    // If same connection type and already connected, skip
-    if (this.isConnectedFlag && this.activePlugin?.metadata.transportType === request.type) {
-      logger.debug(`Already connected via ${request.type}, skipping`);
+    this.lastConnectionRequest = {
+      ...request,
+      config: request.config ? { ...request.config } : undefined,
+    };
+    this.intentionallyDisconnected = false;
+
+    // If the exact endpoint and transport are already connected, skip.
+    if (
+      this.isConnectedFlag &&
+      this.activePlugin?.metadata.transportType === request.type &&
+      this.activeUri === request.uri
+    ) {
+      logger.debug(`Already connected to ${request.uri} via ${request.type}, skipping`);
       return;
     }
 
@@ -104,7 +121,11 @@ export class McpClient extends EventEmitter<AllEvents> {
       try {
         await this.connectionPromise;
         // Check if the completed connection is what we wanted
-        if (this.isConnectedFlag && this.activePlugin?.metadata.transportType === request.type) {
+        if (
+          this.isConnectedFlag &&
+          this.activePlugin?.metadata.transportType === request.type &&
+          this.activeUri === request.uri
+        ) {
           logger.debug('[McpClient] Existing connection matches request');
           return;
         }
@@ -115,10 +136,15 @@ export class McpClient extends EventEmitter<AllEvents> {
       }
     }
 
-    // Disconnect from current connection if switching types
-    if (this.isConnectedFlag && this.activePlugin?.metadata.transportType !== request.type) {
-      logger.debug(`Switching from ${this.activePlugin?.metadata.transportType} to ${request.type}`);
-      await this.disconnect();
+    // Cleanly replace any live connection when transport or endpoint changes.
+    if (
+      this.isConnectedFlag &&
+      (this.activePlugin?.metadata.transportType !== request.type || this.activeUri !== request.uri)
+    ) {
+      logger.debug(
+        `Switching MCP connection from ${this.activeUri || 'unknown'} (${this.activePlugin?.metadata.transportType || 'unknown'}) to ${request.uri} (${request.type})`,
+      );
+      await this.cleanup();
     }
 
     this.connectionPromise = this.performConnection(request);
@@ -137,9 +163,9 @@ export class McpClient extends EventEmitter<AllEvents> {
       logger.debug(`Connecting to ${uri} via ${type}`);
       this.emit('client:connecting', { uri, type });
 
-      // Disconnect from current connection if exists
-      if (this.isConnectedFlag) {
-        await this.disconnect();
+      // Clear any stale client/plugin state before establishing a fresh session.
+      if (this.client || this.activePlugin || this.activeTransport) {
+        await this.cleanup();
       }
 
       // Get the plugin configuration
@@ -158,25 +184,12 @@ export class McpClient extends EventEmitter<AllEvents> {
       // Get transport from plugin (plugin creates but doesn't connect)
       const transport = await plugin.connect(uri);
 
-      // Set up disconnection callback for WebSocket plugin
+      // WebSocket can report transport loss immediately; recover without waiting for the periodic health check.
       if (type === 'websocket' && 'setDisconnectionCallback' in plugin) {
         (plugin as any).setDisconnectionCallback((reason: string, code?: number, details?: string) => {
-          logger.debug(`WebSocket disconnection detected: ${reason} (code: ${code})`);
-          
-          // Mark as disconnected immediately
-          this.isConnectedFlag = false;
-          
-          // Emit disconnection event with details
-          this.emit('connection:status-changed', {
-            isConnected: false,
-            type: 'websocket',
-            error: `WebSocket disconnected: ${reason}${code ? ` (code: ${code})` : ''}${details ? ` - ${details}` : ''}`
-          });
-
-          // Clean up connection state
-          this.cleanup().catch(error => {
-            logger.error('[McpClient] Error during cleanup after WebSocket disconnection:', error);
-          });
+          const error = `WebSocket disconnected: ${reason}${code ? ` (code: ${code})` : ''}${details ? ` - ${details}` : ''}`;
+          logger.debug(`WebSocket disconnection detected: ${error}`);
+          void this.handleUnexpectedDisconnect(error);
         });
       }
 
@@ -212,7 +225,10 @@ export class McpClient extends EventEmitter<AllEvents> {
       // Store connection state
       this.activePlugin = plugin;
       this.activeTransport = transport;
+      this.activeUri = uri;
       this.isConnectedFlag = true;
+      this.reconnectAttempts = 0;
+      this.clearReconnectTimer();
 
       // Clear cache on new connection
       this.clearPrimitivesCache();
@@ -267,7 +283,10 @@ export class McpClient extends EventEmitter<AllEvents> {
   }
 
   async disconnect(): Promise<void> {
-    if (!this.isConnectedFlag) {
+    this.intentionallyDisconnected = true;
+    this.clearReconnectTimer();
+
+    if (!this.isConnectedFlag && !this.client && !this.activePlugin) {
       logger.debug('[McpClient] Already disconnected');
       return;
     }
@@ -324,8 +343,84 @@ export class McpClient extends EventEmitter<AllEvents> {
     }
 
     this.activeTransport = null;
+    this.activeUri = null;
     this.isConnectedFlag = false;
     this.clearPrimitivesCache();
+  }
+
+  private clearReconnectTimer(): void {
+    if (this.reconnectTimer) {
+      clearTimeout(this.reconnectTimer);
+      this.reconnectTimer = null;
+    }
+  }
+
+  private scheduleReconnect(reason: string): void {
+    if (this.intentionallyDisconnected || !this.lastConnectionRequest || this.reconnectTimer || this.connectionPromise) {
+      return;
+    }
+
+    const maxRetries = Math.max(1, this.config.global.maxRetries || 3);
+    if (this.reconnectAttempts >= maxRetries) {
+      logger.warn(`[McpClient] Automatic reconnect limit reached after ${this.reconnectAttempts} attempts: ${reason}`);
+      return;
+    }
+
+    const baseDelay = Math.max(250, this.config.global.reconnectDelay || 2_000);
+    const delay = Math.min(baseDelay * 2 ** this.reconnectAttempts, 15_000);
+    this.reconnectAttempts += 1;
+    const attempt = this.reconnectAttempts;
+
+    logger.warn(`[McpClient] Scheduling reconnect attempt ${attempt}/${maxRetries} in ${delay}ms: ${reason}`);
+
+    this.reconnectTimer = setTimeout(() => {
+      this.reconnectTimer = null;
+      if (this.intentionallyDisconnected || !this.lastConnectionRequest) return;
+
+      const request = this.lastConnectionRequest;
+      void this.connect(request).catch(error => {
+        const message = error instanceof Error ? error.message : String(error);
+        logger.warn(`[McpClient] Automatic reconnect attempt ${attempt} failed: ${message}`);
+        this.scheduleReconnect(message);
+      });
+    }, delay);
+  }
+
+  private async handleUnexpectedDisconnect(reason: string): Promise<void> {
+    if (this.intentionallyDisconnected) return;
+    if (this.recoveryPromise) return this.recoveryPromise;
+
+    this.recoveryPromise = (async () => {
+      const type = this.activePlugin?.metadata.transportType || this.lastConnectionRequest?.type || null;
+      this.isConnectedFlag = false;
+      this.emit('connection:status-changed', {
+        isConnected: false,
+        type,
+        error: reason,
+      });
+
+      try {
+        await this.cleanup();
+      } catch (error) {
+        logger.warn('[McpClient] Cleanup during recovery failed:', error);
+      }
+
+      this.scheduleReconnect(reason);
+    })().finally(() => {
+      this.recoveryPromise = null;
+    });
+
+    return this.recoveryPromise;
+  }
+
+  public async resetForRecovery(): Promise<void> {
+    this.intentionallyDisconnected = false;
+    this.clearReconnectTimer();
+    try {
+      await this.cleanup();
+    } finally {
+      this.reconnectAttempts = 0;
+    }
   }
 
   async callTool(toolName: string, args: Record<string, any>, adapterName?: string): Promise<any> {
@@ -377,12 +472,7 @@ export class McpClient extends EventEmitter<AllEvents> {
 
       // Check if connection is still healthy after error
       if (!(await this.isHealthy())) {
-        this.isConnectedFlag = false;
-        this.emit('connection:status-changed', {
-          isConnected: false,
-          type: this.activePlugin?.metadata.transportType || null,
-          error: 'Connection lost during tool call',
-        });
+        void this.handleUnexpectedDisconnect('Connection lost during tool call');
       }
 
       throw toolError;
@@ -446,12 +536,7 @@ export class McpClient extends EventEmitter<AllEvents> {
 
       // Check if connection is still healthy after error
       if (!(await this.isHealthy())) {
-        this.isConnectedFlag = false;
-        this.emit('connection:status-changed', {
-          isConnected: false,
-          type: this.activePlugin?.metadata.transportType || null,
-          error: 'Connection lost while getting primitives',
-        });
+        void this.handleUnexpectedDisconnect('Connection lost while getting primitives');
       }
 
       throw error;
@@ -486,12 +571,28 @@ export class McpClient extends EventEmitter<AllEvents> {
   }
 
   async isHealthy(): Promise<boolean> {
-    if (!this.isConnectedFlag || !this.activePlugin) {
+    if (!this.isConnectedFlag || !this.activePlugin || !this.client) {
       return false;
     }
 
     try {
-      return await this.activePlugin.isHealthy();
+      const pluginHealthy = await this.activePlugin.isHealthy();
+      if (!pluginHealthy) return false;
+
+      const timeoutMs = Math.min(Math.max(this.config.global.timeout || 5_000, 3_000), 10_000);
+      let timer: ReturnType<typeof setTimeout> | null = null;
+      try {
+        await Promise.race([
+          this.client.ping(),
+          new Promise<never>((_, reject) => {
+            timer = setTimeout(() => reject(new Error(`MCP ping timeout after ${timeoutMs}ms`)), timeoutMs);
+          }),
+        ]);
+      } finally {
+        if (timer) clearTimeout(timer);
+      }
+
+      return true;
     } catch (error) {
       logger.warn('[McpClient] Health check failed:', error);
       return false;
@@ -542,7 +643,9 @@ export class McpClient extends EventEmitter<AllEvents> {
         this.stopHealthMonitoring();
         return;
       }
+      if (this.healthCheckInFlight) return;
 
+      this.healthCheckInFlight = true;
       try {
         const healthy = await this.isHealthy();
         const type = this.activePlugin?.metadata.transportType || null;
@@ -557,15 +660,12 @@ export class McpClient extends EventEmitter<AllEvents> {
 
         if (!healthy) {
           logger.warn(`Health check failed for ${type}`);
-          this.isConnectedFlag = false;
-          this.emit('connection:status-changed', {
-            isConnected: false,
-            type,
-            error: 'Health check failed',
-          });
+          await this.handleUnexpectedDisconnect('Health check failed');
         }
       } catch (error) {
         logger.error('[McpClient] Health check error:', error);
+      } finally {
+        this.healthCheckInFlight = false;
       }
     }, interval);
   }
