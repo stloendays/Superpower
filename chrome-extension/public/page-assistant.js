@@ -15,6 +15,14 @@
       .replace(/\s+/g, ' ')
       .trim();
   const truncate = (value, limit = MAX_TEXT_CHARS) => normalizeText(value).slice(0, limit);
+
+  const getKnowledgeSource = () => {
+    const hostname = window.location.hostname.toLowerCase();
+    if (hostname === 'youtube.com' || hostname.endsWith('.youtube.com') || hostname === 'youtu.be') {
+      return 'youtube';
+    }
+    return hostname ? 'web' : 'other';
+  };
   const delay = ms => new Promise(resolve => setTimeout(resolve, ms));
 
   const getSelectionText = () => {
@@ -80,6 +88,8 @@
       title: document.title || 'Untitled page',
       url: window.location.href,
       createdAt: Date.now(),
+      tags: [],
+      sourceType: getKnowledgeSource(),
     };
 
     return new Promise(resolve => {
