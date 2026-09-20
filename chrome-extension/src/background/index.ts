@@ -900,8 +900,18 @@ async function handleMcpMessage(
         }
 
         logger.debug(`Calling tool: ${toolName} from adapter: ${adapterName || 'unknown'}`);
-        result = await callToolWithBackwardsCompatibility(getServerUrl(), toolName, args || {}, adapterName);
-        logger.debug(`Tool call completed: ${toolName}`);
+        try {
+          result = await callToolWithBackwardsCompatibility(getServerUrl(), toolName, args || {}, adapterName);
+          logger.debug(`Tool call completed: ${toolName}`);
+        } catch (error) {
+          const normalizedError = error instanceof Error ? error : new Error(String(error));
+          const category = categorizeToolError(normalizedError);
+          if (category.isConnectionError) {
+            updateConnectionStatus(false);
+            broadcastConnectionStatusToContentScripts(false, normalizedError.message);
+          }
+          throw normalizedError;
+        }
         break;
       }
 
@@ -947,9 +957,18 @@ async function handleMcpMessage(
 
           result = tools;
         } catch (error) {
-          logger.error('[Background] Error getting tools:', error);
-          // Return empty array instead of throwing to prevent UI crashes
-          result = [];
+          const normalizedError = error instanceof Error ? error : new Error(String(error));
+          logger.error('[Background] Error getting tools:', normalizedError);
+
+          const healthy = await getValidatedConnectionStatus(true);
+          if (!healthy) {
+            updateConnectionStatus(false);
+            broadcastConnectionStatusToContentScripts(false, normalizedError.message);
+          }
+
+          // Surface discovery failures to the caller instead of presenting a false
+          // "connected with zero tools" state.
+          throw normalizedError;
         }
         break;
       }
