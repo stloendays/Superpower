@@ -168,8 +168,6 @@ export class StreamableHttpPlugin implements ITransportPlugin {
         promises.push(
           client.listTools().then(({ tools }) => {
             tools.forEach(item => primitives.push({ type: 'tool', value: item }));
-          }).catch(error => {
-            logger.warn('[StreamableHttpPlugin] Failed to list tools:', error);
           }),
         );
       }
@@ -189,7 +187,7 @@ export class StreamableHttpPlugin implements ITransportPlugin {
       return primitives;
     } catch (error) {
       logger.error('[StreamableHttpPlugin] Failed to get primitives:', error);
-      return [];
+      throw error;
     }
   }
 }
