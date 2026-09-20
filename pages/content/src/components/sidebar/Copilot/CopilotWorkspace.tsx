@@ -2,8 +2,10 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { Button, Typography } from '../ui';
 
 const STORAGE_KEY = 'superpower_copilot_saved_insights';
+const COLLECTIONS_STORAGE_KEY = 'superpower_copilot_knowledge_collections';
 const MAX_CONTEXT_CHARS = 12000;
 const MAX_SAVED_ITEMS = 100;
+const MAX_COLLECTIONS = 30;
 
 type KnowledgeSource = 'web' | 'youtube' | 'ai-chat' | 'other';
 
@@ -15,6 +17,14 @@ interface SavedInsight {
   createdAt: number;
   tags?: string[];
   sourceType?: KnowledgeSource;
+}
+
+interface KnowledgeCollection {
+  id: string;
+  name: string;
+  itemIds: string[];
+  createdAt: number;
+  updatedAt: number;
 }
 
 interface CopilotTool {
@@ -210,6 +220,42 @@ const writeSavedInsights = (items: SavedInsight[]): Promise<void> =>
     }
   });
 
+const normalizeCollection = (collection: KnowledgeCollection): KnowledgeCollection => ({
+  ...collection,
+  name: normalizeText(collection.name).slice(0, 80) || 'Untitled Project',
+  itemIds: Array.isArray(collection.itemIds) ? Array.from(new Set(collection.itemIds.filter(Boolean))) : [],
+  createdAt: Number.isFinite(collection.createdAt) ? collection.createdAt : Date.now(),
+  updatedAt: Number.isFinite(collection.updatedAt) ? collection.updatedAt : Date.now(),
+});
+
+const readCollections = (): Promise<KnowledgeCollection[]> =>
+  new Promise(resolve => {
+    try {
+      chrome.storage.local.get([COLLECTIONS_STORAGE_KEY], result => {
+        if (chrome.runtime.lastError) {
+          resolve([]);
+          return;
+        }
+        const items = result?.[COLLECTIONS_STORAGE_KEY];
+        resolve(Array.isArray(items) ? items.map(normalizeCollection).slice(0, MAX_COLLECTIONS) : []);
+      });
+    } catch {
+      resolve([]);
+    }
+  });
+
+const writeCollections = (collections: KnowledgeCollection[]): Promise<void> =>
+  new Promise(resolve => {
+    try {
+      chrome.storage.local.set(
+        { [COLLECTIONS_STORAGE_KEY]: collections.slice(0, MAX_COLLECTIONS).map(normalizeCollection) },
+        () => resolve(),
+      );
+    } catch {
+      resolve();
+    }
+  });
+
 const buildActionPrompt = (action: QuickAction, context: string): string => {
   const source = context || 'No usable page context was captured. Ask me for the text I want to work with.';
 
@@ -251,9 +297,14 @@ const CopilotWorkspace: React.FC<CopilotWorkspaceProps> = ({ onRunPrompt, tools,
   const [selectedKnowledgeIds, setSelectedKnowledgeIds] = useState<string[]>([]);
   const [attachedKnowledgeIds, setAttachedKnowledgeIds] = useState<string[]>([]);
   const [tagDrafts, setTagDrafts] = useState<Record<string, string>>({});
+  const [collections, setCollections] = useState<KnowledgeCollection[]>([]);
+  const [activeCollectionId, setActiveCollectionId] = useState<string>('all');
+  const [collectionNameDraft, setCollectionNameDraft] = useState('');
+  const [collectionTargetId, setCollectionTargetId] = useState('');
 
   useEffect(() => {
     readSavedInsights().then(setSavedItems);
+    readCollections().then(setCollections);
 
     let timer: number | undefined;
     const refreshSelection = () => {
@@ -293,10 +344,21 @@ const CopilotWorkspace: React.FC<CopilotWorkspaceProps> = ({ onRunPrompt, tools,
     [tools],
   );
 
+  const activeCollection = useMemo(
+    () => (activeCollectionId === 'all' ? null : collections.find(collection => collection.id === activeCollectionId) || null),
+    [activeCollectionId, collections],
+  );
+
+  const knowledgePool = useMemo(() => {
+    if (!activeCollection) return savedItems;
+    const ids = new Set(activeCollection.itemIds);
+    return savedItems.filter(item => ids.has(item.id));
+  }, [activeCollection, savedItems]);
+
   const filteredKnowledge = useMemo(() => {
     const query = normalizeText(knowledgeQuery).toLowerCase();
 
-    return savedItems.filter(item => {
+    return knowledgePool.filter(item => {
       const source = item.sourceType || getKnowledgeSource(item.url);
       if (knowledgeSourceFilter !== 'all' && source !== knowledgeSourceFilter) return false;
       if (!query) return true;
@@ -304,7 +366,7 @@ const CopilotWorkspace: React.FC<CopilotWorkspaceProps> = ({ onRunPrompt, tools,
       const haystack = [item.title, item.text, item.url, ...(item.tags || [])].join(' ').toLowerCase();
       return haystack.includes(query);
     });
-  }, [knowledgeQuery, knowledgeSourceFilter, savedItems]);
+  }, [knowledgePool, knowledgeQuery, knowledgeSourceFilter]);
 
   const selectedKnowledge = useMemo(
     () => savedItems.filter(item => selectedKnowledgeIds.includes(item.id)),
@@ -316,10 +378,32 @@ const CopilotWorkspace: React.FC<CopilotWorkspaceProps> = ({ onRunPrompt, tools,
     [attachedKnowledgeIds, savedItems],
   );
 
+  const activeCollectionItems = useMemo(() => {
+    if (!activeCollection) return [];
+    const ids = new Set(activeCollection.itemIds);
+    return savedItems.filter(item => ids.has(item.id));
+  }, [activeCollection, savedItems]);
+
   const knowledgeDestinationTool = useMemo(
     () => tools.find(tool => /notion|note|readwise|obsidian|drive|dropbox|onedrive|document|file/i.test(tool.name)),
     [tools],
   );
+
+  useEffect(() => {
+    if (collections.length === 0) {
+      setCollectionTargetId('');
+      if (activeCollectionId !== 'all') setActiveCollectionId('all');
+      return;
+    }
+
+    if (!collectionTargetId || !collections.some(collection => collection.id === collectionTargetId)) {
+      setCollectionTargetId(collections[0].id);
+    }
+
+    if (activeCollectionId !== 'all' && !collections.some(collection => collection.id === activeCollectionId)) {
+      setActiveCollectionId('all');
+    }
+  }, [activeCollectionId, collectionTargetId, collections]);
 
   const activeContext = (): string => {
     const selected = getSelectionText();
@@ -436,10 +520,114 @@ const CopilotWorkspace: React.FC<CopilotWorkspaceProps> = ({ onRunPrompt, tools,
 
   const removeSavedItem = async (id: string) => {
     const next = savedItems.filter(item => item.id !== id);
+    const nextCollections = collections.map(collection =>
+      collection.itemIds.includes(id)
+        ? {
+            ...collection,
+            itemIds: collection.itemIds.filter(itemId => itemId !== id),
+            updatedAt: Date.now(),
+          }
+        : collection,
+    );
+
     setSavedItems(next);
+    setCollections(nextCollections);
     setSelectedKnowledgeIds(ids => ids.filter(selectedId => selectedId !== id));
     setAttachedKnowledgeIds(ids => ids.filter(attachedId => attachedId !== id));
-    await writeSavedInsights(next);
+    await Promise.all([writeSavedInsights(next), writeCollections(nextCollections)]);
+  };
+
+  const createCollection = async () => {
+    const name = normalizeText(collectionNameDraft).slice(0, 80);
+    if (!name) {
+      setStatus('Name the Project first.');
+      return;
+    }
+    if (collections.some(collection => collection.name.toLowerCase() === name.toLowerCase())) {
+      setStatus('A Project with that name already exists.');
+      return;
+    }
+    if (collections.length >= MAX_COLLECTIONS) {
+      setStatus(`You can keep up to ${MAX_COLLECTIONS} Projects.`);
+      return;
+    }
+
+    const now = Date.now();
+    const collection: KnowledgeCollection = {
+      id: `project_${now}_${Math.random().toString(36).slice(2, 8)}`,
+      name,
+      itemIds: Array.from(new Set(selectedKnowledgeIds)),
+      createdAt: now,
+      updatedAt: now,
+    };
+    const next = [collection, ...collections].slice(0, MAX_COLLECTIONS);
+    setCollections(next);
+    setActiveCollectionId(collection.id);
+    setCollectionTargetId(collection.id);
+    setCollectionNameDraft('');
+    setSelectedKnowledgeIds([]);
+    await writeCollections(next);
+    setStatus(
+      collection.itemIds.length
+        ? `Created ${name} with ${collection.itemIds.length} Knowledge ${collection.itemIds.length === 1 ? 'item' : 'items'}.`
+        : `Created Project: ${name}.`,
+    );
+  };
+
+  const addKnowledgeToCollection = async (collectionId: string, items: SavedInsight[]) => {
+    if (!collectionId || items.length === 0) {
+      setStatus('Select Knowledge and a Project first.');
+      return;
+    }
+
+    const itemIds = items.map(item => item.id);
+    const next = collections.map(collection =>
+      collection.id === collectionId
+        ? {
+            ...collection,
+            itemIds: Array.from(new Set([...collection.itemIds, ...itemIds])),
+            updatedAt: Date.now(),
+          }
+        : collection,
+    );
+    const target = next.find(collection => collection.id === collectionId);
+    setCollections(next);
+    await writeCollections(next);
+    setStatus(
+      target
+        ? `Added ${items.length} Knowledge ${items.length === 1 ? 'item' : 'items'} to ${target.name}.`
+        : 'Project not found.',
+    );
+  };
+
+  const removeKnowledgeFromCollection = async (collectionId: string, itemId: string) => {
+    const next = collections.map(collection =>
+      collection.id === collectionId
+        ? {
+            ...collection,
+            itemIds: collection.itemIds.filter(id => id !== itemId),
+            updatedAt: Date.now(),
+          }
+        : collection,
+    );
+    setCollections(next);
+    setSelectedKnowledgeIds(ids => ids.filter(id => id !== itemId));
+    await writeCollections(next);
+  };
+
+  const deleteCollection = async (collection: KnowledgeCollection) => {
+    const confirmed = window.confirm(
+      `Delete Project "${collection.name}"? The underlying Knowledge items will be kept.`,
+    );
+    if (!confirmed) return;
+
+    const next = collections.filter(item => item.id !== collection.id);
+    setCollections(next);
+    setActiveCollectionId('all');
+    setCollectionTargetId(next[0]?.id || '');
+    setSelectedKnowledgeIds([]);
+    await writeCollections(next);
+    setStatus(`Deleted Project "${collection.name}". Knowledge items were kept.`);
   };
 
   const toggleKnowledgeSelection = (id: string) => {
@@ -687,9 +875,131 @@ const CopilotWorkspace: React.FC<CopilotWorkspaceProps> = ({ onRunPrompt, tools,
           </Button>
         </div>
 
+        <div className="p-3 border-b border-slate-100 dark:border-slate-700 space-y-2.5">
+          <div className="flex items-center justify-between gap-2">
+            <div>
+              <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">
+                Projects
+              </p>
+              <p className="text-[10px] text-slate-400">Group research sources without duplicating them.</p>
+            </div>
+            <span className="text-[10px] text-slate-400">{collections.length}/{MAX_COLLECTIONS}</span>
+          </div>
+
+          <div className="flex gap-1.5">
+            <input
+              value={collectionNameDraft}
+              onChange={event => setCollectionNameDraft(event.target.value)}
+              onKeyDown={event => {
+                if (event.key === 'Enter') {
+                  event.preventDefault();
+                  createCollection();
+                }
+              }}
+              placeholder={selectedKnowledge.length ? 'New Project from selection' : 'New Project name'}
+              className="min-w-0 flex-1 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 px-2.5 py-1.5 text-xs text-slate-700 dark:text-slate-200 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-400/30"
+            />
+            <button
+              type="button"
+              onClick={createCollection}
+              className="rounded-lg border border-indigo-200 dark:border-indigo-700 bg-indigo-50 dark:bg-indigo-950/30 px-2.5 py-1.5 text-[10px] font-semibold text-indigo-600 dark:text-indigo-300">
+              Create
+            </button>
+          </div>
+
+          <div className="flex gap-1.5 overflow-x-auto pb-0.5">
+            <button
+              type="button"
+              onClick={() => {
+                setActiveCollectionId('all');
+                setSelectedKnowledgeIds([]);
+              }}
+              className={`shrink-0 rounded-full border px-2 py-1 text-[10px] transition-colors ${
+                activeCollectionId === 'all'
+                  ? 'border-indigo-300 bg-indigo-50 text-indigo-600 dark:border-indigo-700 dark:bg-indigo-950/30 dark:text-indigo-300'
+                  : 'border-slate-200 text-slate-500 dark:border-slate-700 dark:text-slate-400'
+              }`}>
+              All Knowledge · {savedItems.length}
+            </button>
+            {collections.map(collection => (
+              <button
+                key={collection.id}
+                type="button"
+                onClick={() => {
+                  setActiveCollectionId(collection.id);
+                  setSelectedKnowledgeIds([]);
+                }}
+                className={`shrink-0 max-w-[150px] truncate rounded-full border px-2 py-1 text-[10px] transition-colors ${
+                  activeCollectionId === collection.id
+                    ? 'border-indigo-300 bg-indigo-50 text-indigo-600 dark:border-indigo-700 dark:bg-indigo-950/30 dark:text-indigo-300'
+                    : 'border-slate-200 text-slate-500 dark:border-slate-700 dark:text-slate-400'
+                }`}
+                title={collection.name}>
+                {collection.name} · {collection.itemIds.length}
+              </button>
+            ))}
+          </div>
+
+          {activeCollection && (
+            <div className="rounded-xl border border-indigo-100 dark:border-indigo-800 bg-indigo-50/40 dark:bg-indigo-950/20 p-2.5">
+              <div className="flex items-start justify-between gap-2 mb-2">
+                <div className="min-w-0">
+                  <p className="text-xs font-semibold text-slate-800 dark:text-slate-100 truncate">
+                    {activeCollection.name}
+                  </p>
+                  <p className="text-[10px] text-slate-500 dark:text-slate-400">
+                    {activeCollectionItems.length} saved {activeCollectionItems.length === 1 ? 'source' : 'sources'}
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => deleteCollection(activeCollection)}
+                  className="text-[10px] text-slate-400 hover:text-red-500">
+                  Delete Project
+                </button>
+              </div>
+              <div className="grid grid-cols-2 gap-1.5">
+                <button
+                  type="button"
+                  disabled={activeCollectionItems.length === 0}
+                  onClick={() => attachKnowledge(activeCollectionItems)}
+                  className="rounded-md border border-indigo-200 dark:border-indigo-700 px-2 py-1.5 text-[10px] font-medium text-indigo-600 dark:text-indigo-300 disabled:opacity-40">
+                  Use Project in Ask
+                </button>
+                <button
+                  type="button"
+                  disabled={activeCollectionItems.length === 0 || isRunning}
+                  onClick={() => synthesizeKnowledge(activeCollectionItems)}
+                  className="rounded-md border border-indigo-200 dark:border-indigo-700 px-2 py-1.5 text-[10px] font-medium text-indigo-600 dark:text-indigo-300 disabled:opacity-40">
+                  Synthesize Project
+                </button>
+                <button
+                  type="button"
+                  disabled={activeCollectionItems.length === 0}
+                  onClick={() => exportMarkdown(activeCollectionItems)}
+                  className="rounded-md border border-slate-200 dark:border-slate-700 px-2 py-1.5 text-[10px] text-slate-600 dark:text-slate-300 disabled:opacity-40">
+                  Export Project
+                </button>
+                <button
+                  type="button"
+                  disabled={activeCollectionItems.length === 0 || isRunning || !knowledgeDestinationTool}
+                  onClick={() => sendKnowledgeToConnectedTool(activeCollectionItems)}
+                  title={
+                    knowledgeDestinationTool
+                      ? `Uses ${knowledgeDestinationTool.name}`
+                      : 'Connect Notion, notes, Drive or another storage MCP tool'
+                  }
+                  className="rounded-md border border-slate-200 dark:border-slate-700 px-2 py-1.5 text-[10px] text-slate-600 dark:text-slate-300 disabled:opacity-40">
+                  Send Project to MCP
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
+
         {savedItems.length === 0 ? (
           <div className="p-4 text-center text-xs text-slate-500 dark:text-slate-400">
-            Select useful text on the page and save it here.
+            Select useful text on the page and save it here. You can create a Project now and add sources later.
           </div>
         ) : (
           <>
@@ -730,6 +1040,27 @@ const CopilotWorkspace: React.FC<CopilotWorkspaceProps> = ({ onRunPrompt, tools,
                       Clear
                     </button>
                   </div>
+                  {collections.length > 0 && (
+                    <div className="mb-2 flex gap-1.5">
+                      <select
+                        value={collectionTargetId}
+                        onChange={event => setCollectionTargetId(event.target.value)}
+                        className="min-w-0 flex-1 rounded-md border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 px-2 py-1 text-[10px] text-slate-600 dark:text-slate-300">
+                        {collections.map(collection => (
+                          <option key={collection.id} value={collection.id}>
+                            {collection.name}
+                          </option>
+                        ))}
+                      </select>
+                      <button
+                        type="button"
+                        onClick={() => addKnowledgeToCollection(collectionTargetId, selectedKnowledge)}
+                        disabled={!collectionTargetId}
+                        className="rounded-md border border-indigo-200 dark:border-indigo-700 px-2 py-1 text-[10px] font-medium text-indigo-600 dark:text-indigo-300 disabled:opacity-40">
+                        Add to Project
+                      </button>
+                    </div>
+                  )}
                   <div className="grid grid-cols-2 gap-1.5">
                     <button
                       type="button"
@@ -841,6 +1172,14 @@ const CopilotWorkspace: React.FC<CopilotWorkspaceProps> = ({ onRunPrompt, tools,
                           <div className="mt-2 flex items-center justify-between gap-2">
                             <p className="text-[9px] text-slate-400 truncate">{formatDate(item.createdAt)}</p>
                             <div className="flex gap-1">
+                              {activeCollection && (
+                                <button
+                                  type="button"
+                                  onClick={() => removeKnowledgeFromCollection(activeCollection.id, item.id)}
+                                  className="text-[10px] px-2 py-1 rounded-md border border-slate-200 dark:border-slate-700 text-slate-400 hover:text-red-500">
+                                  Unlink
+                                </button>
+                              )}
                               <button
                                 type="button"
                                 onClick={() => attachKnowledge([item])}
@@ -871,7 +1210,7 @@ const CopilotWorkspace: React.FC<CopilotWorkspaceProps> = ({ onRunPrompt, tools,
 
             <div className="p-2 border-t border-slate-100 dark:border-slate-700 flex items-center justify-between gap-2">
               <span className="text-[10px] text-slate-400">
-                {filteredKnowledge.length} of {savedItems.length} items
+                {filteredKnowledge.length} of {knowledgePool.length} items
               </span>
               <Button size="sm" variant="ghost" onClick={() => exportMarkdown(filteredKnowledge)}>
                 Copy visible Markdown
