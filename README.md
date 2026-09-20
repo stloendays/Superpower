@@ -134,7 +134,7 @@ Choose exposed tools and review guarded actions before execution.
 - Browser **Copilot** workspace for page/selection-aware prompts inside supported AI sites
 - Lightweight **Page Assistant** on ordinary HTTP(S) pages for selection-level Summarize, Explain, Ask AI, Save, page summarization, and action extraction
 - Cross-tab AI routing: page actions go to the most recently used supported AI tab, or open ChatGPT when no supported AI workspace is available
-- YouTube watch-page summarization that uses loaded transcript segments when available and falls back to supplied video metadata when they are not
+- YouTube watch-page summarization and **Save to Knowledge** support: use loaded transcript segments when available and fall back to supplied video metadata when they are not
 - One-click **Summarize, Explain, Improve writing, Translate, Action items, and Study notes** workflows
 - Local **Knowledge** capture for selected text with page title, source URL, timestamps, source classification, tags, search/filter controls, and Markdown export
 - Multi-select Knowledge workflows: attach saved notes to Ask, synthesize multiple sources, export selected items, or hand them to a compatible notes/file MCP tool
