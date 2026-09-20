@@ -20,7 +20,26 @@ class McpClient {
   private static instance: McpClient | null = null;
   private isInitialized = false;
   private heartbeatInterval: number | null = null;
+  private consecutiveHeartbeatFailures = 0;
+  private recoveryPromise: Promise<boolean> | null = null;
+  private lastRecoveryAttempt = 0;
   private readonly HEARTBEAT_INTERVAL = 30_000;
+  private readonly HEARTBEAT_FAILURE_THRESHOLD = 2;
+  private readonly RECOVERY_COOLDOWN = 5_000;
+
+  private readonly handleBrowserOnline = () => {
+    if (!this.isInitialized) return;
+    void this.recoverConnection('browser network became available');
+  };
+
+  private readonly handleVisibilityChange = () => {
+    if (!this.isInitialized || document.visibilityState !== 'visible') return;
+    void this.forceConnectionStatusCheck().then(() => {
+      if (useConnectionStore.getState().status !== 'connected') {
+        void this.recoverConnection('AI page became visible');
+      }
+    });
+  };
 
   private constructor() {
     this.initialize();
@@ -36,6 +55,7 @@ class McpClient {
       logMessage('[McpClient] Starting initialization...');
       contextBridge.initialize();
       this.setupMessageListeners();
+      this.setupLifecycleRecovery();
       this.startHeartbeat();
 
       // Set before the async bootstrap because public wrappers validate readiness.
@@ -168,6 +188,7 @@ class McpClient {
 
     switch (status) {
       case 'connected':
+        this.consecutiveHeartbeatFailures = 0;
         store.setConnected(Date.now());
         // Tool refresh is idempotent and is not a user-side-effecting operation.
         void this.getAvailableTools(true).catch(toolError => {
@@ -222,7 +243,18 @@ class McpClient {
   }
 
   private handleHeartbeatResponse(timestamp: number): void {
+    this.consecutiveHeartbeatFailures = 0;
     eventBus.emit('connection:heartbeat', { timestamp });
+  }
+
+  private setupLifecycleRecovery(): void {
+    window.addEventListener('online', this.handleBrowserOnline);
+    document.addEventListener('visibilitychange', this.handleVisibilityChange);
+  }
+
+  private teardownLifecycleRecovery(): void {
+    window.removeEventListener('online', this.handleBrowserOnline);
+    document.removeEventListener('visibilitychange', this.handleVisibilityChange);
   }
 
   private startHeartbeat(): void {
@@ -271,15 +303,64 @@ class McpClient {
 
   private async sendHeartbeat(): Promise<void> {
     try {
-      await contextBridge.sendMessage(
+      const response = await contextBridge.sendMessage(
         'background',
         'mcp:heartbeat',
         { timestamp: Date.now() },
         { timeout: this.resolveRequestTimeout('heartbeat') },
       );
+
+      this.consecutiveHeartbeatFailures = 0;
+      if (response?.isConnected === false) {
+        useConnectionStore.getState().setDisconnected('MCP heartbeat reported a disconnected server');
+        void this.recoverConnection('heartbeat reported disconnected server');
+      }
     } catch (error) {
-      logMessage(`[McpClient] Heartbeat failed: ${error instanceof Error ? error.message : String(error)}`);
+      this.consecutiveHeartbeatFailures += 1;
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      logMessage(
+        `[McpClient] Heartbeat failed (${this.consecutiveHeartbeatFailures}/${this.HEARTBEAT_FAILURE_THRESHOLD}): ${errorMessage}`,
+      );
+
+      if (this.consecutiveHeartbeatFailures >= this.HEARTBEAT_FAILURE_THRESHOLD) {
+        useConnectionStore.getState().setDisconnected(`Heartbeat failed: ${errorMessage}`);
+        void this.recoverConnection('consecutive heartbeat failures');
+      }
     }
+  }
+
+  private async recoverConnection(reason: string): Promise<boolean> {
+    if (!this.isInitialized) return false;
+    if (typeof navigator !== 'undefined' && navigator.onLine === false) {
+      logMessage(`[McpClient] Recovery deferred while browser is offline: ${reason}`);
+      return false;
+    }
+    if (this.recoveryPromise) return this.recoveryPromise;
+
+    const now = Date.now();
+    if (now - this.lastRecoveryAttempt < this.RECOVERY_COOLDOWN) return false;
+    this.lastRecoveryAttempt = now;
+
+    this.recoveryPromise = (async () => {
+      logMessage(`[McpClient] Starting automatic recovery: ${reason}`);
+      try {
+        const success = await this.forceReconnect();
+        if (success) {
+          this.consecutiveHeartbeatFailures = 0;
+          logMessage('[McpClient] Automatic recovery succeeded');
+        }
+        return success;
+      } catch (error) {
+        logMessage(
+          `[McpClient] Automatic recovery failed: ${error instanceof Error ? error.message : String(error)}`,
+        );
+        return false;
+      } finally {
+        this.recoveryPromise = null;
+      }
+    })();
+
+    return this.recoveryPromise;
   }
 
   /**
@@ -328,6 +409,7 @@ class McpClient {
 
       if (this.isConnectionError(errorMessage)) {
         connectionStore.setDisconnected(`Tool call failed: ${errorMessage}`);
+        void this.recoverConnection('connection error during tool call');
       }
       throw error;
     }
@@ -411,6 +493,9 @@ class McpClient {
     try {
       const statusResponse = await this.getCurrentConnectionStatus();
       this.handleConnectionStatusChange(statusResponse.status as ConnectionStatus);
+      if (!statusResponse.isConnected) {
+        void this.recoverConnection('explicit status check found disconnected server');
+      }
     } catch (error) {
       logMessage(
         `[McpClient] Immediate connection status check failed: ${error instanceof Error ? error.message : String(error)}`,
@@ -487,7 +572,9 @@ class McpClient {
 
   cleanup(): void {
     this.stopHeartbeat();
+    this.teardownLifecycleRecovery();
     this.isInitialized = false;
+    this.recoveryPromise = null;
     logMessage('[McpClient] Cleanup completed');
   }
 
