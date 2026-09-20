@@ -133,7 +133,7 @@ Superpower 尽量让工具执行留在工作发生的界面附近。如果对话
 - 面向受支持 AI 网站的浏览器 **Copilot** 工作台，可结合当前选中文本或页面上下文生成任务
 - 普通 HTTP(S) 网页上的轻量 **Page Assistant**：支持选中文本 Summarize、Explain、Ask AI、Save，以及整页摘要和行动项提取
 - 跨标签 AI 路由：网页任务优先发送到最近使用的受支持 AI 标签页；没有可用 AI 工作区时自动打开 ChatGPT
-- YouTube watch 页面增加视频摘要入口：优先使用当前页面可获得的 transcript，无法获得时只基于提供的视频元数据并明确说明
+- YouTube watch 页面增加视频摘要与 **Save to Knowledge**：优先使用当前页面可获得的 transcript，无法获得时只保存/总结提供的视频元数据并明确说明
 - 一键 **Summarize、Explain、Improve writing、Translate、Action items、Study notes**
 - 本地 **Knowledge** 收藏：保存选中文本、页面标题、来源 URL、时间、来源类型与标签，并支持搜索、筛选、复制、删除和 Markdown 导出
 - Knowledge 多选工作流：把已保存笔记挂到 Ask、合并多来源总结、导出选中项，或通过 review-first 链路交给兼容的 notes/file MCP 工具
