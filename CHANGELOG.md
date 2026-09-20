@@ -9,6 +9,8 @@ This changelog tracks published Superpower releases and notable work on the acti
 - Added a browser-first **Copilot** workspace on supported AI sites, with page/selection-aware prompts submitted through the current site's AI composer.
 - Added one-click Summarize, Explain, Improve writing, Translate, Action items, and Study notes workflows.
 - Added local **Knowledge** capture for selected text with source metadata, local persistence, copy/remove controls, and Markdown export.
+- Added Knowledge search across title/text/URL/tags, source-type filters, editable tags, multi-select, Ask attachments, multi-source synthesis, and selected-item Markdown export.
+- Added review-first Knowledge handoff to compatible notes/file MCP tools such as Notion, Drive, Dropbox, or similar connected capabilities.
 - Added a `Ctrl/⌘ + Shift + K` shortcut to surface the Copilot workspace on supported AI pages.
 - Added dynamic MCP action suggestions inside Copilot based on the currently connected tool set.
 - Added a lightweight Page Assistant on ordinary HTTP(S) pages for selection/page summarization, explanation, AI handoff, action extraction, and Knowledge capture.
