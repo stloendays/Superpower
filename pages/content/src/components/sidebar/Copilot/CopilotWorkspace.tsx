@@ -134,16 +134,15 @@ const normalizeSavedInsight = (item: SavedInsight): SavedInsight => ({
 
 const formatKnowledgeContext = (items: SavedInsight[]): string =>
   items
-    .map(
-      (item, index) =>
-        [
-          `Saved note ${index + 1}: ${item.title}`,
-          `Source: ${item.url}`,
-          item.tags?.length ? `Tags: ${item.tags.join(', ')}` : '',
-          item.text,
-        ]
-          .filter(Boolean)
-          .join('\n'),
+    .map((item, index) =>
+      [
+        `Saved note ${index + 1}: ${item.title}`,
+        `Source: ${item.url}`,
+        item.tags?.length ? `Tags: ${item.tags.join(', ')}` : '',
+        item.text,
+      ]
+        .filter(Boolean)
+        .join('\n'),
     )
     .join('\n\n---\n\n')
     .slice(0, MAX_CONTEXT_CHARS);
@@ -755,7 +754,11 @@ const CopilotWorkspace: React.FC<CopilotWorkspaceProps> = ({ onRunPrompt, tools,
                       type="button"
                       onClick={() => sendKnowledgeToConnectedTool(selectedKnowledge)}
                       disabled={isRunning || !knowledgeDestinationTool}
-                      title={knowledgeDestinationTool ? `Uses ${knowledgeDestinationTool.name}` : 'Connect Notion, notes, Drive or another storage MCP tool'}
+                      title={
+                        knowledgeDestinationTool
+                          ? `Uses ${knowledgeDestinationTool.name}`
+                          : 'Connect Notion, notes, Drive or another storage MCP tool'
+                      }
                       className="rounded-md border border-slate-200 dark:border-slate-700 px-2 py-1.5 text-[10px] text-slate-600 dark:text-slate-300 disabled:opacity-40">
                       Send to MCP
                     </button>
@@ -817,9 +820,7 @@ const CopilotWorkspace: React.FC<CopilotWorkspaceProps> = ({ onRunPrompt, tools,
                           <div className="mt-2 flex items-center gap-1.5">
                             <input
                               value={tagDrafts[item.id] || ''}
-                              onChange={event =>
-                                setTagDrafts(drafts => ({ ...drafts, [item.id]: event.target.value }))
-                              }
+                              onChange={event => setTagDrafts(drafts => ({ ...drafts, [item.id]: event.target.value }))}
                               onKeyDown={event => {
                                 if (event.key === 'Enter') {
                                   event.preventDefault();
