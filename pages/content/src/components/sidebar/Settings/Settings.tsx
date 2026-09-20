@@ -19,9 +19,26 @@ const DEFAULT_DELAYS = {
 const Settings: React.FC = () => {
   const { preferences, updatePreferences } = useUserPreferences();
 
+  const handleAutomationToggle = (type: 'autoInsert' | 'autoSubmit' | 'autoExecute', enabled: boolean) => {
+    const nextPreferences: Record<string, boolean> = { [type]: enabled };
+
+    // Auto Submit only makes sense after a successful Auto Insert.
+    if (type === 'autoSubmit' && enabled) {
+      nextPreferences.autoInsert = true;
+    }
+    if (type === 'autoInsert' && !enabled) {
+      nextPreferences.autoSubmit = false;
+    }
+
+    updatePreferences(nextPreferences);
+    AutomationService.getInstance().updateAutomationStateOnWindow().catch(error => {
+      logger.error('[Settings] Failed to sync automation toggle:', error);
+    });
+  };
+
   // Handle delay input changes
   const handleDelayChange = (type: 'autoInsert' | 'autoSubmit' | 'autoExecute', value: string) => {
-    const delay = Math.max(0, parseInt(value) || 0); // Ensure non-negative integer
+    const delay = Math.min(60, Math.max(0, parseInt(value) || 0));
     logger.debug(`${type} delay changed to: ${delay}`);
     
     // Update user preferences store with the new delay
@@ -66,6 +83,64 @@ const Settings: React.FC = () => {
     <div className="p-4 space-y-4">
       <Card className="border-slate-200 dark:border-slate-700 dark:bg-slate-800">
         <CardContent className="p-4">
+          <Typography variant="h4" className="mb-1 text-slate-700 dark:text-slate-300">
+            Automation
+          </Typography>
+          <p className="mb-4 text-xs leading-5 text-slate-500 dark:text-slate-400">
+            Automate the detected MCP workflow while keeping connection checks and duplicate-execution guards in place.
+          </p>
+
+          <div className="space-y-3">
+            <label className="flex items-start justify-between gap-3 rounded-lg border border-slate-200 dark:border-slate-700 p-3 cursor-pointer">
+              <div>
+                <div className="text-sm font-medium text-slate-800 dark:text-slate-100">Auto Execute</div>
+                <p className="mt-1 text-xs leading-5 text-slate-500 dark:text-slate-400">
+                  Automatically run complete MCP function blocks after the connection preflight succeeds. Failed or ambiguous tool calls are never replayed automatically.
+                </p>
+              </div>
+              <input
+                type="checkbox"
+                checked={preferences.autoExecute}
+                onChange={event => handleAutomationToggle('autoExecute', event.target.checked)}
+                className="mt-1 h-4 w-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
+              />
+            </label>
+
+            <label className="flex items-start justify-between gap-3 rounded-lg border border-slate-200 dark:border-slate-700 p-3 cursor-pointer">
+              <div>
+                <div className="text-sm font-medium text-slate-800 dark:text-slate-100">Auto Insert</div>
+                <p className="mt-1 text-xs leading-5 text-slate-500 dark:text-slate-400">
+                  Insert a successful MCP result back into the active AI composer automatically.
+                </p>
+              </div>
+              <input
+                type="checkbox"
+                checked={preferences.autoInsert}
+                onChange={event => handleAutomationToggle('autoInsert', event.target.checked)}
+                className="mt-1 h-4 w-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
+              />
+            </label>
+
+            <label className="flex items-start justify-between gap-3 rounded-lg border border-slate-200 dark:border-slate-700 p-3 cursor-pointer">
+              <div>
+                <div className="text-sm font-medium text-slate-800 dark:text-slate-100">Auto Submit</div>
+                <p className="mt-1 text-xs leading-5 text-slate-500 dark:text-slate-400">
+                  Submit the AI composer only after Auto Insert succeeds. Enabling this also enables Auto Insert.
+                </p>
+              </div>
+              <input
+                type="checkbox"
+                checked={preferences.autoSubmit}
+                onChange={event => handleAutomationToggle('autoSubmit', event.target.checked)}
+                className="mt-1 h-4 w-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
+              />
+            </label>
+          </div>
+        </CardContent>
+      </Card>
+
+      <Card className="border-slate-200 dark:border-slate-700 dark:bg-slate-800">
+        <CardContent className="p-4">
           <Typography variant="h4" className="mb-4 text-slate-700 dark:text-slate-300">
             Automation Delay Settings
           </Typography>
@@ -83,6 +158,7 @@ const Settings: React.FC = () => {
                 id="auto-insert-delay"
                 type="number"
                 min="0"
+                max="60"
                 value={preferences.autoInsertDelay || 0}
                 onChange={(e) => handleDelayChange('autoInsert', e.target.value)}
                 disabled={false}
@@ -110,6 +186,7 @@ const Settings: React.FC = () => {
                 id="auto-submit-delay"
                 type="number"
                 min="0"
+                max="60"
                 value={preferences.autoSubmitDelay || 0}
                 onChange={(e) => handleDelayChange('autoSubmit', e.target.value)}
                 disabled={false}
@@ -137,6 +214,7 @@ const Settings: React.FC = () => {
                 id="auto-execute-delay"
                 type="number"
                 min="0"
+                max="60"
                 value={preferences.autoExecuteDelay || 0}
                 onChange={(e) => handleDelayChange('autoExecute', e.target.value)}
                 disabled={false}
