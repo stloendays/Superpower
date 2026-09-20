@@ -26,6 +26,69 @@ interface CopilotWorkspaceProps {
 
 type QuickAction = 'summary' | 'explain' | 'rewrite' | 'translate' | 'actions' | 'notes';
 
+interface ConnectedActionDefinition {
+  id: string;
+  label: string;
+  description: string;
+  toolPattern: RegExp;
+  instruction: string;
+}
+
+interface ConnectedAction extends ConnectedActionDefinition {
+  tool: CopilotTool;
+}
+
+const CONNECTED_ACTIONS: ConnectedActionDefinition[] = [
+  {
+    id: 'notes',
+    label: 'Save note',
+    description: 'Capture the current context in your connected notes workspace.',
+    toolPattern: /notion|note|readwise|obsidian/i,
+    instruction:
+      'Use the connected notes tool to save the useful content as a concise structured note. Preserve the source URL when available. If the destination, database, page, or required schema field is missing, ask for it before executing.',
+  },
+  {
+    id: 'email',
+    label: 'Draft email',
+    description: 'Turn the current context into an email draft before sending.',
+    toolPattern: /gmail|mail|email/i,
+    instruction:
+      'Use the connected mail tool to prepare an email draft from the current context. Do not send it automatically. Show the proposed recipient, subject, and body for review, and ask for any missing required recipient or intent.',
+  },
+  {
+    id: 'calendar',
+    label: 'Plan event',
+    description: 'Prepare a calendar event from dates and decisions in context.',
+    toolPattern: /calendar|gcal|event/i,
+    instruction:
+      'Use the connected calendar tool to prepare an event from the current context. Extract dates, time, title, attendees, and notes only when supported by the context. Ask for missing required scheduling details before creating the event.',
+  },
+  {
+    id: 'task',
+    label: 'Create task',
+    description: 'Convert an explicit follow-up into a trackable task.',
+    toolPattern: /task|todo|linear|asana|trello|clickup/i,
+    instruction:
+      'Use the connected task tool to prepare a task from the current context. Preserve explicit owner, due date, project, and dependencies when present. Do not invent missing fields; ask for required values before creation.',
+  },
+  {
+    id: 'slack',
+    label: 'Draft Slack',
+    description: 'Prepare a concise team update without posting automatically.',
+    toolPattern: /slack|teams|discord/i,
+    instruction:
+      'Use the connected messaging tool to draft a concise team update based on the current context. Do not post automatically. Show the channel or recipient and message for review, and ask if the destination is missing.',
+  },
+  {
+    id: 'drive',
+    label: 'Search files',
+    description: 'Use connected storage to find related files or source material.',
+    toolPattern: /drive|dropbox|onedrive|box|file|document/i,
+    instruction:
+      'Use the connected file or storage tool to search for files relevant to the current context. Start with a narrow query using the strongest names, project terms, or identifiers in the context and summarize the most relevant matches.',
+  },
+];
+
 const normalizeText = (value: string): string => value.replace(/\s+/g, ' ').trim();
 
 const getSelectionText = (): string => {
@@ -136,7 +199,16 @@ const CopilotWorkspace: React.FC<CopilotWorkspaceProps> = ({ onRunPrompt, tools,
     () =>
       tools
         .filter(tool => /notion|gmail|mail|slack|calendar|drive|search|task|todo|note|readwise|linear/i.test(tool.name))
-        .slice(0, 6),
+        .slice(0, 8),
+    [tools],
+  );
+
+  const connectedActions = useMemo(
+    () =>
+      CONNECTED_ACTIONS.map(definition => {
+        const tool = tools.find(candidate => definition.toolPattern.test(candidate.name));
+        return tool ? ({ ...definition, tool } as ConnectedAction) : null;
+      }).filter((action): action is ConnectedAction => action !== null),
     [tools],
   );
 
@@ -163,6 +235,31 @@ const CopilotWorkspace: React.FC<CopilotWorkspaceProps> = ({ onRunPrompt, tools,
       setStatus('Sent to the current AI conversation.');
     } catch (error) {
       setStatus(error instanceof Error ? error.message : 'Could not send the prompt.');
+    } finally {
+      setIsRunning(false);
+    }
+  };
+
+  const runConnectedAction = async (action: ConnectedAction) => {
+    const context = activeContext();
+    const contextBlock = context
+      ? `\n\nCurrent context:\n${context}`
+      : '\n\nThere is no captured page context. Ask me for the minimum information needed to continue.';
+
+    setIsRunning(true);
+    setStatus('');
+    try {
+      await onRunPrompt(
+        [
+          `Use the connected MCP capability associated with tool "${action.tool.name}".`,
+          action.instruction,
+          'Keep the workflow review-first: distinguish drafting/search from state-changing execution, and do not bypass required confirmation or missing schema fields.',
+          contextBlock,
+        ].join('\n\n'),
+      );
+      setStatus(`${action.label} request sent to the current AI conversation.`);
+    } catch (error) {
+      setStatus(error instanceof Error ? error.message : 'Could not start the connected action.');
     } finally {
       setIsRunning(false);
     }
@@ -432,7 +529,39 @@ const CopilotWorkspace: React.FC<CopilotWorkspaceProps> = ({ onRunPrompt, tools,
           </Button>
         </div>
 
-        {suggestedTools.length > 0 ? (
+        {connectedActions.length > 0 ? (
+          <>
+            <div className="grid grid-cols-2 gap-2">
+              {connectedActions.map(action => (
+                <button
+                  key={action.id}
+                  type="button"
+                  disabled={isRunning}
+                  onClick={() => runConnectedAction(action)}
+                  title={`Uses ${action.tool.name}`}
+                  className="rounded-xl border border-slate-200 dark:border-slate-700 p-2.5 text-left hover:border-indigo-300 dark:hover:border-indigo-600 hover:bg-indigo-50/40 dark:hover:bg-indigo-950/20 transition-all disabled:opacity-50">
+                  <div className="text-xs font-semibold text-slate-800 dark:text-slate-100">{action.label}</div>
+                  <div className="mt-1 text-[10px] leading-4 text-slate-500 dark:text-slate-400">
+                    {action.description}
+                  </div>
+                  <div className="mt-1.5 text-[9px] text-indigo-500 dark:text-indigo-300 truncate">
+                    {action.tool.name}
+                  </div>
+                </button>
+              ))}
+            </div>
+            <div className="mt-2 flex flex-wrap gap-1.5">
+              {suggestedTools.map(tool => (
+                <span
+                  key={tool.name}
+                  title={tool.description || tool.name}
+                  className="max-w-full truncate rounded-full bg-slate-100 dark:bg-slate-800 px-2 py-1 text-[10px] text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-700">
+                  {tool.name}
+                </span>
+              ))}
+            </div>
+          </>
+        ) : suggestedTools.length > 0 ? (
           <div className="flex flex-wrap gap-1.5">
             {suggestedTools.map(tool => (
               <span
