@@ -143,6 +143,8 @@ Superpower 尽量让工具执行留在工作发生的界面附近。如果对话
 - **Connected Actions**：根据已连接的笔记、邮件、日历、任务、Slack/消息、文件存储 MCP 工具动态提供快捷入口，同时继续遵守 review-first 执行链
 - 原生桌面 Connections、Apps、Actions、Runs 工作区
 - 支持本地与远程 MCP endpoint
+- MCP 协议级健康检查、heartbeat 驱动恢复、网络恢复/页面重新激活恢复，以及有上限的指数退避重连
+- 面向 **Auto Execute、Auto Insert、Auto Submit** 的连接感知自动化控制，可配置延迟，并在重连成功后自动刷新工具目录
 - 以审核为核心的自然语言 Action Router
 - 带显式跨步骤绑定的 Workflow Planner
 - 一次只推进一个受控动作的 session-only Workflow Runner
@@ -162,6 +164,8 @@ V1.5 开发线现在增加了一个 **Copilot-first 浏览器工作台**。在�
 Knowledge 也不再只是本地收藏列表。保存的内容可以按标题、正文、URL 和标签搜索，并按 **Web / YouTube / AI chat / Other** 来源分类筛选；用户可以手工加标签、多选笔记、直接挂到 Copilot 的 Ask 输入中，也可以把多个来源合并总结，同时保留 provenance。选中的 Knowledge 还可以导出为结构化 Markdown，或通过 review-first 工作流交给 Notion、Drive 等兼容的 notes/file MCP 工具。**Knowledge Projects** 再增加一层非破坏式分组：Project 只保存 Knowledge ID 引用，同一条来源可属于多个 Project，删除 Project 不会删除原始资料；整个 Project 可以直接用于 Ask、Synthesize、Export 或 MCP handoff。
 
 对于 MCP，Superpower 会把兼容工具提升为 **Connected Actions**。检测到对应工具时，可以直接显示 Save note、Draft email、Plan event、Create task、Draft Slack、Search files 等入口，但这些快捷操作仍然走原有 review-first MCP 链路，不会绕过 schema、缺失参数检查或确认规则。
+
+V1.5 同时加强了底层连接与自动化闭环。Superpower 使用 MCP 协议级 `ping` 检查真实存活状态，并结合 heartbeat 连续失败、浏览器重新联网和 AI 页面重新激活来触发恢复；重连采用有上限的指数退避，并在成功后刷新工具目录。**Auto Execute** 会在点击 Run 前检查连接，**Auto Insert** 只回填成功结果，**Auto Submit** 只在 Auto Insert 成功后继续。只要某个工具请求可能已经到达服务器，超时或结果不明确时都**不会自动重放**，避免状态变更操作被重复执行。
 
 自然语言 Action Router 继续负责把意图映射到 MCP 能力、按 schema 生成参数、规划多步骤流程并显式记录跨步骤绑定。Workflow Runner 每次最多推进一个 MCP Action，已审核的参数绑定与策略检查保持最高优先级。
 
@@ -227,7 +231,8 @@ Knowledge 也不再只是本地收藏列表。保存的内容可以按标题、�
 4. 打开受支持的 AI 网站。V1.5 开发线会默认进入 **Copilot**；也可以按 `Ctrl/⌘ + Shift + K` 快速回到 Copilot。
 5. 在普通网页上，可以使用右下角的轻量 **Page Assistant** 摘要选中文本/整页、保存到 **Knowledge**，或把任务送到当前 AI 工作区；YouTube watch 页面会额外提供 **Summarize video**。
 6. 在 Copilot 中创建 **Knowledge Projects**，按论文主题、求职、GitHub 项目等工作流组织已保存资料；可以把多条 Knowledge 批量加入 Project，再整组用于 Ask、Synthesize、Markdown 导出或 MCP handoff。
-7. 检测到兼容 MCP 工具时可以直接使用 **Connected Actions**；需要完整工具参数界面时切换到 **Tools**。
+7. 在 **Settings → Automation** 中可按需开启 **Auto Execute、Auto Insert、Auto Submit**。Auto Submit 依赖成功的 Auto Insert；Auto Execute 会在运行前检查 MCP 连接。
+8. 检测到兼容 MCP 工具时可以直接使用 **Connected Actions**；需要完整工具参数界面时切换到 **Tools**。
 
 > **连接兼容性：** 新的本地配置默认使用 Streamable HTTP。显式的旧版 SSE endpoint（例如 `http://localhost:3006/sse`）和 WebSocket endpoint 仍然支持；已有用户保存的连接配置不会被强制覆盖。
 
