@@ -1147,8 +1147,6 @@ const AutoExecutionUtils = {
               logger.debug(
                 `Auto-execute: MCP preflight failed for ${functionDetails.functionName}; status=${connectionStatus || 'unavailable'}. Recovering before execution.`,
               );
-              executionTracker.cleanupBlock(blockId);
-
               const releaseReservation = () => {
                 executionTracker.unmarkFunctionExecuted(
                   functionDetails.callId,
@@ -1156,6 +1154,7 @@ const AutoExecutionUtils = {
                   functionDetails.functionName,
                 );
                 executionTracker.unmarkBlockExecuted(blockId);
+                executionTracker.cleanupBlock(blockId);
               };
 
               if (clientReady && typeof mcpClient.forceReconnect === 'function') {
