@@ -1,0 +1,35 @@
+name: Temporary V1.5 web formatter
+
+on:
+  push:
+    paths:
+      - '.github/workflows/format-v15-web-temp.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  format:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v7
+      - uses: pnpm/action-setup@v6
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile --prefer-offline
+      - name: Format V1.5 web files
+        run: |
+          pnpm exec prettier --write             chrome-extension/public/page-assistant.js             chrome-extension/manifest.ts             chrome-extension/src/background/index.ts             pages/content/src/index.ts             pages/content/src/components/sidebar/Copilot/CopilotWorkspace.tsx
+      - name: Commit formatting
+        run: |
+          if git diff --quiet; then
+            echo "No formatting changes needed."
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add             chrome-extension/public/page-assistant.js             chrome-extension/manifest.ts             chrome-extension/src/background/index.ts             pages/content/src/index.ts             pages/content/src/components/sidebar/Copilot/CopilotWorkspace.tsx
+          git commit --no-verify -m "style: format V1.5 web assistant"
+          git push
