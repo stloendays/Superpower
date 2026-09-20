@@ -186,6 +186,11 @@ V1.5 同时加强了底层连接与自动化闭环。Superpower 使用 MCP 协�
 <br />
 
 <p align="center">
+  <img src="docs/readme/usage-summary.png" alt="Superpower 文章摘要、关键要点与上下文追问工作流示例" width="100%" />
+  <br /><sub><strong>理解页面内容：</strong> 对长文进行摘要、提取关键要点，并在原始内容旁继续进行上下文追问。</sub>
+</p>
+
+<p align="center">
   <img src="docs/readme/usage-research.png" alt="Superpower 研究工作流示例：对比来源、提取洞察并整理笔记" width="100%" />
   <br /><sub><strong>研究与信息整合：</strong>收集资料、比较不同来源、提取关键信息，并把可复用笔记保留在当前上下文中。</sub>
 </p>

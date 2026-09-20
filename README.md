@@ -187,6 +187,11 @@ The natural-language Action Router continues to map intent to MCP capabilities, 
 <br />
 
 <p align="center">
+  <img src="docs/readme/usage-summary.png" alt="Example Superpower article summarization workflow with key points and contextual follow-up questions" width="100%" />
+  <br /><sub><strong>Understand a page:</strong> summarize long-form content, surface key points and keep contextual follow-up questions beside the source.</sub>
+</p>
+
+<p align="center">
   <img src="docs/readme/usage-research.png" alt="Example Superpower research workflow for comparing sources, extracting insights and organizing notes" width="100%" />
   <br /><sub><strong>Research and synthesis:</strong> collect sources, compare evidence, extract useful highlights and keep reusable notes in context.</sub>
 </p>
