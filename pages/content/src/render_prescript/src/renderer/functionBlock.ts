@@ -563,8 +563,10 @@ interface ExecutionTracker {
   executedFunctions: Set<string>;
   isFunctionExecuted(callId: string, contentSignature: string, functionName?: string): boolean;
   markFunctionExecuted(callId: string, contentSignature: string, functionName?: string): void;
+  unmarkFunctionExecuted(callId: string, contentSignature: string, functionName?: string): void;
   isBlockExecuted(blockId: string): boolean;
   markBlockExecuted(blockId: string): void;
+  unmarkBlockExecuted(blockId: string): void;
   getAttempts(blockId: string): number;
   incrementAttempts(blockId: string): number;
   cleanupBlock(blockId: string): void;
@@ -619,12 +621,21 @@ export const executionTracker: ExecutionTracker = {
     this.executedFunctions.add(key);
   },
 
+  unmarkFunctionExecuted(callId: string, contentSignature: string, functionName?: string): void {
+    const key = functionName ? `${functionName}:${callId}:${contentSignature}` : `${callId}:${contentSignature}`;
+    this.executedFunctions.delete(key);
+  },
+
   isBlockExecuted(blockId: string): boolean {
     return this.executed.has(blockId) === true;
   },
 
   markBlockExecuted(blockId: string): void {
     this.executed.add(blockId);
+  },
+
+  unmarkBlockExecuted(blockId: string): void {
+    this.executed.delete(blockId);
   },
 
   getAttempts(blockId: string): number {
@@ -1071,6 +1082,12 @@ const AutoExecutionUtils = {
 
       if (attempts > MAX_AUTO_EXECUTE_ATTEMPTS) {
         logger.debug(`Auto-execute: Giving up on block ${blockId} after ${attempts - 1} attempts`);
+        executionTracker.unmarkFunctionExecuted(
+          functionDetails.callId,
+          functionDetails.contentSignature,
+          functionDetails.functionName,
+        );
+        executionTracker.unmarkBlockExecuted(blockId);
         executionTracker.cleanupBlock(blockId);
         return;
       }
@@ -1101,6 +1118,12 @@ const AutoExecutionUtils = {
               setupAutoExecution();
             } else {
               logger.debug(`Auto-execute: Giving up on block ${blockId} - not found in DOM`);
+              executionTracker.unmarkFunctionExecuted(
+                functionDetails.callId,
+                functionDetails.contentSignature,
+                functionDetails.functionName,
+              );
+              executionTracker.unmarkBlockExecuted(blockId);
               executionTracker.cleanupBlock(blockId);
             }
             return;
@@ -1119,7 +1142,35 @@ const AutoExecutionUtils = {
 
           const executeButton = currentBlock.querySelector<HTMLButtonElement>('.execute-button');
           if (executeButton) {
+            const mcpClient = (window as any).mcpClient;
+            const clientReady = mcpClient?.isReady?.() === true;
+            const connectionStatus = mcpClient?.getConnectionStatus?.();
+
+            if (!clientReady || connectionStatus !== 'connected') {
+              logger.debug(
+                `Auto-execute: MCP preflight failed for ${functionDetails.functionName}; status=${connectionStatus || 'unavailable'}. Recovering before execution.`,
+              );
+              executionTracker.unmarkFunctionExecuted(
+                functionDetails.callId,
+                functionDetails.contentSignature,
+                functionDetails.functionName,
+              );
+              executionTracker.unmarkBlockExecuted(blockId);
+              executionTracker.cleanupBlock(blockId);
+
+              if (clientReady && typeof mcpClient.forceReconnect === 'function') {
+                void mcpClient.forceReconnect().catch((error: unknown) => {
+                  logger.debug(
+                    `Auto-execute: Preflight reconnect failed: ${error instanceof Error ? error.message : String(error)}`,
+                  );
+                });
+              }
+              return;
+            }
+
             logger.debug(`Auto-execute: Executing function ${functionDetails.functionName}`);
+            // Once Run is clicked we deliberately keep the execution reservation.
+            // A timeout may be ambiguous, so state-changing tools are never auto-replayed.
             executeButton.click();
             executionTracker.cleanupBlock(blockId);
           } else {
@@ -1128,6 +1179,12 @@ const AutoExecutionUtils = {
               setupAutoExecution();
             } else {
               logger.debug(`Auto-execute: Giving up on block ${blockId} - button not found`);
+              executionTracker.unmarkFunctionExecuted(
+                functionDetails.callId,
+                functionDetails.contentSignature,
+                functionDetails.functionName,
+              );
+              executionTracker.unmarkBlockExecuted(blockId);
               executionTracker.cleanupBlock(blockId);
             }
           }
