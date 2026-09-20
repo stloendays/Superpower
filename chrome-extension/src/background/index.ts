@@ -60,6 +60,10 @@ let connectionType: ConnectionType = DEFAULT_CONNECTION_TYPE;
 let isConnected: boolean = false;
 let connectionCount: number = 0;
 let isInitialized: boolean = false;
+let healthCheckPromise: Promise<boolean> | null = null;
+let lastHealthCheckAt = 0;
+let lastHealthCheckResult = false;
+const HEALTH_CHECK_CACHE_MS = 5_000;
 
 /**
  * Initialize server URL from Chrome storage
@@ -137,7 +141,37 @@ function getConnectionStatus(): boolean {
  */
 function updateConnectionStatus(status: boolean): void {
   isConnected = status;
+  lastHealthCheckResult = status;
+  if (!status) {
+    lastHealthCheckAt = 0;
+  }
   logger.debug('[Background] Connection status updated to:', status);
+}
+
+async function getValidatedConnectionStatus(force = false): Promise<boolean> {
+  const now = Date.now();
+  if (!force && lastHealthCheckAt > 0 && now - lastHealthCheckAt < HEALTH_CHECK_CACHE_MS) {
+    return lastHealthCheckResult;
+  }
+  if (healthCheckPromise) return healthCheckPromise;
+
+  healthCheckPromise = checkMcpServerConnection()
+    .then(healthy => {
+      lastHealthCheckResult = healthy;
+      lastHealthCheckAt = Date.now();
+      return healthy;
+    })
+    .catch(error => {
+      logger.warn('[Background] MCP protocol health check failed:', error);
+      lastHealthCheckResult = false;
+      lastHealthCheckAt = Date.now();
+      return false;
+    })
+    .finally(() => {
+      healthCheckPromise = null;
+    });
+
+  return healthCheckPromise;
 }
 
 /**
@@ -876,7 +910,7 @@ async function handleMcpMessage(
 
         // Double-check the connection status to ensure accuracy
         const storedStatus = getConnectionStatus();
-        const actualStatus = await checkMcpServerConnection();
+        const actualStatus = await getValidatedConnectionStatus(true);
 
         logger.debug(`Stored status: ${storedStatus}, Actual status: ${actualStatus}`);
 
@@ -1074,7 +1108,14 @@ async function handleMcpMessage(
       case 'mcp:heartbeat': {
         // Handle heartbeat from content script
         const { timestamp } = payload;
-        const isConnected = isMcpServerConnected();
+        // Validate liveness at the MCP protocol level instead of trusting a retained transport object.
+        // Results are cached briefly so multiple open AI tabs do not trigger duplicate pings.
+        const isConnected = await getValidatedConnectionStatus();
+
+        if (getConnectionStatus() !== isConnected) {
+          updateConnectionStatus(isConnected);
+          broadcastConnectionStatusToContentScripts(isConnected);
+        }
 
         result = {
           timestamp: Date.now(),
