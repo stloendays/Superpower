@@ -555,6 +555,41 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         activeSite: adapter?.name || 'Unknown',
       },
     });
+  } else if (message.command === 'superpower:submit-prompt') {
+    const prompt = typeof message.prompt === 'string' ? message.prompt.trim() : '';
+
+    if (!prompt) {
+      sendResponse({ success: false, error: 'Prompt is empty.' });
+    } else if (!adapter || !adapter.insertText || !adapter.submitForm) {
+      sendResponse({ success: false, error: 'The active AI adapter is not ready yet.' });
+    } else {
+      Promise.resolve(adapter.insertText(prompt))
+        .then(inserted => {
+          if (!inserted) {
+            throw new Error('Could not insert the prompt into the AI composer.');
+          }
+          return new Promise(resolve => setTimeout(resolve, 220));
+        })
+        .then(() => adapter.submitForm!())
+        .then(submitted => {
+          if (!submitted) {
+            throw new Error('Could not submit the AI prompt.');
+          }
+
+          sendResponse({
+            success: true,
+            provider: adapter.name || 'AI workspace',
+          });
+        })
+        .catch(error => {
+          sendResponse({
+            success: false,
+            error: error instanceof Error ? error.message : String(error),
+          });
+        });
+
+      return true;
+    }
   } else if (message.command === 'toggleSidebar') {
     // Use the sidebar plugin events since adapters may not have direct sidebar methods
     eventBus.emit('sidebar:toggle-requested', {});
