@@ -24,6 +24,12 @@ This changelog tracks published Superpower releases and notable work on the acti
 
 ### Changed
 
+- Hardened MCP connection liveness with protocol-level ping checks, heartbeat-driven recovery, browser online/foreground recovery, bounded exponential reconnect backoff, and tool refresh after reconnect.
+- Fixed same-transport endpoint switching so changing the MCP URI no longer reuses an unrelated existing session.
+- Made recovery reset clear stale MCP client/transport state instead of acting as a no-op.
+- Tool discovery failures now surface as failures instead of silently appearing as a connected server with zero tools.
+- Added explicit Auto Execute, Auto Insert, and Auto Submit controls with synchronized preferences and configurable delays.
+- Auto Execute now performs an MCP connection preflight and resumes after a successful reconnect, while never automatically replaying a tool request once it may have reached the server.
 - Made **Streamable HTTP** the preferred local MCP transport for new setups.
 - Standardized the default local MCP endpoint as `http://localhost:3006/mcp` across the extension background client, MCP client defaults, and content-side connection state.
 - Updated HTTP transport auto-detection so explicit `/sse` endpoints remain SSE while other HTTP(S) MCP endpoints default to Streamable HTTP.
