@@ -11,6 +11,10 @@ This changelog tracks published Superpower releases and notable work on the acti
 - Added local **Knowledge** capture for selected text with source metadata, local persistence, copy/remove controls, and Markdown export.
 - Added a `Ctrl/⌘ + Shift + K` shortcut to surface the Copilot workspace on supported AI pages.
 - Added dynamic MCP action suggestions inside Copilot based on the currently connected tool set.
+- Added a lightweight Page Assistant on ordinary HTTP(S) pages for selection/page summarization, explanation, AI handoff, action extraction, and Knowledge capture.
+- Added cross-tab prompt routing into the most recently used supported AI workspace, with ChatGPT fallback when no supported AI tab is available.
+- Added YouTube watch-page summarization using loaded transcript segments when available, with metadata-only fallback when transcript text is unavailable.
+- Added Connected Actions for detected notes, mail, calendar, task, messaging, and file-storage MCP tools while preserving review-first execution.
 - Added a per-user Windows Setup installer for Superpower Desktop.
 - Added installer-based automatic update support for managed Desktop installations.
 - Added a Simplified Chinese README and an English/Chinese language switcher on the repository homepage.
