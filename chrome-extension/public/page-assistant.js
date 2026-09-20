@@ -10,7 +10,10 @@
     return;
   }
 
-  const normalizeText = value => String(value || '').replace(/\s+/g, ' ').trim();
+  const normalizeText = value =>
+    String(value || '')
+      .replace(/\s+/g, ' ')
+      .trim();
   const truncate = (value, limit = MAX_TEXT_CHARS) => normalizeText(value).slice(0, limit);
   const delay = ms => new Promise(resolve => setTimeout(resolve, ms));
 
@@ -24,17 +27,12 @@
 
   const getPageText = () => {
     const candidate =
-      document.querySelector('article') ||
-      document.querySelector('main, [role="main"]') ||
-      document.body;
+      document.querySelector('article') || document.querySelector('main, [role="main"]') || document.body;
     return truncate(candidate?.innerText || '');
   };
 
   const getSourceHeader = () =>
-    [
-      `Page title: ${document.title || 'Untitled page'}`,
-      `Source URL: ${window.location.href}`,
-    ].join('\n');
+    [`Page title: ${document.title || 'Untitled page'}`, `Source URL: ${window.location.href}`].join('\n');
 
   const buildPrompt = (action, context) => {
     const source = context || getPageText();
@@ -86,9 +84,8 @@
 
     return new Promise(resolve => {
       try {
-        chrome.storage.local.set(
-          { [STORAGE_KEY]: [item, ...items].slice(0, MAX_SAVED_ITEMS) },
-          () => resolve(!chrome.runtime.lastError),
+        chrome.storage.local.set({ [STORAGE_KEY]: [item, ...items].slice(0, MAX_SAVED_ITEMS) }, () =>
+          resolve(!chrome.runtime.lastError),
         );
       } catch {
         resolve(false);
@@ -126,9 +123,7 @@
 
   const collectYouTubeTranscript = () => {
     const segments = Array.from(
-      document.querySelectorAll(
-        'ytd-transcript-segment-renderer, yt-formatted-string.segment-text, .segment-text',
-      ),
+      document.querySelectorAll('ytd-transcript-segment-renderer, yt-formatted-string.segment-text, .segment-text'),
     )
       .map(node => normalizeText(node.textContent || ''))
       .filter(Boolean);
@@ -145,9 +140,7 @@
     const transcriptButton =
       document.querySelector('ytd-video-description-transcript-section-renderer button') ||
       Array.from(document.querySelectorAll('button')).find(button =>
-        /transcript/i.test(
-          `${button.getAttribute('aria-label') || ''} ${button.textContent || ''}`,
-        ),
+        /transcript/i.test(`${button.getAttribute('aria-label') || ''} ${button.textContent || ''}`),
       );
 
     if (transcriptButton instanceof HTMLElement) {
@@ -167,9 +160,7 @@
 
   const buildYouTubePrompt = async () => {
     const transcript = await tryOpenYouTubeTranscript();
-    const title = normalizeText(
-      document.querySelector('h1 yt-formatted-string, h1')?.textContent || document.title,
-    );
+    const title = normalizeText(document.querySelector('h1 yt-formatted-string, h1')?.textContent || document.title);
     const channel = normalizeText(
       document.querySelector('ytd-channel-name a, #channel-name a, #owner-name a')?.textContent || '',
     );
@@ -480,18 +471,32 @@
     } else if (action === 'page-summary') {
       setStatus('Sending page summary request…');
       const response = await routePrompt(buildPrompt('summary', getPageText()));
-      setStatus(response?.success ? `Sent to ${response.provider || 'your AI workspace'}.` : response?.error || 'Could not route the prompt.');
+      setStatus(
+        response?.success
+          ? `Sent to ${response.provider || 'your AI workspace'}.`
+          : response?.error || 'Could not route the prompt.',
+      );
     } else if (action === 'page-actions') {
       setStatus('Extracting page actions with your AI…');
       const response = await routePrompt(buildPrompt('actions', getPageText()));
-      setStatus(response?.success ? `Sent to ${response.provider || 'your AI workspace'}.` : response?.error || 'Could not route the prompt.');
+      setStatus(
+        response?.success
+          ? `Sent to ${response.provider || 'your AI workspace'}.`
+          : response?.error || 'Could not route the prompt.',
+      );
     } else if (action === 'page-save') {
-      setStatus((await saveKnowledge(getPageText())) ? 'Saved page excerpt to Knowledge.' : 'No readable page text found.');
+      setStatus(
+        (await saveKnowledge(getPageText())) ? 'Saved page excerpt to Knowledge.' : 'No readable page text found.',
+      );
     } else if (action === 'youtube-summary') {
       setStatus('Collecting video context and transcript…');
       const prompt = await buildYouTubePrompt();
       const response = await routePrompt(prompt);
-      setStatus(response?.success ? `Video sent to ${response.provider || 'your AI workspace'}.` : response?.error || 'Could not route the video summary.');
+      setStatus(
+        response?.success
+          ? `Video sent to ${response.provider || 'your AI workspace'}.`
+          : response?.error || 'Could not route the video summary.',
+      );
     }
   });
 
