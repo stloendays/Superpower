@@ -249,8 +249,15 @@ export function resetMcpConnectionState(): void {
   }
 }
 
-export function resetMcpConnectionStateForRecovery(): void {
-  logger.debug('[Backward Compatibility] resetMcpConnectionStateForRecovery - handled by plugin health monitoring');
+export async function resetMcpConnectionStateForRecovery(): Promise<void> {
+  if (!globalClient) return;
+
+  logger.debug('[Backward Compatibility] Resetting MCP client state for recovery');
+  try {
+    await globalClient.resetForRecovery();
+  } catch (error) {
+    logger.warn('[Backward Compatibility] Recovery reset failed:', error);
+  }
 }
 
 export function abortMcpConnection(): void {
