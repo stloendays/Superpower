@@ -1,65 +1,180 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="1440" height="620" viewBox="0 0 1440 620" role="img" aria-labelledby="title desc">
-  <title id="title">Superpower product surfaces</title>
-  <desc id="desc">Superpower can be used as a browser extension or as a native desktop application.</desc>
+<svg xmlns="http://www.w3.org/2000/svg" width="1440" height="680" viewBox="0 0 1440 680" role="img" aria-labelledby="title desc">
+  <title id="title">Superpower — browser AI and desktop MCP workflows</title>
+  <desc id="desc">A product preview showing Superpower inside a browser reading workflow, its AI side panel, and a native desktop MCP workflow workspace.</desc>
   <defs>
     <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
-      <stop offset="0" stop-color="#ffffff"/>
-      <stop offset="1" stop-color="#f4f6fb"/>
+      <stop offset="0" stop-color="#0b1022"/>
+      <stop offset="0.52" stop-color="#11183a"/>
+      <stop offset="1" stop-color="#312e81"/>
     </linearGradient>
-    <filter id="shadow" x="-20%" y="-20%" width="140%" height="140%">
-      <feDropShadow dx="0" dy="12" stdDeviation="18" flood-color="#0f172a" flood-opacity="0.08"/>
+    <linearGradient id="glow" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#8b5cf6" stop-opacity=".55"/>
+      <stop offset="1" stop-color="#38bdf8" stop-opacity=".15"/>
+    </linearGradient>
+    <linearGradient id="accent" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#8b5cf6"/>
+      <stop offset="1" stop-color="#4f7cff"/>
+    </linearGradient>
+    <filter id="shadow" x="-30%" y="-30%" width="160%" height="170%">
+      <feDropShadow dx="0" dy="24" stdDeviation="24" flood-color="#020617" flood-opacity=".36"/>
     </filter>
+    <filter id="soft" x="-30%" y="-30%" width="160%" height="160%">
+      <feGaussianBlur stdDeviation="42"/>
+    </filter>
+    <clipPath id="browserClip"><rect x="54" y="230" width="820" height="386" rx="22"/></clipPath>
+    <clipPath id="desktopClip"><rect x="944" y="272" width="420" height="308" rx="22"/></clipPath>
   </defs>
 
-  <rect width="1440" height="620" rx="36" fill="url(#bg)"/>
-  <rect x="1" y="1" width="1438" height="618" rx="35" fill="none" stroke="#e2e8f0" stroke-width="2"/>
-  <circle cx="1300" cy="70" r="180" fill="#eef2ff" opacity="0.9"/>
-  <circle cx="120" cy="610" r="170" fill="#f8fafc"/>
+  <rect width="1440" height="680" rx="34" fill="url(#bg)"/>
+  <circle cx="1240" cy="80" r="250" fill="#6366f1" opacity=".22" filter="url(#soft)"/>
+  <circle cx="150" cy="650" r="210" fill="#38bdf8" opacity=".10" filter="url(#soft)"/>
+  <path d="M0 560 C310 470 510 720 810 594 C1070 486 1260 434 1440 520 L1440 680 L0 680 Z" fill="url(#glow)" opacity=".26"/>
+  <g opacity=".08" stroke="#c7d2fe">
+    <path d="M80 180 H1360"/><path d="M80 340 H1360"/><path d="M80 500 H1360"/>
+    <path d="M240 120 V620"/><path d="M520 120 V620"/><path d="M800 120 V620"/><path d="M1080 120 V620"/>
+  </g>
 
   <g font-family="Inter,Segoe UI,Arial,sans-serif">
-    <text x="720" y="82" text-anchor="middle" font-size="18" font-weight="800" letter-spacing="1.8" fill="#6366f1">ONE MCP LAYER · TWO PRODUCT SURFACES</text>
-    <text x="720" y="132" text-anchor="middle" font-size="38" font-weight="850" fill="#0f172a">Use MCP in the browser or from a native desktop workspace.</text>
-    <text x="720" y="168" text-anchor="middle" font-size="18" fill="#64748b">Choose the surface that fits the workflow. Keep the same controlled tool-execution model.</text>
-
-    <g transform="translate(92,226)" filter="url(#shadow)">
-      <rect width="596" height="300" rx="28" fill="#ffffff" stroke="#dbe3ef"/>
-      <g transform="translate(34,34)">
-        <rect width="66" height="66" rx="18" fill="#111827"/>
-        <rect x="14" y="15" width="38" height="30" rx="5" fill="#ffffff"/>
-        <circle cx="21" cy="22" r="2.5" fill="#6366f1"/>
-        <circle cx="29" cy="22" r="2.5" fill="#94a3b8"/>
-        <path d="M20 32 H46 M20 39 H40" stroke="#111827" stroke-width="3" stroke-linecap="round"/>
-      </g>
-      <text x="124" y="61" font-size="26" font-weight="850" fill="#0f172a">Browser Extension</text>
-      <text x="124" y="91" font-size="16" fill="#64748b">MCP inside the AI sites you already use.</text>
-
-      <g transform="translate(36,134)" font-size="16" fill="#334155">
-        <circle cx="7" cy="4" r="4" fill="#6366f1"/><text x="24" y="10">Works inside supported AI web apps</text>
-        <circle cx="7" cy="52" r="4" fill="#6366f1"/><text x="24" y="58">Detect, review and return structured tool calls</text>
-        <circle cx="7" cy="100" r="4" fill="#6366f1"/><text x="24" y="106">SSE · Streamable HTTP · WebSocket</text>
-      </g>
-      <rect x="36" y="252" width="154" height="34" rx="17" fill="#eef2ff"/>
-      <text x="113" y="274" text-anchor="middle" font-size="13" font-weight="800" fill="#4338ca">BROWSER-NATIVE</text>
+    <g transform="translate(74 54)">
+      <path d="M32 0 L8 34 H26 L14 70 L62 24 H42 L54 0 Z" fill="url(#accent)"/>
+      <text x="78" y="47" font-size="46" font-weight="800" fill="#ffffff">Superpower</text>
+      <text x="79" y="78" font-size="17" fill="#cbd5e1">One MCP layer for browser AI and native desktop workflows.</text>
     </g>
 
-    <g transform="translate(752,226)" filter="url(#shadow)">
-      <rect width="596" height="300" rx="28" fill="#111827"/>
-      <g transform="translate(34,34)">
-        <rect width="66" height="66" rx="18" fill="#ffffff"/>
-        <rect x="13" y="13" width="40" height="31" rx="5" fill="#111827"/>
-        <path d="M22 53 H44" stroke="#ffffff" stroke-width="4" stroke-linecap="round"/>
-        <path d="M33 44 V53" stroke="#ffffff" stroke-width="4" stroke-linecap="round"/>
-      </g>
-      <text x="124" y="61" font-size="26" font-weight="850" fill="#ffffff">Desktop App</text>
-      <text x="124" y="91" font-size="16" fill="#cbd5e1">A native workspace for MCP connections and actions.</text>
+    <g transform="translate(850 60)" font-size="13" font-weight="700">
+      <g><rect width="124" height="34" rx="17" fill="#ffffff" fill-opacity=".08" stroke="#a5b4fc" stroke-opacity=".28"/><text x="62" y="22" text-anchor="middle" fill="#e0e7ff">READ</text></g>
+      <g transform="translate(136 0)"><rect width="124" height="34" rx="17" fill="#ffffff" fill-opacity=".08" stroke="#a5b4fc" stroke-opacity=".28"/><text x="62" y="22" text-anchor="middle" fill="#e0e7ff">RESEARCH</text></g>
+      <g transform="translate(272 0)"><rect width="124" height="34" rx="17" fill="#ffffff" fill-opacity=".08" stroke="#a5b4fc" stroke-opacity=".28"/><text x="62" y="22" text-anchor="middle" fill="#e0e7ff">WRITE</text></g>
+      <g transform="translate(408 0)"><rect width="86" height="34" rx="17" fill="url(#accent)"/><text x="43" y="22" text-anchor="middle" fill="#ffffff">ACT</text></g>
+    </g>
 
-      <g transform="translate(36,134)" font-size="16" fill="#e2e8f0">
-        <circle cx="7" cy="4" r="4" fill="#a5b4fc"/><text x="24" y="10">Native Qt 6 Windows application</text>
-        <circle cx="7" cy="52" r="4" fill="#a5b4fc"/><text x="24" y="58">Connections → Apps → Actions → Runs</text>
-        <circle cx="7" cy="100" r="4" fill="#a5b4fc"/><text x="24" y="106">Standalone MCP client and review workspace</text>
+    <text x="74" y="156" font-size="34" font-weight="800" fill="#ffffff">Understand the page. Use real tools. Keep the workflow in context.</text>
+    <text x="74" y="190" font-size="17" fill="#aeb8d5">A concrete preview of how Superpower connects reading, reasoning and MCP execution.</text>
+
+    <!-- Browser surface -->
+    <g filter="url(#shadow)">
+      <rect x="54" y="230" width="820" height="386" rx="22" fill="#f8fafc"/>
+      <rect x="54" y="230" width="820" height="42" rx="22" fill="#eef2f7"/>
+      <rect x="54" y="252" width="820" height="20" fill="#eef2f7"/>
+      <circle cx="78" cy="251" r="5" fill="#fb7185"/><circle cx="96" cy="251" r="5" fill="#fbbf24"/><circle cx="114" cy="251" r="5" fill="#34d399"/>
+      <rect x="160" y="240" width="420" height="22" rx="11" fill="#ffffff" stroke="#d7dde8"/>
+      <text x="178" y="255" font-size="11" fill="#94a3b8">better-minds.example / deep-work</text>
+
+      <g clip-path="url(#browserClip)">
+        <rect x="54" y="272" width="820" height="344" fill="#ffffff"/>
+        <rect x="54" y="272" width="570" height="344" fill="#ffffff"/>
+        <text x="92" y="316" font-size="12" font-weight="700" fill="#4f46e5">PRODUCTIVITY</text>
+        <text x="92" y="360" font-size="34" font-weight="800" fill="#172033">The Science of Deep Work</text>
+        <text x="92" y="388" font-size="16" fill="#64748b">How focused work leads to better ideas and calmer execution.</text>
+        <g transform="translate(92 414)">
+          <circle cx="14" cy="14" r="14" fill="#e0e7ff"/>
+          <circle cx="14" cy="10" r="5" fill="#818cf8"/>
+          <path d="M6 24 C7 17 21 17 22 24" fill="#818cf8"/>
+          <text x="40" y="12" font-size="12" font-weight="700" fill="#334155">Elena Park</text>
+          <text x="40" y="28" font-size="11" fill="#94a3b8">8 min read · Focus &amp; productivity</text>
+        </g>
+
+        <rect x="92" y="468" width="488" height="88" rx="14" fill="#f1f5f9"/>
+        <rect x="112" y="486" width="126" height="52" rx="9" fill="#dbeafe"/>
+        <path d="M124 525 L152 500 L168 514 L196 491 L226 525 Z" fill="#93c5fd"/>
+        <circle cx="214" cy="498" r="7" fill="#fbbf24"/>
+        <text x="260" y="490" font-size="12" font-weight="700" fill="#334155">Focused work compounds.</text>
+        <text x="260" y="511" font-size="11" fill="#64748b">Fewer context switches.</text>
+        <text x="260" y="529" font-size="11" fill="#64748b">Clearer decisions and stronger output.</text>
+
+        <text x="92" y="584" font-size="12" fill="#64748b">The page stays readable while Superpower adds a contextual execution layer.</text>
+
+        <!-- Superpower sidebar -->
+        <rect x="624" y="272" width="250" height="344" fill="#f8fafc" stroke="#e2e8f0"/>
+        <g transform="translate(648 294)">
+          <path d="M13 0 L2 16 H10 L5 31 L27 11 H18 L23 0 Z" fill="url(#accent)"/>
+          <text x="38" y="18" font-size="17" font-weight="800" fill="#172033">Superpower</text>
+          <text x="38" y="34" font-size="10" fill="#94a3b8">Read less. Achieve more.</text>
+        </g>
+        <g transform="translate(644 346)">
+          <text x="4" y="0" font-size="11" font-weight="700" fill="#4f46e5">Summary</text>
+          <text x="72" y="0" font-size="11" fill="#64748b">Key Points</text>
+          <text x="152" y="0" font-size="11" fill="#64748b">Ask</text>
+          <rect x="2" y="10" width="220" height="2" rx="1" fill="#e2e8f0"/>
+          <rect x="2" y="10" width="48" height="2" rx="1" fill="#4f46e5"/>
+        </g>
+        <g transform="translate(644 374)">
+          <rect width="220" height="80" rx="12" fill="#ffffff" stroke="#e2e8f0"/>
+          <text x="14" y="22" font-size="11" font-weight="800" fill="#334155">TL;DR</text>
+          <text x="14" y="42" font-size="10.5" fill="#64748b">Focused work improves quality by reducing</text>
+          <text x="14" y="58" font-size="10.5" fill="#64748b">distraction, context switching and shallow tasks.</text>
+        </g>
+        <g transform="translate(644 466)">
+          <text x="2" y="0" font-size="11" font-weight="800" fill="#334155">Quick Actions</text>
+          <rect x="0" y="16" width="104" height="34" rx="9" fill="#eef2ff"/><text x="52" y="37" text-anchor="middle" font-size="10" font-weight="700" fill="#4f46e5">Summarize</text>
+          <rect x="116" y="16" width="104" height="34" rx="9" fill="#eef2ff"/><text x="168" y="37" text-anchor="middle" font-size="10" font-weight="700" fill="#4f46e5">Create notes</text>
+          <rect x="0" y="60" width="104" height="34" rx="9" fill="#eef2ff"/><text x="52" y="81" text-anchor="middle" font-size="10" font-weight="700" fill="#4f46e5">Find actions</text>
+          <rect x="116" y="60" width="104" height="34" rx="9" fill="url(#accent)"/><text x="168" y="81" text-anchor="middle" font-size="10" font-weight="700" fill="#ffffff">Use MCP tool</text>
+        </g>
+        <rect x="644" y="574" width="220" height="28" rx="9" fill="#ffffff" stroke="#dbe3ef"/>
+        <text x="657" y="592" font-size="10" fill="#94a3b8">Ask or run something...</text>
+        <circle cx="844" cy="588" r="10" fill="#4f46e5"/><path d="M840 584 L849 588 L840 592 Z" fill="#ffffff"/>
       </g>
-      <rect x="36" y="252" width="132" height="34" rx="17" fill="#312e81"/>
-      <text x="102" y="274" text-anchor="middle" font-size="13" font-weight="800" fill="#e0e7ff">NATIVE APP</text>
+    </g>
+
+    <!-- Desktop surface -->
+    <g filter="url(#shadow)">
+      <rect x="930" y="250" width="448" height="350" rx="24" fill="#0f172a" stroke="#475569"/>
+      <rect x="930" y="250" width="448" height="42" rx="24" fill="#172033"/>
+      <rect x="930" y="270" width="448" height="22" fill="#172033"/>
+      <circle cx="954" cy="271" r="5" fill="#fb7185"/><circle cx="972" cy="271" r="5" fill="#fbbf24"/><circle cx="990" cy="271" r="5" fill="#34d399"/>
+      <text x="1018" y="276" font-size="12" font-weight="700" fill="#cbd5e1">Superpower Desktop</text>
+
+      <g clip-path="url(#desktopClip)">
+        <rect x="944" y="292" width="420" height="308" fill="#101827"/>
+        <rect x="944" y="292" width="96" height="308" fill="#0b1220"/>
+        <text x="960" y="324" font-size="10" font-weight="700" fill="#64748b">WORKSPACE</text>
+        <g font-size="11">
+          <rect x="954" y="340" width="76" height="30" rx="8" fill="#312e81"/><text x="968" y="359" fill="#eef2ff">Connections</text>
+          <text x="968" y="394" fill="#94a3b8">Apps</text>
+          <text x="968" y="426" fill="#94a3b8">Actions</text>
+          <text x="968" y="458" fill="#94a3b8">Runs</text>
+        </g>
+
+        <text x="1062" y="326" font-size="15" font-weight="800" fill="#f8fafc">Workflow</text>
+        <text x="1062" y="346" font-size="10.5" fill="#94a3b8">Review before execution</text>
+
+        <g transform="translate(1060 368)">
+          <rect width="280" height="58" rx="12" fill="#172033" stroke="#334155"/>
+          <circle cx="22" cy="29" r="12" fill="#312e81"/><text x="22" y="33" text-anchor="middle" font-size="10" font-weight="800" fill="#e0e7ff">1</text>
+          <text x="46" y="24" font-size="11" font-weight="700" fill="#e2e8f0">Search project notes</text>
+          <text x="46" y="41" font-size="9.5" fill="#94a3b8">knowledge.search · read-only</text>
+        </g>
+        <path d="M1082 426 V440" stroke="#6366f1" stroke-width="2"/>
+        <path d="M1078 437 L1082 442 L1086 437" fill="none" stroke="#6366f1" stroke-width="2"/>
+        <g transform="translate(1060 444)">
+          <rect width="280" height="58" rx="12" fill="#172033" stroke="#334155"/>
+          <circle cx="22" cy="29" r="12" fill="#312e81"/><text x="22" y="33" text-anchor="middle" font-size="10" font-weight="800" fill="#e0e7ff">2</text>
+          <text x="46" y="24" font-size="11" font-weight="700" fill="#e2e8f0">Create structured action</text>
+          <text x="46" y="41" font-size="9.5" fill="#94a3b8">schema-backed parameters</text>
+        </g>
+        <path d="M1082 502 V516" stroke="#6366f1" stroke-width="2"/>
+        <path d="M1078 513 L1082 518 L1086 513" fill="none" stroke="#6366f1" stroke-width="2"/>
+        <g transform="translate(1060 520)">
+          <rect width="280" height="58" rx="12" fill="#1e1b4b" stroke="#6366f1"/>
+          <circle cx="22" cy="29" r="12" fill="url(#accent)"/><text x="22" y="33" text-anchor="middle" font-size="10" font-weight="800" fill="#ffffff">3</text>
+          <text x="46" y="24" font-size="11" font-weight="700" fill="#ffffff">Review &amp; execute</text>
+          <text x="46" y="41" font-size="9.5" fill="#c7d2fe">one guarded MCP action at a time</text>
+        </g>
+      </g>
+    </g>
+
+    <!-- bridge -->
+    <path d="M872 432 C900 432 900 432 928 432" stroke="#818cf8" stroke-width="3" stroke-linecap="round"/>
+    <circle cx="900" cy="432" r="16" fill="#312e81" stroke="#a5b4fc"/>
+    <path d="M894 432 H906 M902 428 L906 432 L902 436" fill="none" stroke="#ffffff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+
+    <g transform="translate(70 630)">
+      <text x="0" y="0" font-size="13" font-weight="700" fill="#c7d2fe">Browser-native context</text>
+      <circle cx="154" cy="-4" r="3" fill="#6366f1"/>
+      <text x="170" y="0" font-size="13" font-weight="700" fill="#c7d2fe">Real MCP tools</text>
+      <circle cx="280" cy="-4" r="3" fill="#6366f1"/>
+      <text x="296" y="0" font-size="13" font-weight="700" fill="#c7d2fe">Review-first execution</text>
     </g>
   </g>
 </svg>
