@@ -144,6 +144,8 @@ Choose exposed tools and review guarded actions before execution.
 - **Connected Actions** for detected notes, mail, calendar, task, Slack/messaging, and file-storage MCP tools, while preserving the review-first execution path
 - Native desktop workspace for connections, apps, actions and runs
 - Local and remote MCP endpoints
+- Protocol-level MCP health checks, heartbeat-driven recovery, network/foreground recovery, and bounded exponential reconnect backoff
+- Connection-aware automation controls for **Auto Execute, Auto Insert, and Auto Submit**, with configurable delays and tool-catalog refresh after reconnect
 - Review-first natural-language Action Router
 - Dependency-aware Workflow Planner with explicit cross-step bindings
 - Session-only Workflow Runner with one-step-at-a-time guarded execution
@@ -163,6 +165,8 @@ Outside the supported AI sites, a lightweight **Page Assistant** provides a smal
 Knowledge is no longer only a local clip list. Saved items can be searched across title, text, URL and tags, filtered by source type (**Web / YouTube / AI chat / Other**), tagged, multi-selected and attached directly to the Copilot Ask box. Multiple saved sources can be synthesized with provenance preserved, copied as structured Markdown, or handed to a compatible notes/file MCP tool such as Notion or Drive through the review-first workflow. **Knowledge Projects** add a non-destructive grouping layer: a source can belong to multiple Projects without duplicating its content, and an entire Project can be attached to Ask, synthesized, exported, or handed to MCP as one research context.
 
 Connected MCP tools are also promoted into a **Connected Actions** panel. When compatible tools are detected, Superpower can surface actions such as Save note, Draft email, Plan event, Create task, Draft Slack, or Search files. These shortcuts still use the existing review-first MCP path rather than bypassing tool schemas or confirmation rules.
+
+V1.5 also hardens the underlying connection and automation loop. Superpower validates liveness with MCP protocol `ping`, uses heartbeat failures plus browser network/visibility events to trigger recovery, refreshes the tool catalog after reconnect, and uses bounded exponential backoff instead of waiting only for the periodic checker. **Auto Execute** performs a connection preflight before clicking Run; **Auto Insert** returns successful results to the AI composer; **Auto Submit** only follows a successful insert. Once a tool request may have reached the server, Superpower does **not** automatically replay it after a timeout or ambiguous failure, avoiding duplicate state-changing actions.
 
 The natural-language Action Router continues to map intent to MCP capabilities, draft schema-backed parameters, plan multi-step workflows, make cross-step data bindings explicit, and keep guarded execution reviewable. Workflow runs advance at most one MCP Action at a time; reviewed bindings and policy checks remain authoritative.
 
@@ -228,7 +232,8 @@ The browser extension currently supports ChatGPT, Google Gemini, Perplexity, Goo
 4. Open a supported AI website. In the V1.5 development line, the sidebar opens to **Copilot** by default; use a quick action or press `Ctrl/⌘ + Shift + K` to return to it.
 5. On ordinary web pages, use the small Superpower Page Assistant to summarize a selection/page, save content to **Knowledge**, or route the task into your active AI workspace. YouTube watch pages add a **Summarize video** action.
 6. Inside Copilot, create **Knowledge Projects** to group saved sources by research topic or workstream. Add selected Knowledge to a Project, then use the whole Project in Ask, synthesis, Markdown export, or MCP handoff.
-7. Use **Connected Actions** when Superpower detects compatible MCP tools; switch to **Tools** when you want the full tool interface.
+7. In **Settings → Automation**, optionally enable **Auto Execute**, **Auto Insert**, and **Auto Submit**. Auto Submit depends on a successful Auto Insert, and Auto Execute checks MCP connectivity before running.
+8. Use **Connected Actions** when Superpower detects compatible MCP tools; switch to **Tools** when you want the full tool interface.
 
 > **Connection compatibility:** new local setups default to Streamable HTTP. Explicit legacy SSE endpoints such as `http://localhost:3006/sse` and WebSocket endpoints remain supported. Existing saved connection settings are not overwritten.
 
