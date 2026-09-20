@@ -370,12 +370,12 @@ async function tryConnectToServer(uri: string, type: ConnectionType = connection
 
     // Schedule another attempt if we haven't reached the limit
     if (connectionAttemptCount < MAX_CONNECTION_ATTEMPTS) {
-      const delayMs = Math.min(5000 * connectionAttemptCount, 15000); // Exponential backoff with cap
+      const delayMs = Math.min(2000 * 2 ** Math.max(0, connectionAttemptCount - 1), 15000);
       logger.debug(`Scheduling next connection attempt in ${delayMs / 1000} seconds...`);
 
       setTimeout(() => {
-        isConnecting = false; // Reset connecting flag
-        tryConnectToServer(uri).catch(() => {}); // Try again
+        isConnecting = false;
+        tryConnectToServer(uri, type).catch(() => {});
       }, delayMs);
     } else {
       logger.debug('Maximum connection attempts reached. Will try again during periodic check.');
@@ -437,7 +437,7 @@ setInterval(async () => {
     // This is critical to fix the issue where only browser restart would work
     try {
       logger.debug('[Background] Resetting MCP client connection state for periodic recovery attempt');
-      resetMcpConnectionStateForRecovery(); // Use recovery reset instead of full reset
+      await resetMcpConnectionStateForRecovery();
     } catch (error) {
       logger.warn('[Background] Error resetting MCP connection state:', error);
     }
