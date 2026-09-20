@@ -137,6 +137,7 @@ Superpower 尽量让工具执行留在工作发生的界面附近。如果对话
 - 一键 **Summarize、Explain、Improve writing、Translate、Action items、Study notes**
 - 本地 **Knowledge** 收藏：保存选中文本、页面标题、来源 URL、时间、来源类型与标签，并支持搜索、筛选、复制、删除和 Markdown 导出
 - Knowledge 多选工作流：把已保存笔记挂到 Ask、合并多来源总结、导出选中项，或通过 review-first 链路交给兼容的 notes/file MCP 工具
+- **Knowledge Projects**：不复制正文，只保存 Knowledge 引用；同一来源可以进入多个研究 Project，进入 Project 后可只查看该组资料，并整组挂到 Ask、Synthesize、Export 或送往兼容 MCP 目标
 - 在受支持 AI 页面使用 `Ctrl/⌘ + Shift + K` 快速回到 Copilot 工作台
 - 浏览器侧工具发现、结构化调用检测与结果回填
 - **Connected Actions**：根据已连接的笔记、邮件、日历、任务、Slack/消息、文件存储 MCP 工具动态提供快捷入口，同时继续遵守 review-first 执行链
@@ -158,7 +159,7 @@ V1.5 开发线现在增加了一个 **Copilot-first 浏览器工作台**。在�
 
 在受支持 AI 网站之外，轻量 **Page Assistant** 会以小型浮层工作，不加载完整 MCP/adapter UI。选中文本或整页任务会被路由到最近使用的受支持 AI 标签页；如果没有可用 AI 工作区，Superpower 会打开 ChatGPT，并等待对应 adapter 就绪后提交。YouTube watch 页面还能从标题、频道、描述和当前页面可获得的 transcript 构建视频摘要请求。
 
-Knowledge 也不再只是本地收藏列表。保存的内容可以按标题、正文、URL 和标签搜索，并按 **Web / YouTube / AI chat / Other** 来源分类筛选；用户可以手工加标签、多选笔记、直接挂到 Copilot 的 Ask 输入中，也可以把多个来源合并总结，同时保留 provenance。选中的 Knowledge 还可以导出为结构化 Markdown，或通过 review-first 工作流交给 Notion、Drive 等兼容的 notes/file MCP 工具。
+Knowledge 也不再只是本地收藏列表。保存的内容可以按标题、正文、URL 和标签搜索，并按 **Web / YouTube / AI chat / Other** 来源分类筛选；用户可以手工加标签、多选笔记、直接挂到 Copilot 的 Ask 输入中，也可以把多个来源合并总结，同时保留 provenance。选中的 Knowledge 还可以导出为结构化 Markdown，或通过 review-first 工作流交给 Notion、Drive 等兼容的 notes/file MCP 工具。**Knowledge Projects** 再增加一层非破坏式分组：Project 只保存 Knowledge ID 引用，同一条来源可属于多个 Project，删除 Project 不会删除原始资料；整个 Project 可以直接用于 Ask、Synthesize、Export 或 MCP handoff。
 
 对于 MCP，Superpower 会把兼容工具提升为 **Connected Actions**。检测到对应工具时，可以直接显示 Save note、Draft email、Plan event、Create task、Draft Slack、Search files 等入口，但这些快捷操作仍然走原有 review-first MCP 链路，不会绕过 schema、缺失参数检查或确认规则。
 
@@ -225,7 +226,8 @@ Knowledge 也不再只是本地收藏列表。保存的内容可以按标题、�
 3. 标准本地 Proxy 推荐使用 **Streamable HTTP**，地址为 `http://localhost:3006/mcp`。
 4. 打开受支持的 AI 网站。V1.5 开发线会默认进入 **Copilot**；也可以按 `Ctrl/⌘ + Shift + K` 快速回到 Copilot。
 5. 在普通网页上，可以使用右下角的轻量 **Page Assistant** 摘要选中文本/整页、保存到 **Knowledge**，或把任务送到当前 AI 工作区；YouTube watch 页面会额外提供 **Summarize video**。
-6. 在 Copilot 中，检测到兼容 MCP 工具时可以直接使用 **Connected Actions**；需要完整工具参数界面时切换到 **Tools**。
+6. 在 Copilot 中创建 **Knowledge Projects**，按论文主题、求职、GitHub 项目等工作流组织已保存资料；可以把多条 Knowledge 批量加入 Project，再整组用于 Ask、Synthesize、Markdown 导出或 MCP handoff。
+7. 检测到兼容 MCP 工具时可以直接使用 **Connected Actions**；需要完整工具参数界面时切换到 **Tools**。
 
 > **连接兼容性：** 新的本地配置默认使用 Streamable HTTP。显式的旧版 SSE endpoint（例如 `http://localhost:3006/sse`）和 WebSocket endpoint 仍然支持；已有用户保存的连接配置不会被强制覆盖。
 
