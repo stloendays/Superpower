@@ -13,7 +13,7 @@ const logger = createLogger('Settings');
 const DEFAULT_DELAYS = {
   autoInsertDelay: 2,
   autoSubmitDelay: 2,
-  autoExecuteDelay: 2
+  autoExecuteDelay: 2,
 } as const;
 
 const Settings: React.FC = () => {
@@ -31,26 +31,31 @@ const Settings: React.FC = () => {
     }
 
     updatePreferences(nextPreferences);
-    AutomationService.getInstance().updateAutomationStateOnWindow().catch(error => {
-      logger.error('[Settings] Failed to sync automation toggle:', error);
-    });
+    AutomationService.getInstance()
+      .updateAutomationStateOnWindow()
+      .catch(error => {
+        logger.error('[Settings] Failed to sync automation toggle:', error);
+      });
   };
 
   // Handle delay input changes
   const handleDelayChange = (type: 'autoInsert' | 'autoSubmit' | 'autoExecute', value: string) => {
     const delay = Math.min(60, Math.max(0, parseInt(value) || 0));
     logger.debug(`${type} delay changed to: ${delay}`);
-    
+
     // Update user preferences store with the new delay
     updatePreferences({ [`${type}Delay`]: delay });
 
     // Store in localStorage
     try {
       const storedDelays = JSON.parse(localStorage.getItem('mcpDelaySettings') || '{}');
-      localStorage.setItem('mcpDelaySettings', JSON.stringify({
-        ...storedDelays,
-        [`${type}Delay`]: delay
-      }));
+      localStorage.setItem(
+        'mcpDelaySettings',
+        JSON.stringify({
+          ...storedDelays,
+          [`${type}Delay`]: delay,
+        }),
+      );
     } catch (error) {
       logger.error('[Settings] Error storing delay settings:', error);
     }
@@ -95,7 +100,8 @@ const Settings: React.FC = () => {
               <div>
                 <div className="text-sm font-medium text-slate-800 dark:text-slate-100">Auto Execute</div>
                 <p className="mt-1 text-xs leading-5 text-slate-500 dark:text-slate-400">
-                  Automatically run complete MCP function blocks after the connection preflight succeeds. Failed or ambiguous tool calls are never replayed automatically.
+                  Automatically run complete MCP function blocks after the connection preflight succeeds. Failed or
+                  ambiguous tool calls are never replayed automatically.
                 </p>
               </div>
               <input
@@ -144,14 +150,13 @@ const Settings: React.FC = () => {
           <Typography variant="h4" className="mb-4 text-slate-700 dark:text-slate-300">
             Automation Delay Settings
           </Typography>
-          
+
           <div className="space-y-4">
             {/* Auto Insert Delay */}
             <div>
               <label
                 htmlFor="auto-insert-delay"
-                className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1"
-              >
+                className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">
                 Auto Insert Delay (seconds)
               </label>
               <input
@@ -160,26 +165,23 @@ const Settings: React.FC = () => {
                 min="0"
                 max="60"
                 value={preferences.autoInsertDelay || 0}
-                onChange={(e) => handleDelayChange('autoInsert', e.target.value)}
+                onChange={e => handleDelayChange('autoInsert', e.target.value)}
                 disabled={false}
                 className={cn(
-                  "w-full p-2 text-sm border rounded-md",
-                  "bg-white dark:bg-slate-900",
-                  "border-slate-300 dark:border-slate-600",
-                  "text-slate-900 dark:text-slate-100"
+                  'w-full p-2 text-sm border rounded-md',
+                  'bg-white dark:bg-slate-900',
+                  'border-slate-300 dark:border-slate-600',
+                  'text-slate-900 dark:text-slate-100',
                 )}
               />
-              <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
-                Delay before auto-inserting content
-              </p>
+              <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">Delay before auto-inserting content</p>
             </div>
 
             {/* Auto Submit Delay */}
             <div>
               <label
                 htmlFor="auto-submit-delay"
-                className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1"
-              >
+                className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">
                 Auto Submit Delay (seconds)
               </label>
               <input
@@ -188,26 +190,23 @@ const Settings: React.FC = () => {
                 min="0"
                 max="60"
                 value={preferences.autoSubmitDelay || 0}
-                onChange={(e) => handleDelayChange('autoSubmit', e.target.value)}
+                onChange={e => handleDelayChange('autoSubmit', e.target.value)}
                 disabled={false}
                 className={cn(
-                  "w-full p-2 text-sm border rounded-md",
-                  "bg-white dark:bg-slate-900",
-                  "border-slate-300 dark:border-slate-600",
-                  "text-slate-900 dark:text-slate-100"
+                  'w-full p-2 text-sm border rounded-md',
+                  'bg-white dark:bg-slate-900',
+                  'border-slate-300 dark:border-slate-600',
+                  'text-slate-900 dark:text-slate-100',
                 )}
               />
-              <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
-                Delay before auto-submitting form
-              </p>
+              <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">Delay before auto-submitting form</p>
             </div>
 
             {/* Auto Execute Delay */}
             <div>
               <label
                 htmlFor="auto-execute-delay"
-                className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1"
-              >
+                className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">
                 Auto Execute Delay (seconds)
               </label>
               <input
@@ -216,18 +215,16 @@ const Settings: React.FC = () => {
                 min="0"
                 max="60"
                 value={preferences.autoExecuteDelay || 0}
-                onChange={(e) => handleDelayChange('autoExecute', e.target.value)}
+                onChange={e => handleDelayChange('autoExecute', e.target.value)}
                 disabled={false}
                 className={cn(
-                  "w-full p-2 text-sm border rounded-md",
-                  "bg-white dark:bg-slate-900",
-                  "border-slate-300 dark:border-slate-600",
-                  "text-slate-900 dark:text-slate-100"
+                  'w-full p-2 text-sm border rounded-md',
+                  'bg-white dark:bg-slate-900',
+                  'border-slate-300 dark:border-slate-600',
+                  'text-slate-900 dark:text-slate-100',
                 )}
               />
-              <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
-                Delay before auto-executing functions
-              </p>
+              <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">Delay before auto-executing functions</p>
             </div>
           </div>
         </CardContent>

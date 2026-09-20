@@ -351,9 +351,7 @@ class McpClient {
         }
         return success;
       } catch (error) {
-        logMessage(
-          `[McpClient] Automatic recovery failed: ${error instanceof Error ? error.message : String(error)}`,
-        );
+        logMessage(`[McpClient] Automatic recovery failed: ${error instanceof Error ? error.message : String(error)}`);
         return false;
       } finally {
         this.recoveryPromise = null;
