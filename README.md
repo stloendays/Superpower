@@ -136,7 +136,8 @@ Choose exposed tools and review guarded actions before execution.
 - Cross-tab AI routing: page actions go to the most recently used supported AI tab, or open ChatGPT when no supported AI workspace is available
 - YouTube watch-page summarization that uses loaded transcript segments when available and falls back to supplied video metadata when they are not
 - One-click **Summarize, Explain, Improve writing, Translate, Action items, and Study notes** workflows
-- Local **Knowledge** capture for selected text with page title, source URL, timestamps, copy/remove controls, and Markdown export
+- Local **Knowledge** capture for selected text with page title, source URL, timestamps, source classification, tags, search/filter controls, and Markdown export
+- Multi-select Knowledge workflows: attach saved notes to Ask, synthesize multiple sources, export selected items, or hand them to a compatible notes/file MCP tool
 - `Ctrl/⌘ + Shift + K` shortcut to surface the Copilot workspace from a supported AI page
 - Browser-side tool discovery, structured call detection and result injection
 - **Connected Actions** for detected notes, mail, calendar, task, Slack/messaging, and file-storage MCP tools, while preserving the review-first execution path
@@ -157,6 +158,8 @@ Choose exposed tools and review guarded actions before execution.
 The V1.5 development line now starts from a **Copilot-first browser workspace**. On supported AI sites, Superpower can use the current selection or bounded page context to prepare structured prompts for summarization, explanation, rewriting, translation, action extraction, and study notes, then submit them through the site's existing AI composer. Selected text can also be saved locally into **Knowledge** with source metadata and exported as Markdown.
 
 Outside the supported AI sites, a lightweight **Page Assistant** provides a small floating control without loading the full MCP/adapter stack. Selection and page-level tasks are routed to the most recently used supported AI tab; if none is available, Superpower opens ChatGPT and waits for the adapter before submitting. On YouTube watch pages, the assistant can build a video-summary request from the title, channel, description, and transcript segments when the transcript is available in the loaded page.
+
+Knowledge is no longer only a local clip list. Saved items can be searched across title, text, URL and tags, filtered by source type (**Web / YouTube / AI chat / Other**), tagged, multi-selected and attached directly to the Copilot Ask box. Multiple saved sources can be synthesized with provenance preserved, copied as structured Markdown, or handed to a compatible notes/file MCP tool such as Notion or Drive through the review-first workflow.
 
 Connected MCP tools are also promoted into a **Connected Actions** panel. When compatible tools are detected, Superpower can surface actions such as Save note, Draft email, Plan event, Create task, Draft Slack, or Search files. These shortcuts still use the existing review-first MCP path rather than bypassing tool schemas or confirmation rules.
 
