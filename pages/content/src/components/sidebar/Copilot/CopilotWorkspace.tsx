@@ -5,12 +5,16 @@ const STORAGE_KEY = 'superpower_copilot_saved_insights';
 const MAX_CONTEXT_CHARS = 12000;
 const MAX_SAVED_ITEMS = 100;
 
+type KnowledgeSource = 'web' | 'youtube' | 'ai-chat' | 'other';
+
 interface SavedInsight {
   id: string;
   text: string;
   title: string;
   url: string;
   createdAt: number;
+  tags?: string[];
+  sourceType?: KnowledgeSource;
 }
 
 interface CopilotTool {
@@ -91,6 +95,79 @@ const CONNECTED_ACTIONS: ConnectedActionDefinition[] = [
 
 const normalizeText = (value: string): string => value.replace(/\s+/g, ' ').trim();
 
+const getKnowledgeSource = (url: string): KnowledgeSource => {
+  try {
+    const hostname = new URL(url).hostname.toLowerCase();
+    if (hostname === 'youtube.com' || hostname.endsWith('.youtube.com') || hostname === 'youtu.be') return 'youtube';
+    if (
+      /chatgpt\.com|chat\.openai\.com|gemini\.google\.com|perplexity\.ai|grok\.com|chat\.deepseek\.com|chat\.mistral\.ai|kimi\.com|chat\.qwen\.ai|chat\.z\.ai|t3\.chat|openrouter\.ai/.test(
+        hostname,
+      )
+    ) {
+      return 'ai-chat';
+    }
+    if (hostname) return 'web';
+  } catch {
+    // Keep old or non-URL items usable.
+  }
+  return 'other';
+};
+
+const getKnowledgeSourceLabel = (source: KnowledgeSource): string => {
+  switch (source) {
+    case 'youtube':
+      return 'YouTube';
+    case 'ai-chat':
+      return 'AI chat';
+    case 'web':
+      return 'Web';
+    default:
+      return 'Other';
+  }
+};
+
+const normalizeSavedInsight = (item: SavedInsight): SavedInsight => ({
+  ...item,
+  tags: Array.isArray(item.tags) ? item.tags.filter(Boolean) : [],
+  sourceType: item.sourceType || getKnowledgeSource(item.url),
+});
+
+const formatKnowledgeContext = (items: SavedInsight[]): string =>
+  items
+    .map(
+      (item, index) =>
+        [
+          `Saved note ${index + 1}: ${item.title}`,
+          `Source: ${item.url}`,
+          item.tags?.length ? `Tags: ${item.tags.join(', ')}` : '',
+          item.text,
+        ]
+          .filter(Boolean)
+          .join('\n'),
+    )
+    .join('\n\n---\n\n')
+    .slice(0, MAX_CONTEXT_CHARS);
+
+const formatKnowledgeMarkdown = (items: SavedInsight[]): string =>
+  [
+    '# Superpower Knowledge',
+    '',
+    ...items.flatMap(item => [
+      `## ${item.title}`,
+      '',
+      item.tags?.length ? `Tags: ${item.tags.join(', ')}` : '',
+      `Type: ${getKnowledgeSourceLabel(item.sourceType || getKnowledgeSource(item.url))}`,
+      '',
+      item.text,
+      '',
+      `Source: ${item.url}`,
+      `Saved: ${formatDate(item.createdAt)}`,
+      '',
+    ]),
+  ]
+    .filter(line => line !== undefined)
+    .join('\n');
+
 const getSelectionText = (): string => {
   try {
     return normalizeText(window.getSelection()?.toString() || '');
@@ -118,7 +195,7 @@ const readSavedInsights = (): Promise<SavedInsight[]> =>
           return;
         }
         const items = result?.[STORAGE_KEY];
-        resolve(Array.isArray(items) ? items : []);
+        resolve(Array.isArray(items) ? items.map(normalizeSavedInsight) : []);
       });
     } catch {
       resolve([]);
@@ -170,6 +247,11 @@ const CopilotWorkspace: React.FC<CopilotWorkspaceProps> = ({ onRunPrompt, tools,
   const [status, setStatus] = useState('');
   const [isRunning, setIsRunning] = useState(false);
   const [includePageContext, setIncludePageContext] = useState(true);
+  const [knowledgeQuery, setKnowledgeQuery] = useState('');
+  const [knowledgeSourceFilter, setKnowledgeSourceFilter] = useState<'all' | KnowledgeSource>('all');
+  const [selectedKnowledgeIds, setSelectedKnowledgeIds] = useState<string[]>([]);
+  const [attachedKnowledgeIds, setAttachedKnowledgeIds] = useState<string[]>([]);
+  const [tagDrafts, setTagDrafts] = useState<Record<string, string>>({});
 
   useEffect(() => {
     readSavedInsights().then(setSavedItems);
@@ -209,6 +291,34 @@ const CopilotWorkspace: React.FC<CopilotWorkspaceProps> = ({ onRunPrompt, tools,
         const tool = tools.find(candidate => definition.toolPattern.test(candidate.name));
         return tool ? ({ ...definition, tool } as ConnectedAction) : null;
       }).filter((action): action is ConnectedAction => action !== null),
+    [tools],
+  );
+
+  const filteredKnowledge = useMemo(() => {
+    const query = normalizeText(knowledgeQuery).toLowerCase();
+
+    return savedItems.filter(item => {
+      const source = item.sourceType || getKnowledgeSource(item.url);
+      if (knowledgeSourceFilter !== 'all' && source !== knowledgeSourceFilter) return false;
+      if (!query) return true;
+
+      const haystack = [item.title, item.text, item.url, ...(item.tags || [])].join(' ').toLowerCase();
+      return haystack.includes(query);
+    });
+  }, [knowledgeQuery, knowledgeSourceFilter, savedItems]);
+
+  const selectedKnowledge = useMemo(
+    () => savedItems.filter(item => selectedKnowledgeIds.includes(item.id)),
+    [savedItems, selectedKnowledgeIds],
+  );
+
+  const attachedKnowledge = useMemo(
+    () => savedItems.filter(item => attachedKnowledgeIds.includes(item.id)),
+    [attachedKnowledgeIds, savedItems],
+  );
+
+  const knowledgeDestinationTool = useMemo(
+    () => tools.find(tool => /notion|note|readwise|obsidian|drive|dropbox|onedrive|document|file/i.test(tool.name)),
     [tools],
   );
 
@@ -273,9 +383,21 @@ const CopilotWorkspace: React.FC<CopilotWorkspaceProps> = ({ onRunPrompt, tools,
     }
 
     const context = activeContext();
-    const prompt = context
-      ? `${trimmed}\n\nUse the following current-page context when it is relevant. If the context does not answer the question, say so rather than inventing information.\n\nContext:\n${context}`
-      : trimmed;
+    const knowledgeContext = attachedKnowledge.length ? formatKnowledgeContext(attachedKnowledge) : '';
+
+    const promptParts = [trimmed];
+    if (context) {
+      promptParts.push(
+        `Use the following current-page context when it is relevant. If the context does not answer the question, say so rather than inventing information.\n\nPage context:\n${context}`,
+      );
+    }
+    if (knowledgeContext) {
+      promptParts.push(
+        `Use the following saved Knowledge as additional source context. Keep claims attributable to these notes and their source URLs.\n\nKnowledge:\n${knowledgeContext}`,
+      );
+    }
+
+    const prompt = promptParts.join('\n\n');
 
     setIsRunning(true);
     setStatus('');
@@ -303,6 +425,8 @@ const CopilotWorkspace: React.FC<CopilotWorkspaceProps> = ({ onRunPrompt, tools,
       title: document.title || 'Untitled page',
       url: window.location.href,
       createdAt: Date.now(),
+      tags: [],
+      sourceType: getKnowledgeSource(window.location.href),
     };
 
     const next = [item, ...savedItems].slice(0, MAX_SAVED_ITEMS);
@@ -314,7 +438,102 @@ const CopilotWorkspace: React.FC<CopilotWorkspaceProps> = ({ onRunPrompt, tools,
   const removeSavedItem = async (id: string) => {
     const next = savedItems.filter(item => item.id !== id);
     setSavedItems(next);
+    setSelectedKnowledgeIds(ids => ids.filter(selectedId => selectedId !== id));
+    setAttachedKnowledgeIds(ids => ids.filter(attachedId => attachedId !== id));
     await writeSavedInsights(next);
+  };
+
+  const toggleKnowledgeSelection = (id: string) => {
+    setSelectedKnowledgeIds(ids => (ids.includes(id) ? ids.filter(itemId => itemId !== id) : [...ids, id]));
+  };
+
+  const attachKnowledge = (items: SavedInsight[]) => {
+    const ids = items.map(item => item.id);
+    setAttachedKnowledgeIds(current => Array.from(new Set([...current, ...ids])));
+    setStatus(`${items.length} Knowledge ${items.length === 1 ? 'item' : 'items'} attached to Ask.`);
+  };
+
+  const addTag = async (item: SavedInsight) => {
+    const raw = normalizeText(tagDrafts[item.id] || '').replace(/^#/, '');
+    if (!raw) return;
+
+    const tag = raw.slice(0, 32);
+    const next = savedItems.map(saved =>
+      saved.id === item.id
+        ? {
+            ...saved,
+            tags: Array.from(new Set([...(saved.tags || []), tag])).slice(0, 8),
+          }
+        : saved,
+    );
+    setSavedItems(next);
+    setTagDrafts(drafts => ({ ...drafts, [item.id]: '' }));
+    await writeSavedInsights(next);
+  };
+
+  const removeTag = async (item: SavedInsight, tag: string) => {
+    const next = savedItems.map(saved =>
+      saved.id === item.id ? { ...saved, tags: (saved.tags || []).filter(existing => existing !== tag) } : saved,
+    );
+    setSavedItems(next);
+    await writeSavedInsights(next);
+  };
+
+  const synthesizeKnowledge = async (items: SavedInsight[]) => {
+    if (items.length === 0) {
+      setStatus('Select at least one Knowledge item first.');
+      return;
+    }
+
+    setIsRunning(true);
+    setStatus('');
+    try {
+      await onRunPrompt(
+        [
+          'Synthesize the saved Knowledge below into one coherent research note.',
+          'Separate: Shared themes, Important differences, Evidence and provenance, Open questions, and Recommended follow-ups.',
+          'Do not merge conflicting claims into one claim. Preserve source URLs for provenance.',
+          '',
+          formatKnowledgeContext(items),
+        ].join('\n'),
+      );
+      setStatus('Knowledge synthesis sent to the current AI conversation.');
+    } catch (error) {
+      setStatus(error instanceof Error ? error.message : 'Could not synthesize Knowledge.');
+    } finally {
+      setIsRunning(false);
+    }
+  };
+
+  const sendKnowledgeToConnectedTool = async (items: SavedInsight[]) => {
+    if (items.length === 0) {
+      setStatus('Select at least one Knowledge item first.');
+      return;
+    }
+    if (!knowledgeDestinationTool) {
+      setStatus('Connect a notes or file-storage MCP tool first.');
+      return;
+    }
+
+    setIsRunning(true);
+    setStatus('');
+    try {
+      await onRunPrompt(
+        [
+          `Use the connected MCP capability associated with tool "${knowledgeDestinationTool.name}".`,
+          'Prepare these selected Knowledge items for saving into the connected notes or file workspace.',
+          'Preserve each title, source URL, tags, and note text. If the destination page/folder/database or a required schema field is missing, ask for it before performing the state-changing save.',
+          'Keep the workflow review-first and show the proposed destination/structure before execution when appropriate.',
+          '',
+          formatKnowledgeContext(items),
+        ].join('\n'),
+      );
+      setStatus(`Knowledge handoff sent for ${knowledgeDestinationTool.name}.`);
+    } catch (error) {
+      setStatus(error instanceof Error ? error.message : 'Could not send Knowledge to the connected tool.');
+    } finally {
+      setIsRunning(false);
+    }
   };
 
   const copySavedItem = async (item: SavedInsight) => {
@@ -326,29 +545,15 @@ const CopilotWorkspace: React.FC<CopilotWorkspaceProps> = ({ onRunPrompt, tools,
     }
   };
 
-  const exportMarkdown = async () => {
-    if (savedItems.length === 0) {
+  const exportMarkdown = async (items: SavedInsight[] = savedItems) => {
+    if (items.length === 0) {
       setStatus('There are no saved insights to export yet.');
       return;
     }
 
-    const markdown = [
-      '# Superpower Knowledge',
-      '',
-      ...savedItems.flatMap(item => [
-        `## ${item.title}`,
-        '',
-        item.text,
-        '',
-        `Source: ${item.url}`,
-        `Saved: ${formatDate(item.createdAt)}`,
-        '',
-      ]),
-    ].join('\n');
-
     try {
-      await navigator.clipboard.writeText(markdown);
-      setStatus('Knowledge exported as Markdown to the clipboard.');
+      await navigator.clipboard.writeText(formatKnowledgeMarkdown(items));
+      setStatus(`${items.length} Knowledge ${items.length === 1 ? 'item' : 'items'} exported as Markdown.`);
     } catch {
       setStatus('Could not copy the Markdown export.');
     }
@@ -398,6 +603,20 @@ const CopilotWorkspace: React.FC<CopilotWorkspaceProps> = ({ onRunPrompt, tools,
           placeholder="Ask about this page, the current conversation, or your selection..."
           className="w-full min-h-[84px] resize-y rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 px-3 py-2 text-sm text-slate-800 dark:text-slate-100 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-400/40"
         />
+
+        {attachedKnowledge.length > 0 && (
+          <div className="mt-2 flex items-center justify-between gap-2 rounded-lg border border-indigo-100 dark:border-indigo-800 bg-indigo-50/70 dark:bg-indigo-950/30 px-2.5 py-2">
+            <span className="text-[10px] font-medium text-indigo-600 dark:text-indigo-300">
+              {attachedKnowledge.length} Knowledge {attachedKnowledge.length === 1 ? 'item' : 'items'} attached
+            </span>
+            <button
+              type="button"
+              onClick={() => setAttachedKnowledgeIds([])}
+              className="text-[10px] text-slate-400 hover:text-indigo-600">
+              Clear
+            </button>
+          </div>
+        )}
 
         <div className="mt-2 flex items-center justify-between gap-2">
           <label className="flex items-center gap-2 text-xs text-slate-500 dark:text-slate-400 cursor-pointer">
@@ -455,13 +674,13 @@ const CopilotWorkspace: React.FC<CopilotWorkspaceProps> = ({ onRunPrompt, tools,
       </div>
 
       <div className="rounded-xl border border-slate-200 dark:border-slate-700 overflow-hidden">
-        <div className="p-3 bg-slate-50 dark:bg-slate-800/70 flex items-center justify-between gap-2">
+        <div className="p-3 bg-slate-50 dark:bg-slate-800/70 flex items-start justify-between gap-2">
           <div>
             <Typography variant="subtitle" className="font-semibold text-slate-800 dark:text-slate-100">
               Knowledge
             </Typography>
             <p className="text-[11px] text-slate-500 dark:text-slate-400">
-              Save selected text with its source, then reuse or export it.
+              Search, tag, combine and reuse saved sources.
             </p>
           </div>
           <Button size="sm" variant="outline" onClick={saveSelection}>
@@ -474,43 +693,190 @@ const CopilotWorkspace: React.FC<CopilotWorkspaceProps> = ({ onRunPrompt, tools,
             Select useful text on the page and save it here.
           </div>
         ) : (
-          <div className="max-h-64 overflow-y-auto divide-y divide-slate-100 dark:divide-slate-700">
-            {savedItems.slice(0, 12).map(item => (
-              <div key={item.id} className="p-3">
-                <div className="flex items-start justify-between gap-2">
-                  <div className="min-w-0">
-                    <p className="text-xs font-semibold text-slate-700 dark:text-slate-200 truncate">{item.title}</p>
-                    <p className="mt-1 text-xs leading-5 text-slate-500 dark:text-slate-400 line-clamp-3">
-                      {item.text}
-                    </p>
-                    <p className="mt-1 text-[10px] text-slate-400">{formatDate(item.createdAt)}</p>
-                  </div>
-                  <div className="flex flex-col gap-1 shrink-0">
+          <>
+            <div className="p-3 border-b border-slate-100 dark:border-slate-700 space-y-2">
+              <input
+                value={knowledgeQuery}
+                onChange={event => setKnowledgeQuery(event.target.value)}
+                placeholder="Search titles, text, URLs or tags..."
+                className="w-full rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 px-2.5 py-2 text-xs text-slate-700 dark:text-slate-200 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-400/30"
+              />
+
+              <div className="flex flex-wrap gap-1.5">
+                {(['all', 'web', 'youtube', 'ai-chat', 'other'] as const).map(source => (
+                  <button
+                    key={source}
+                    type="button"
+                    onClick={() => setKnowledgeSourceFilter(source)}
+                    className={`rounded-full border px-2 py-1 text-[10px] transition-colors ${
+                      knowledgeSourceFilter === source
+                        ? 'border-indigo-300 bg-indigo-50 text-indigo-600 dark:border-indigo-700 dark:bg-indigo-950/30 dark:text-indigo-300'
+                        : 'border-slate-200 text-slate-500 dark:border-slate-700 dark:text-slate-400'
+                    }`}>
+                    {source === 'all' ? 'All' : getKnowledgeSourceLabel(source)}
+                  </button>
+                ))}
+              </div>
+
+              {selectedKnowledge.length > 0 && (
+                <div className="rounded-lg border border-indigo-100 dark:border-indigo-800 bg-indigo-50/50 dark:bg-indigo-950/20 p-2">
+                  <div className="flex items-center justify-between gap-2 mb-2">
+                    <span className="text-[10px] font-semibold text-indigo-600 dark:text-indigo-300">
+                      {selectedKnowledge.length} selected
+                    </span>
                     <button
                       type="button"
-                      onClick={() => copySavedItem(item)}
-                      className="text-[10px] px-2 py-1 rounded-md border border-slate-200 dark:border-slate-700 text-slate-500 hover:text-indigo-600">
-                      Copy
+                      onClick={() => setSelectedKnowledgeIds([])}
+                      className="text-[10px] text-slate-400 hover:text-indigo-600">
+                      Clear
+                    </button>
+                  </div>
+                  <div className="grid grid-cols-2 gap-1.5">
+                    <button
+                      type="button"
+                      onClick={() => attachKnowledge(selectedKnowledge)}
+                      className="rounded-md border border-indigo-200 dark:border-indigo-700 px-2 py-1.5 text-[10px] font-medium text-indigo-600 dark:text-indigo-300">
+                      Use in Ask
                     </button>
                     <button
                       type="button"
-                      onClick={() => removeSavedItem(item.id)}
-                      className="text-[10px] px-2 py-1 rounded-md border border-slate-200 dark:border-slate-700 text-slate-400 hover:text-red-500">
-                      Remove
+                      onClick={() => synthesizeKnowledge(selectedKnowledge)}
+                      disabled={isRunning}
+                      className="rounded-md border border-indigo-200 dark:border-indigo-700 px-2 py-1.5 text-[10px] font-medium text-indigo-600 dark:text-indigo-300 disabled:opacity-50">
+                      Synthesize
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => exportMarkdown(selectedKnowledge)}
+                      className="rounded-md border border-slate-200 dark:border-slate-700 px-2 py-1.5 text-[10px] text-slate-600 dark:text-slate-300">
+                      Copy Markdown
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => sendKnowledgeToConnectedTool(selectedKnowledge)}
+                      disabled={isRunning || !knowledgeDestinationTool}
+                      title={knowledgeDestinationTool ? `Uses ${knowledgeDestinationTool.name}` : 'Connect Notion, notes, Drive or another storage MCP tool'}
+                      className="rounded-md border border-slate-200 dark:border-slate-700 px-2 py-1.5 text-[10px] text-slate-600 dark:text-slate-300 disabled:opacity-40">
+                      Send to MCP
                     </button>
                   </div>
                 </div>
-              </div>
-            ))}
-          </div>
-        )}
+              )}
+            </div>
 
-        {savedItems.length > 0 && (
-          <div className="p-2 border-t border-slate-100 dark:border-slate-700 flex justify-end">
-            <Button size="sm" variant="ghost" onClick={exportMarkdown}>
-              Copy Markdown export
-            </Button>
-          </div>
+            <div className="max-h-96 overflow-y-auto divide-y divide-slate-100 dark:divide-slate-700">
+              {filteredKnowledge.length === 0 ? (
+                <div className="p-4 text-center text-xs text-slate-500 dark:text-slate-400">
+                  No Knowledge matches this search or source filter.
+                </div>
+              ) : (
+                filteredKnowledge.map(item => {
+                  const source = item.sourceType || getKnowledgeSource(item.url);
+                  const isSelected = selectedKnowledgeIds.includes(item.id);
+
+                  return (
+                    <div key={item.id} className={`p-3 ${isSelected ? 'bg-indigo-50/40 dark:bg-indigo-950/20' : ''}`}>
+                      <div className="flex items-start gap-2">
+                        <input
+                          type="checkbox"
+                          checked={isSelected}
+                          onChange={() => toggleKnowledgeSelection(item.id)}
+                          className="mt-0.5 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
+                          aria-label={`Select ${item.title}`}
+                        />
+
+                        <div className="min-w-0 flex-1">
+                          <div className="flex items-center gap-1.5 min-w-0">
+                            <span className="rounded-full bg-slate-100 dark:bg-slate-800 px-1.5 py-0.5 text-[9px] font-medium text-slate-500 dark:text-slate-400 shrink-0">
+                              {getKnowledgeSourceLabel(source)}
+                            </span>
+                            <p className="text-xs font-semibold text-slate-700 dark:text-slate-200 truncate">
+                              {item.title}
+                            </p>
+                          </div>
+
+                          <p className="mt-1 text-xs leading-5 text-slate-500 dark:text-slate-400 line-clamp-3">
+                            {item.text}
+                          </p>
+
+                          {(item.tags || []).length > 0 && (
+                            <div className="mt-1.5 flex flex-wrap gap-1">
+                              {(item.tags || []).map(tag => (
+                                <button
+                                  key={tag}
+                                  type="button"
+                                  onClick={() => removeTag(item, tag)}
+                                  title="Remove tag"
+                                  className="rounded-full bg-indigo-50 dark:bg-indigo-950/30 px-1.5 py-0.5 text-[9px] text-indigo-600 dark:text-indigo-300">
+                                  #{tag} ×
+                                </button>
+                              ))}
+                            </div>
+                          )}
+
+                          <div className="mt-2 flex items-center gap-1.5">
+                            <input
+                              value={tagDrafts[item.id] || ''}
+                              onChange={event =>
+                                setTagDrafts(drafts => ({ ...drafts, [item.id]: event.target.value }))
+                              }
+                              onKeyDown={event => {
+                                if (event.key === 'Enter') {
+                                  event.preventDefault();
+                                  addTag(item);
+                                }
+                              }}
+                              placeholder="Add tag"
+                              className="min-w-0 flex-1 rounded-md border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 px-2 py-1 text-[10px] text-slate-600 dark:text-slate-300 focus:outline-none focus:ring-1 focus:ring-indigo-400/40"
+                            />
+                            <button
+                              type="button"
+                              onClick={() => addTag(item)}
+                              className="rounded-md border border-slate-200 dark:border-slate-700 px-2 py-1 text-[10px] text-slate-500 hover:text-indigo-600">
+                              Tag
+                            </button>
+                          </div>
+
+                          <div className="mt-2 flex items-center justify-between gap-2">
+                            <p className="text-[9px] text-slate-400 truncate">{formatDate(item.createdAt)}</p>
+                            <div className="flex gap-1">
+                              <button
+                                type="button"
+                                onClick={() => attachKnowledge([item])}
+                                className="text-[10px] px-2 py-1 rounded-md border border-slate-200 dark:border-slate-700 text-indigo-500 hover:text-indigo-700">
+                                Use in Ask
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => copySavedItem(item)}
+                                className="text-[10px] px-2 py-1 rounded-md border border-slate-200 dark:border-slate-700 text-slate-500 hover:text-indigo-600">
+                                Copy
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => removeSavedItem(item.id)}
+                                className="text-[10px] px-2 py-1 rounded-md border border-slate-200 dark:border-slate-700 text-slate-400 hover:text-red-500">
+                                Remove
+                              </button>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })
+              )}
+            </div>
+
+            <div className="p-2 border-t border-slate-100 dark:border-slate-700 flex items-center justify-between gap-2">
+              <span className="text-[10px] text-slate-400">
+                {filteredKnowledge.length} of {savedItems.length} items
+              </span>
+              <Button size="sm" variant="ghost" onClick={() => exportMarkdown(filteredKnowledge)}>
+                Copy visible Markdown
+              </Button>
+            </div>
+          </>
         )}
       </div>
 
