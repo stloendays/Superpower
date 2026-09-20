@@ -345,7 +345,10 @@ const CopilotWorkspace: React.FC<CopilotWorkspaceProps> = ({ onRunPrompt, tools,
   );
 
   const activeCollection = useMemo(
-    () => (activeCollectionId === 'all' ? null : collections.find(collection => collection.id === activeCollectionId) || null),
+    () =>
+      activeCollectionId === 'all'
+        ? null
+        : collections.find(collection => collection.id === activeCollectionId) || null,
     [activeCollectionId, collections],
   );
 
@@ -883,7 +886,9 @@ const CopilotWorkspace: React.FC<CopilotWorkspaceProps> = ({ onRunPrompt, tools,
               </p>
               <p className="text-[10px] text-slate-400">Group research sources without duplicating them.</p>
             </div>
-            <span className="text-[10px] text-slate-400">{collections.length}/{MAX_COLLECTIONS}</span>
+            <span className="text-[10px] text-slate-400">
+              {collections.length}/{MAX_COLLECTIONS}
+            </span>
           </div>
 
           <div className="flex gap-1.5">
