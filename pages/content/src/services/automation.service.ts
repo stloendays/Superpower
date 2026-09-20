@@ -96,6 +96,7 @@ export class AutomationService {
   private static instance: AutomationService | null = null;
   private isInitialized = false;
   private eventListener: ((event: Event) => void) | null = null;
+  private eventUnsubscribers: Array<() => void> = [];
 
   // Private constructor for singleton pattern
   private constructor() {}
@@ -128,8 +129,9 @@ export class AutomationService {
     // Set up event listener for tool execution completion
     this.setupToolExecutionListener();
 
-    // Listen for MCP state changes to update automation availability
+    // Listen for MCP state and preference changes so the render script always sees current automation settings.
     this.setupMCPStateListener();
+    this.setupPreferenceListener();
 
     // Expose initial automation state to window for render_prescript access
     await this.exposeAutomationStateToWindow();
@@ -154,6 +156,15 @@ export class AutomationService {
       document.removeEventListener('mcp:tool-execution-complete', this.eventListener);
       this.eventListener = null;
     }
+
+    this.eventUnsubscribers.forEach(unsubscribe => {
+      try {
+        unsubscribe();
+      } catch (error) {
+        logger.warn('[AutomationService] Failed to remove event subscription:', error);
+      }
+    });
+    this.eventUnsubscribers = [];
 
     this.isInitialized = false;
     logger.debug('[AutomationService] Automation service cleaned up');
@@ -182,11 +193,20 @@ export class AutomationService {
    * Set up listener for MCP state changes
    */
   private setupMCPStateListener(): void {
-    // Listen for MCP connection state changes via the event bus
-    eventBus.on('connection:status-changed', ({ status }) => {
+    const unsubscribe = eventBus.on('connection:status-changed', ({ status }) => {
       logger.debug('[AutomationService] MCP connection status changed:', status);
-      // Could add logic here to disable automation when MCP is disconnected
+      // Keep automation preferences intact while disconnected. The execution layer
+      // performs a connection preflight before auto-running a tool.
+      void this.exposeAutomationStateToWindow();
     });
+    this.eventUnsubscribers.push(unsubscribe);
+  }
+
+  private setupPreferenceListener(): void {
+    const unsubscribe = eventBus.on('ui:preferences-updated', () => {
+      void this.exposeAutomationStateToWindow();
+    });
+    this.eventUnsubscribers.push(unsubscribe);
   }
 
   /**
@@ -270,8 +290,9 @@ export class AutomationService {
   }
 
   /**
-   * Handle Auto Execute functionality
-   * Currently just logs the execution, but extensible for future features
+   * Record completion for an auto-executed tool. The actual pre-execution trigger
+   * lives in the rendered function block so it can verify the current DOM and MCP
+   * connection before clicking Run.
    */
   private async handleAutoExecute(detail: ToolExecutionCompleteDetail): Promise<void> {
     const preferences = await storeRefs.getUserPreferences?.();
