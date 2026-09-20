@@ -43,7 +43,7 @@
 
 <br/>
 
-> **Release status:** v1.4.1 is the current public stable release. V1.5 is the active development line and adds a browser Copilot workspace, local Knowledge capture, review-first routing and workflow execution capabilities.
+> **Release status:** v1.4.1 is the current public stable release. V1.5 is the active development line and adds a browser Copilot workspace, any-page capture, YouTube summarization, local Knowledge capture, connected MCP actions, and review-first workflow execution.
 
 ## What problem does Superpower solve?
 
@@ -132,11 +132,14 @@ Choose exposed tools and review guarded actions before execution.
 
 - Shared MCP execution model across browser and desktop surfaces
 - Browser **Copilot** workspace for page/selection-aware prompts inside supported AI sites
+- Lightweight **Page Assistant** on ordinary HTTP(S) pages for selection-level Summarize, Explain, Ask AI, Save, page summarization, and action extraction
+- Cross-tab AI routing: page actions go to the most recently used supported AI tab, or open ChatGPT when no supported AI workspace is available
+- YouTube watch-page summarization that uses loaded transcript segments when available and falls back to supplied video metadata when they are not
 - One-click **Summarize, Explain, Improve writing, Translate, Action items, and Study notes** workflows
 - Local **Knowledge** capture for selected text with page title, source URL, timestamps, copy/remove controls, and Markdown export
 - `Ctrl/⌘ + Shift + K` shortcut to surface the Copilot workspace from a supported AI page
 - Browser-side tool discovery, structured call detection and result injection
-- Dynamic MCP action suggestions that surface connected notes, mail, calendar, search, task, and productivity tools when available
+- **Connected Actions** for detected notes, mail, calendar, task, Slack/messaging, and file-storage MCP tools, while preserving the review-first execution path
 - Native desktop workspace for connections, apps, actions and runs
 - Local and remote MCP endpoints
 - Review-first natural-language Action Router
@@ -149,11 +152,15 @@ Choose exposed tools and review guarded actions before execution.
   <br /><sub>Illustrative capability overview. Superpower keeps reasoning in the AI surface while MCP provides the execution layer.</sub>
 </p>
 
-### V1.5: Copilot, Knowledge, routing and workflows
+### V1.5: Copilot, any-page capture, Knowledge and connected actions
 
 The V1.5 development line now starts from a **Copilot-first browser workspace**. On supported AI sites, Superpower can use the current selection or bounded page context to prepare structured prompts for summarization, explanation, rewriting, translation, action extraction, and study notes, then submit them through the site's existing AI composer. Selected text can also be saved locally into **Knowledge** with source metadata and exported as Markdown.
 
-The existing MCP execution path remains separate and explicit: connected tools are surfaced alongside the Copilot workflow, while the natural-language Action Router maps intent to MCP capabilities, drafts schema-backed parameters, plans multi-step workflows, makes cross-step data bindings explicit, and keeps guarded execution reviewable. Workflow runs advance at most one MCP Action at a time; reviewed bindings and policy checks remain authoritative.
+Outside the supported AI sites, a lightweight **Page Assistant** provides a small floating control without loading the full MCP/adapter stack. Selection and page-level tasks are routed to the most recently used supported AI tab; if none is available, Superpower opens ChatGPT and waits for the adapter before submitting. On YouTube watch pages, the assistant can build a video-summary request from the title, channel, description, and transcript segments when the transcript is available in the loaded page.
+
+Connected MCP tools are also promoted into a **Connected Actions** panel. When compatible tools are detected, Superpower can surface actions such as Save note, Draft email, Plan event, Create task, Draft Slack, or Search files. These shortcuts still use the existing review-first MCP path rather than bypassing tool schemas or confirmation rules.
+
+The natural-language Action Router continues to map intent to MCP capabilities, draft schema-backed parameters, plan multi-step workflows, make cross-step data bindings explicit, and keep guarded execution reviewable. Workflow runs advance at most one MCP Action at a time; reviewed bindings and policy checks remain authoritative.
 
 <p align="center">
   <img src="docs/readme/action-router.svg" alt="Superpower natural-language Action Router" width="100%" />
@@ -215,7 +222,8 @@ The browser extension currently supports ChatGPT, Google Gemini, Perplexity, Goo
 2. Open the extension in Chrome and configure your MCP connection.
 3. For the standard local proxy, use **Streamable HTTP** with `http://localhost:3006/mcp`.
 4. Open a supported AI website. In the V1.5 development line, the sidebar opens to **Copilot** by default; use a quick action or press `Ctrl/⌘ + Shift + K` to return to it.
-5. Select useful text to summarize/rewrite or save it into local **Knowledge**; switch to **Tools** when you want to execute connected MCP actions.
+5. On ordinary web pages, use the small Superpower Page Assistant to summarize a selection/page, save content to **Knowledge**, or route the task into your active AI workspace. YouTube watch pages add a **Summarize video** action.
+6. Inside Copilot, use **Connected Actions** when Superpower detects compatible MCP tools; switch to **Tools** when you want the full tool interface.
 
 > **Connection compatibility:** new local setups default to Streamable HTTP. Explicit legacy SSE endpoints such as `http://localhost:3006/sse` and WebSocket endpoints remain supported. Existing saved connection settings are not overwritten.
 
