@@ -606,6 +606,156 @@ initializeExtension()
 logger.debug('Background script loaded');
 logger.debug("Edit 'chrome-extension/src/background/index.ts' and save to reload.");
 
+const SUPPORTED_AI_HOSTS = [
+  'perplexity.ai',
+  'chat.openai.com',
+  'chatgpt.com',
+  'grok.com',
+  'gemini.google.com',
+  'aistudio.google.com',
+  'openrouter.ai',
+  'chat.deepseek.com',
+  'kagi.com',
+  't3.chat',
+  'chat.mistral.ai',
+  'github.com',
+  'copilot.github.com',
+  'kimi.com',
+  'chat.z.ai',
+  'chat.qwen.ai',
+] as const;
+
+const getAiProviderName = (url?: string): string => {
+  if (!url) return 'AI workspace';
+
+  try {
+    const hostname = new URL(url).hostname.toLowerCase();
+    if (hostname.includes('chatgpt.com') || hostname.includes('chat.openai.com')) return 'ChatGPT';
+    if (hostname.includes('gemini.google.com')) return 'Gemini';
+    if (hostname.includes('perplexity.ai')) return 'Perplexity';
+    if (hostname.includes('grok.com')) return 'Grok';
+    if (hostname.includes('deepseek.com')) return 'DeepSeek';
+    if (hostname.includes('copilot.github.com') || hostname === 'github.com' || hostname.endsWith('.github.com')) {
+      return 'GitHub Copilot';
+    }
+    if (hostname.includes('kimi.com')) return 'Kimi';
+    if (hostname.includes('qwen.ai')) return 'Qwen';
+    if (hostname.includes('mistral.ai')) return 'Mistral';
+    if (hostname.includes('openrouter.ai')) return 'OpenRouter';
+    if (hostname.includes('z.ai')) return 'Z.ai';
+    if (hostname.includes('t3.chat')) return 'T3 Chat';
+    if (hostname.includes('aistudio.google.com')) return 'Google AI Studio';
+    if (hostname.includes('kagi.com')) return 'Kagi';
+  } catch {
+    // Ignore malformed tab URLs.
+  }
+
+  return 'AI workspace';
+};
+
+const isSupportedAiUrl = (url?: string): boolean => {
+  if (!url) return false;
+
+  try {
+    const hostname = new URL(url).hostname.toLowerCase();
+    return SUPPORTED_AI_HOSTS.some(host => hostname === host || hostname.endsWith(`.${host}`));
+  } catch {
+    return false;
+  }
+};
+
+const focusTab = async (tab: chrome.tabs.Tab): Promise<void> => {
+  try {
+    if (typeof tab.id === 'number') {
+      await chrome.tabs.update(tab.id, { active: true });
+    }
+    if (typeof tab.windowId === 'number') {
+      await chrome.windows.update(tab.windowId, { focused: true });
+    }
+  } catch (error) {
+    logger.debug('[Background] Could not focus routed AI tab:', error);
+  }
+};
+
+const submitPromptToAiTab = async (
+  tab: chrome.tabs.Tab,
+  prompt: string,
+  attempts = 18,
+): Promise<{ success: boolean; provider: string; error?: string }> => {
+  if (typeof tab.id !== 'number') {
+    return { success: false, provider: getAiProviderName(tab.url), error: 'AI tab is unavailable.' };
+  }
+
+  let lastError = 'AI page is still loading.';
+
+  for (let attempt = 0; attempt < attempts; attempt += 1) {
+    try {
+      const response = await chrome.tabs.sendMessage(tab.id, {
+        command: 'superpower:submit-prompt',
+        prompt,
+        routedFromPageAssistant: true,
+      });
+
+      if (response?.success) {
+        await focusTab(tab);
+        return {
+          success: true,
+          provider: response.provider || getAiProviderName(tab.url),
+        };
+      }
+
+      if (response?.error) {
+        lastError = response.error;
+      }
+    } catch (error) {
+      lastError = error instanceof Error ? error.message : String(error);
+    }
+
+    await new Promise(resolve => setTimeout(resolve, 500));
+  }
+
+  return {
+    success: false,
+    provider: getAiProviderName(tab.url),
+    error: lastError || 'Could not submit the prompt to the AI tab.',
+  };
+};
+
+const routePromptToAiWorkspace = async (
+  prompt: string,
+): Promise<{ success: boolean; provider?: string; error?: string }> => {
+  const trimmedPrompt = typeof prompt === 'string' ? prompt.trim() : '';
+  if (!trimmedPrompt) {
+    return { success: false, error: 'Prompt is empty.' };
+  }
+
+  const tabs = await chrome.tabs.query({});
+  const candidates = tabs
+    .filter(tab => isSupportedAiUrl(tab.url))
+    .sort((a, b) => (b.lastAccessed || 0) - (a.lastAccessed || 0));
+
+  for (const tab of candidates) {
+    const result = await submitPromptToAiTab(tab, trimmedPrompt, 4);
+    if (result.success) {
+      return result;
+    }
+  }
+
+  try {
+    const tab = await chrome.tabs.create({
+      url: 'https://chatgpt.com/',
+      active: true,
+    });
+
+    return await submitPromptToAiTab(tab, trimmedPrompt, 24);
+  } catch (error) {
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : String(error),
+    };
+  }
+};
+
 // --- Enhanced Message Handling ---
 
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
@@ -631,6 +781,19 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 
     // No response needed
     return false;
+  }
+
+  if (message.command === 'superpower:route-prompt') {
+    routePromptToAiWorkspace(message.prompt)
+      .then(result => sendResponse(result))
+      .catch(error => {
+        logger.error('[Background] Failed to route page-assistant prompt:', error);
+        sendResponse({
+          success: false,
+          error: error instanceof Error ? error.message : String(error),
+        });
+      });
+    return true;
   }
 
   /* ------------------------------------------------------------------ */
