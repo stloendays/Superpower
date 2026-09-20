@@ -1147,20 +1147,45 @@ const AutoExecutionUtils = {
               logger.debug(
                 `Auto-execute: MCP preflight failed for ${functionDetails.functionName}; status=${connectionStatus || 'unavailable'}. Recovering before execution.`,
               );
-              executionTracker.unmarkFunctionExecuted(
-                functionDetails.callId,
-                functionDetails.contentSignature,
-                functionDetails.functionName,
-              );
-              executionTracker.unmarkBlockExecuted(blockId);
               executionTracker.cleanupBlock(blockId);
 
+              const releaseReservation = () => {
+                executionTracker.unmarkFunctionExecuted(
+                  functionDetails.callId,
+                  functionDetails.contentSignature,
+                  functionDetails.functionName,
+                );
+                executionTracker.unmarkBlockExecuted(blockId);
+              };
+
               if (clientReady && typeof mcpClient.forceReconnect === 'function') {
-                void mcpClient.forceReconnect().catch((error: unknown) => {
-                  logger.debug(
-                    `Auto-execute: Preflight reconnect failed: ${error instanceof Error ? error.message : String(error)}`,
-                  );
-                });
+                void mcpClient
+                  .forceReconnect()
+                  .then((connected: boolean) => {
+                    if (!connected) {
+                      releaseReservation();
+                      return;
+                    }
+
+                    const latestAutomationState = getAutomationState();
+                    if (latestAutomationState.autoExecute !== true) {
+                      releaseReservation();
+                      return;
+                    }
+
+                    logger.debug(
+                      `Auto-execute: MCP reconnected; re-running preflight for ${functionDetails.functionName}`,
+                    );
+                    setupAutoExecution();
+                  })
+                  .catch((error: unknown) => {
+                    releaseReservation();
+                    logger.debug(
+                      `Auto-execute: Preflight reconnect failed: ${error instanceof Error ? error.message : String(error)}`,
+                    );
+                  });
+              } else {
+                releaseReservation();
               }
               return;
             }
