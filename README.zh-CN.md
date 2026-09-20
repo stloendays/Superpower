@@ -135,7 +135,8 @@ Superpower 尽量让工具执行留在工作发生的界面附近。如果对话
 - 跨标签 AI 路由：网页任务优先发送到最近使用的受支持 AI 标签页；没有可用 AI 工作区时自动打开 ChatGPT
 - YouTube watch 页面增加视频摘要入口：优先使用当前页面可获得的 transcript，无法获得时只基于提供的视频元数据并明确说明
 - 一键 **Summarize、Explain、Improve writing、Translate、Action items、Study notes**
-- 本地 **Knowledge** 收藏：保存选中文本、页面标题、来源 URL 与时间，并支持复制、删除和 Markdown 导出
+- 本地 **Knowledge** 收藏：保存选中文本、页面标题、来源 URL、时间、来源类型与标签，并支持搜索、筛选、复制、删除和 Markdown 导出
+- Knowledge 多选工作流：把已保存笔记挂到 Ask、合并多来源总结、导出选中项，或通过 review-first 链路交给兼容的 notes/file MCP 工具
 - 在受支持 AI 页面使用 `Ctrl/⌘ + Shift + K` 快速回到 Copilot 工作台
 - 浏览器侧工具发现、结构化调用检测与结果回填
 - **Connected Actions**：根据已连接的笔记、邮件、日历、任务、Slack/消息、文件存储 MCP 工具动态提供快捷入口，同时继续遵守 review-first 执行链
@@ -156,6 +157,8 @@ Superpower 尽量让工具执行留在工作发生的界面附近。如果对话
 V1.5 开发线现在增加了一个 **Copilot-first 浏览器工作台**。在受支持的 AI 网站中，Superpower 可以读取当前选中文本或有长度边界的页面上下文，为摘要、解释、改写、翻译、行动项提取和学习笔记生成结构化提示，并通过当前网站原有的 AI 输入框提交。选中文本还可以直接保存到本地 **Knowledge**，保留来源信息并导出为 Markdown。
 
 在受支持 AI 网站之外，轻量 **Page Assistant** 会以小型浮层工作，不加载完整 MCP/adapter UI。选中文本或整页任务会被路由到最近使用的受支持 AI 标签页；如果没有可用 AI 工作区，Superpower 会打开 ChatGPT，并等待对应 adapter 就绪后提交。YouTube watch 页面还能从标题、频道、描述和当前页面可获得的 transcript 构建视频摘要请求。
+
+Knowledge 也不再只是本地收藏列表。保存的内容可以按标题、正文、URL 和标签搜索，并按 **Web / YouTube / AI chat / Other** 来源分类筛选；用户可以手工加标签、多选笔记、直接挂到 Copilot 的 Ask 输入中，也可以把多个来源合并总结，同时保留 provenance。选中的 Knowledge 还可以导出为结构化 Markdown，或通过 review-first 工作流交给 Notion、Drive 等兼容的 notes/file MCP 工具。
 
 对于 MCP，Superpower 会把兼容工具提升为 **Connected Actions**。检测到对应工具时，可以直接显示 Save note、Draft email、Plan event、Create task、Draft Slack、Search files 等入口，但这些快捷操作仍然走原有 review-first MCP 链路，不会绕过 schema、缺失参数检查或确认规则。
 
