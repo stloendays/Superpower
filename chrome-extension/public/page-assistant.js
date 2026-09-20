@@ -75,7 +75,7 @@
       }
     });
 
-  const saveKnowledge = async text => {
+  const saveKnowledge = async (text, metadata = {}) => {
     const cleaned = truncate(text, 12000);
     if (!cleaned) {
       return false;
@@ -85,11 +85,11 @@
     const item = {
       id: `insight_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
       text: cleaned,
-      title: document.title || 'Untitled page',
-      url: window.location.href,
+      title: metadata.title || document.title || 'Untitled page',
+      url: metadata.url || window.location.href,
       createdAt: Date.now(),
-      tags: [],
-      sourceType: getKnowledgeSource(),
+      tags: Array.isArray(metadata.tags) ? metadata.tags : [],
+      sourceType: metadata.sourceType || getKnowledgeSource(),
     };
 
     return new Promise(resolve => {
@@ -168,7 +168,7 @@
     return '';
   };
 
-  const buildYouTubePrompt = async () => {
+  const getYouTubeContext = async () => {
     const transcript = await tryOpenYouTubeTranscript();
     const title = normalizeText(document.querySelector('h1 yt-formatted-string, h1')?.textContent || document.title);
     const channel = normalizeText(
@@ -178,6 +178,12 @@
       document.querySelector('#description-inline-expander, #description')?.textContent || '',
       5000,
     );
+
+    return { transcript, title, channel, description };
+  };
+
+  const buildYouTubePrompt = async () => {
+    const { transcript, title, channel, description } = await getYouTubeContext();
 
     const transcriptBlock = transcript
       ? `Transcript:\n${transcript}`
@@ -197,6 +203,22 @@
     ]
       .filter(Boolean)
       .join('\n');
+  };
+
+  const buildYouTubeKnowledge = async () => {
+    const { transcript, title, channel, description } = await getYouTubeContext();
+
+    return {
+      title: title || document.title || 'YouTube video',
+      text: [
+        `Video title: ${title || document.title}`,
+        channel ? `Channel: ${channel}` : '',
+        description ? `Description: ${description}` : '',
+        transcript ? `Transcript:\n${transcript}` : 'Transcript was not available from the loaded page.',
+      ]
+        .filter(Boolean)
+        .join('\n\n'),
+    };
   };
 
   const host = document.createElement('div');
@@ -393,7 +415,8 @@
         <div id="youtubeBlock" style="display:none">
           <div class="sp-section-label">YouTube</div>
           <div class="sp-grid">
-            <button class="sp-button sp-button-primary sp-button-wide" data-action="youtube-summary">Summarize video</button>
+            <button class="sp-button sp-button-primary" data-action="youtube-summary">Summarize video</button>
+            <button class="sp-button" data-action="youtube-save">Save to Knowledge</button>
           </div>
         </div>
 
@@ -507,6 +530,15 @@
           ? `Video sent to ${response.provider || 'your AI workspace'}.`
           : response?.error || 'Could not route the video summary.',
       );
+    } else if (action === 'youtube-save') {
+      setStatus('Collecting video context for Knowledge…');
+      const video = await buildYouTubeKnowledge();
+      const saved = await saveKnowledge(video.text, {
+        title: video.title,
+        tags: ['youtube'],
+        sourceType: 'youtube',
+      });
+      setStatus(saved ? 'Saved video context to Knowledge.' : 'Could not save the video context.');
     }
   });
 
