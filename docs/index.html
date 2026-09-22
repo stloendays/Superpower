@@ -3,26 +3,209 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <meta name="description" content="Superpower project, legal, privacy, security, and support information." />
-  <title>Superpower — Project, Legal & Support</title>
+
+  <title>Superpower — MCP Browser Extension & Desktop Workflows for AI</title>
+  <meta name="description" content="Superpower brings MCP tools into browser AI and native desktop workflows, with review-first execution, browser automation, Knowledge capture, and human-in-the-loop control." />
+  <meta name="keywords" content="Superpower, MCP, Model Context Protocol, AI agent, browser extension, Chrome extension, browser automation, agentic workflow, AI tools" />
+  <meta name="author" content="Superpower contributors" />
+  <meta name="robots" content="index,follow,max-image-preview:large,max-snippet:-1,max-video-preview:-1" />
+
+  <link rel="canonical" href="https://stloendays.github.io/Superpower/" />
+  <link rel="icon" href="../chrome-extension/public/icon-128.png" />
+
+  <meta property="og:type" content="website" />
+  <meta property="og:title" content="Superpower — MCP Browser Extension & Desktop Workflows for AI" />
+  <meta property="og:description" content="One MCP layer for browser AI and native desktop workflows." />
+  <meta property="og:url" content="https://stloendays.github.io/Superpower/" />
+  <meta property="og:site_name" content="Superpower" />
+  <meta property="og:image" content="https://stloendays.github.io/Superpower/readme/product-tour.png" />
+
+  <meta name="twitter:card" content="summary_large_image" />
+  <meta name="twitter:title" content="Superpower — MCP for Browser AI & Desktop Workflows" />
+  <meta name="twitter:description" content="Use the AI chat you already have as the reasoning surface, and MCP as the execution layer." />
+  <meta name="twitter:image" content="https://stloendays.github.io/Superpower/readme/product-tour.png" />
+
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "SoftwareSourceCode",
+    "name": "Superpower",
+    "description": "Open-source MCP execution layer for browser AI and native desktop workflows.",
+    "url": "https://stloendays.github.io/Superpower/",
+    "codeRepository": "https://github.com/stloendays/Superpower",
+    "license": "https://github.com/stloendays/Superpower/blob/main/LICENSE",
+    "sameAs": [
+      "https://github.com/stloendays/Superpower",
+      "https://chromewebstore.google.com/detail/eioecjdcckpdakngpgikbinalieickob"
+    ]
+  }
+  </script>
+
   <style>
-    :root{color-scheme:light;--bg:#f7f8fb;--card:#fff;--text:#172033;--muted:#667085;--line:#e5e7eb;--accent:#4f46e5}
-    *{box-sizing:border-box}body{margin:0;font-family:Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;background:var(--bg);color:var(--text);line-height:1.65}
-    main{max-width:860px;margin:0 auto;padding:64px 24px}.brand{font-weight:750;font-size:30px;letter-spacing:-.03em}.subtitle{color:var(--muted);margin-top:8px}.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:16px;margin-top:36px}.card{display:block;padding:22px;border:1px solid var(--line);border-radius:16px;background:var(--card);text-decoration:none;color:inherit;box-shadow:0 1px 2px rgba(16,24,40,.04)}.card:hover{border-color:#c7c9ff}.card h2{font-size:18px;margin:0 0 8px}.card p{margin:0;color:var(--muted);font-size:14px}.footer{margin-top:40px;color:var(--muted);font-size:13px}a{color:var(--accent)}
+    :root{
+      color-scheme:light;
+      --bg:#f6f7fb;
+      --card:#ffffff;
+      --text:#101828;
+      --muted:#667085;
+      --line:#e4e7ec;
+      --soft:#eef2ff;
+      --accent:#4f46e5;
+      --accent-dark:#3730a3;
+      --shadow:0 18px 50px rgba(16,24,40,.08);
+    }
+    *{box-sizing:border-box}
+    html{scroll-behavior:smooth}
+    body{
+      margin:0;
+      font-family:Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+      background:
+        radial-gradient(circle at 15% -10%, rgba(79,70,229,.12), transparent 30%),
+        radial-gradient(circle at 85% 5%, rgba(56,189,248,.10), transparent 26%),
+        var(--bg);
+      color:var(--text);
+      line-height:1.65;
+    }
+    a{color:inherit}
+    .wrap{max-width:1120px;margin:0 auto;padding:0 24px}
+    nav{
+      min-height:72px;
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:20px;
+    }
+    .brand{display:flex;align-items:center;gap:12px;text-decoration:none;font-weight:800;letter-spacing:-.02em}
+    .brand-mark{width:34px;height:34px;border-radius:10px;background:linear-gradient(135deg,var(--accent),#7c3aed);display:grid;place-items:center;color:#fff;font-weight:900}
+    .nav-links{display:flex;gap:18px;align-items:center;flex-wrap:wrap}
+    .nav-links a{text-decoration:none;color:var(--muted);font-size:14px}
+    .nav-links a:hover{color:var(--text)}
+    .hero{padding:82px 0 54px;text-align:center}
+    .eyebrow{display:inline-flex;padding:7px 12px;border:1px solid #c7d2fe;background:var(--soft);color:var(--accent-dark);border-radius:999px;font-size:13px;font-weight:700}
+    h1{font-size:clamp(42px,8vw,74px);line-height:1.02;letter-spacing:-.055em;margin:22px auto 18px;max-width:950px}
+    .lead{max-width:760px;margin:0 auto;color:var(--muted);font-size:clamp(18px,2.3vw,22px)}
+    .actions{display:flex;justify-content:center;gap:12px;flex-wrap:wrap;margin-top:30px}
+    .btn{display:inline-flex;align-items:center;justify-content:center;text-decoration:none;padding:12px 18px;border-radius:11px;font-weight:700;border:1px solid var(--line);background:#fff}
+    .btn.primary{background:var(--text);color:#fff;border-color:var(--text)}
+    .btn:hover{transform:translateY(-1px)}
+    .hero-shot{margin:52px auto 0;max-width:1020px;background:var(--card);border:1px solid var(--line);border-radius:24px;padding:14px;box-shadow:var(--shadow)}
+    .hero-shot img{display:block;width:100%;height:auto;border-radius:15px}
+    section{padding:58px 0}
+    .section-head{max-width:720px;margin-bottom:28px}
+    .section-head h2{font-size:34px;letter-spacing:-.035em;line-height:1.12;margin:0 0 10px}
+    .section-head p{margin:0;color:var(--muted)}
+    .grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px}
+    .card{background:var(--card);border:1px solid var(--line);border-radius:18px;padding:24px;box-shadow:0 1px 2px rgba(16,24,40,.03)}
+    .card h3{font-size:18px;margin:0 0 8px}
+    .card p{margin:0;color:var(--muted);font-size:15px}
+    .two{display:grid;grid-template-columns:1fr 1fr;gap:18px}
+    .product{padding:28px}
+    .product ul{padding-left:20px;color:var(--muted)}
+    .product strong{color:var(--text)}
+    .links{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:12px}
+    .links a{display:block;text-decoration:none;background:#fff;border:1px solid var(--line);border-radius:14px;padding:17px;text-align:center;font-weight:700}
+    footer{padding:42px 0 56px;color:var(--muted);font-size:14px}
+    footer .foot{border-top:1px solid var(--line);padding-top:26px;display:flex;justify-content:space-between;gap:20px;flex-wrap:wrap}
+    @media (max-width:800px){
+      .grid,.two{grid-template-columns:1fr}
+      .links{grid-template-columns:repeat(2,minmax(0,1fr))}
+      .nav-links{display:none}
+      .hero{padding-top:56px}
+    }
   </style>
 </head>
 <body>
-<main>
-  <div class="brand">Superpower</div>
-  <div class="subtitle">Project, legal, privacy, security, and support information for the Superpower browser extension.</div>
-  <div class="grid">
-    <a class="card" href="about.html"><h2>About Superpower</h2><p>Project mission, Oxford × NUS collaboration, MCP workflow, and open-source foundation.</p></a>
-    <a class="card" href="privacy.html"><h2>Privacy Policy</h2><p>How Superpower processes extension settings, MCP data, and operational telemetry.</p></a>
-    <a class="card" href="security.html"><h2>Security Policy</h2><p>Security model, deployment guidance, and responsible vulnerability reporting.</p></a>
-    <a class="card" href="terms.html"><h2>Terms of Use</h2><p>Conditions for using the Superpower browser extension and MCP integrations.</p></a>
-    <a class="card" href="support.html"><h2>Support</h2><p>Help, issue reporting, privacy questions, and project links.</p></a>
-  </div>
-  <div class="footer">Superpower — Model Context Protocol tools inside supported AI web applications.</div>
-</main>
+  <header class="wrap">
+    <nav aria-label="Primary navigation">
+      <a class="brand" href="./"><span class="brand-mark">S</span><span>Superpower</span></a>
+      <div class="nav-links">
+        <a href="#features">Features</a>
+        <a href="#products">Products</a>
+        <a href="about.html">About</a>
+        <a href="support.html">Support</a>
+        <a href="https://github.com/stloendays/Superpower">GitHub</a>
+      </div>
+    </nav>
+  </header>
+
+  <main>
+    <section class="hero wrap">
+      <span class="eyebrow">Open source · MCP · Browser + Desktop</span>
+      <h1>One MCP layer for browser AI and native desktop workflows.</h1>
+      <p class="lead">Use the AI chat you already have as the reasoning surface, and MCP as the execution layer. Superpower connects browser conversations to real tools while keeping execution reviewable.</p>
+      <div class="actions">
+        <a class="btn primary" href="https://chromewebstore.google.com/detail/eioecjdcckpdakngpgikbinalieickob">Install from Chrome Web Store</a>
+        <a class="btn" href="https://github.com/stloendays/Superpower">View on GitHub</a>
+      </div>
+      <div class="hero-shot">
+        <img src="readme/product-tour.png" alt="Superpower browser AI and MCP workflow product tour" />
+      </div>
+    </section>
+
+    <section id="features" class="wrap">
+      <div class="section-head">
+        <h2>AI reasoning where you work. Tool execution where it belongs.</h2>
+        <p>Superpower adds an MCP execution layer around browser and desktop workflows instead of forcing you into a separate agent interface.</p>
+      </div>
+      <div class="grid">
+        <article class="card"><h3>Browser-native MCP</h3><p>Connect supported AI websites to local or remote MCP servers and return tool results to the active conversation.</p></article>
+        <article class="card"><h3>Review-first execution</h3><p>Keep guarded actions inspectable before they run, with explicit tool visibility and automation controls.</p></article>
+        <article class="card"><h3>Knowledge capture</h3><p>Save selected text with source metadata, organize research context, and hand structured material to compatible MCP destinations.</p></article>
+        <article class="card"><h3>Connected actions</h3><p>Surface compatible notes, mail, calendar, task, messaging, and file-storage actions through the same controlled MCP path.</p></article>
+        <article class="card"><h3>Workflow planning</h3><p>Map natural-language intent to schema-backed actions and multi-step workflows with explicit cross-step bindings.</p></article>
+        <article class="card"><h3>Open architecture</h3><p>MIT-licensed source code, extensible integrations, browser support, and a native desktop MCP workspace.</p></article>
+      </div>
+    </section>
+
+    <section id="products" class="wrap">
+      <div class="section-head">
+        <h2>Two surfaces, one execution model.</h2>
+        <p>Choose the browser extension when the conversation is your workspace, or the desktop app when you want a dedicated MCP control surface.</p>
+      </div>
+      <div class="two">
+        <article class="card product">
+          <h3>Browser Extension</h3>
+          <ul>
+            <li>Works inside supported AI web applications</li>
+            <li>Discovers MCP tools and detects structured calls</li>
+            <li>Supports review, insertion, submission, and automation controls</li>
+            <li>Includes page-aware Copilot and Knowledge workflows</li>
+          </ul>
+          <p><strong>Best for:</strong> browser-native AI workflows.</p>
+        </article>
+        <article class="card product">
+          <h3>Desktop App</h3>
+          <ul>
+            <li>Native Qt 6 Windows workspace</li>
+            <li>Connections → Apps → Actions → Runs organization</li>
+            <li>Standalone MCP client and workflow review surface</li>
+            <li>Portable packages distributed through GitHub Releases</li>
+          </ul>
+          <p><strong>Best for:</strong> managing MCP connections and actions from one desktop workspace.</p>
+        </article>
+      </div>
+    </section>
+
+    <section class="wrap" aria-labelledby="project-info">
+      <div class="section-head">
+        <h2 id="project-info">Project information</h2>
+        <p>Documentation, policies, source code, and support resources for Superpower.</p>
+      </div>
+      <div class="links">
+        <a href="about.html">About</a>
+        <a href="privacy.html">Privacy</a>
+        <a href="security.html">Security</a>
+        <a href="terms.html">Terms</a>
+        <a href="support.html">Support</a>
+      </div>
+    </section>
+  </main>
+
+  <footer class="wrap">
+    <div class="foot">
+      <span>Superpower — practical MCP workflows across browser and desktop surfaces.</span>
+      <span><a href="https://github.com/stloendays/Superpower">GitHub</a> · <a href="https://chromewebstore.google.com/detail/eioecjdcckpdakngpgikbinalieickob">Chrome Web Store</a></span>
+    </div>
+  </footer>
 </body>
 </html>
