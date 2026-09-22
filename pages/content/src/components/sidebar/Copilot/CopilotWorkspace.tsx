@@ -204,7 +204,7 @@ const readSavedInsights = (): Promise<SavedInsight[]> =>
           return;
         }
         const items = result?.[STORAGE_KEY];
-        resolve(Array.isArray(items) ? items.map(normalizeSavedInsight) : []);
+        resolve(Array.isArray(items) ? items.map(normalizeSavedInsight).slice(0, MAX_SAVED_ITEMS) : []);
       });
     } catch {
       resolve([]);
@@ -303,8 +303,48 @@ const CopilotWorkspace: React.FC<CopilotWorkspaceProps> = ({ onRunPrompt, tools,
   const [collectionTargetId, setCollectionTargetId] = useState('');
 
   useEffect(() => {
-    readSavedInsights().then(setSavedItems);
-    readCollections().then(setCollections);
+    let disposed = false;
+
+    const syncKnowledgeStorage = async () => {
+      const [items, storedCollections] = await Promise.all([readSavedInsights(), readCollections()]);
+      if (disposed) return;
+
+      const savedItemIds = new Set(items.map(item => item.id));
+      let collectionsChanged = false;
+      const nextCollections = storedCollections.map(collection => {
+        const itemIds = collection.itemIds.filter(itemId => savedItemIds.has(itemId));
+        if (itemIds.length === collection.itemIds.length) return collection;
+
+        collectionsChanged = true;
+        return {
+          ...collection,
+          itemIds,
+          updatedAt: Date.now(),
+        };
+      });
+
+      setSavedItems(items);
+      setCollections(nextCollections);
+      setSelectedKnowledgeIds(ids => ids.filter(id => savedItemIds.has(id)));
+      setAttachedKnowledgeIds(ids => ids.filter(id => savedItemIds.has(id)));
+
+      if (collectionsChanged) {
+        await writeCollections(nextCollections);
+      }
+    };
+
+    void syncKnowledgeStorage();
+
+    const handleStorageChange = (
+      changes: Record<string, chrome.storage.StorageChange>,
+      areaName: string,
+    ) => {
+      if (areaName !== 'local') return;
+      if (!changes[STORAGE_KEY] && !changes[COLLECTIONS_STORAGE_KEY]) return;
+      void syncKnowledgeStorage();
+    };
+
+    chrome.storage.onChanged.addListener(handleStorageChange);
 
     let timer: number | undefined;
     const refreshSelection = () => {
@@ -320,6 +360,8 @@ const CopilotWorkspace: React.FC<CopilotWorkspaceProps> = ({ onRunPrompt, tools,
     refreshSelection();
 
     return () => {
+      disposed = true;
+      chrome.storage.onChanged.removeListener(handleStorageChange);
       document.removeEventListener('selectionchange', refreshSelection);
       if (timer) {
         window.clearTimeout(timer);

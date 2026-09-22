@@ -37,6 +37,7 @@ This changelog tracks published Superpower releases and notable work on the acti
 
 ### Fixed
 
+- Synced Knowledge and Projects across open extension surfaces in real time, and pruned stale Project references when saved Knowledge is removed or evicted by the local cap.
 - Shared generated MCP instructions across content bundles so the MCP popover can immediately reuse instructions already generated in the sidebar.
 - Preserved Instruction Manager styling while fixing cross-bundle instruction state synchronization.
 - Aligned the Streamable HTTP migration path with the current connection defaults.
