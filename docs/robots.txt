@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://stloendays.github.io/Superpower/sitemap.xml
